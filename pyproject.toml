@@ -1,0 +1,19 @@
+[project]
+name = "repl-nix-workspace"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.11"
+dependencies = [
+    "django-socket-server>=0.0.4",
+    "email-validator>=2.2.0",
+    "flask>=3.1.0",
+    "flask-cors>=5.0.1",
+    "flask-socketio>=5.5.1",
+    "flask-sqlalchemy>=3.1.1",
+    "gunicorn>=23.0.0",
+    "psycopg2-binary>=2.9.10",
+    "pydantic>=2.11.0",
+    "python-jose[cryptography]>=3.4.0",
+    "routes>=2.5.1",
+    "supabase>=2.15.0",
+]
