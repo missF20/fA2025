@@ -1,5 +1,6 @@
 import os
 import logging
+import asyncio
 from flask import Flask, jsonify
 from flask_cors import CORS
 from flask_socketio import SocketIO
@@ -34,13 +35,34 @@ def status():
         "status": "operational",
         "api_version": "1.0",
         "environment": os.environ.get("FLASK_ENV", "development"),
+        "automation_system": "active",
         "endpoints": [
             {"path": "/", "method": "GET", "description": "API welcome message"},
-            {"path": "/api/status", "method": "GET", "description": "API status information"}
+            {"path": "/api/status", "method": "GET", "description": "API status information"},
+            {"path": "/webhooks/facebook", "method": "GET/POST", "description": "Facebook webhook endpoint"},
+            {"path": "/webhooks/instagram", "method": "GET/POST", "description": "Instagram webhook endpoint"},
+            {"path": "/webhooks/whatsapp", "method": "POST", "description": "WhatsApp webhook endpoint"}
         ]
     }), 200
 
-logger.info("Dana AI Backend API initialized (simplified version)")
+# Register blueprints
+from routes.webhooks import webhooks
+app.register_blueprint(webhooks, url_prefix='/webhooks')
 
-# Note: Blueprint registrations and Supabase dependencies have been temporarily disabled
-# They will be enabled once Supabase credentials are properly configured
+# Initialize automation system
+def init_automation():
+    """Initialize the automation system"""
+    try:
+        import automation
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(automation.initialize())
+        loop.close()
+        logger.info("Automation system initialized successfully")
+    except Exception as e:
+        logger.error(f"Error initializing automation system: {str(e)}", exc_info=True)
+
+# Initialize on app startup
+init_automation()
+
+logger.info("Dana AI Backend API initialized with automation system")
