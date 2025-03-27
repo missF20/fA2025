@@ -1,5 +1,7 @@
 import logging
+from datetime import datetime
 from flask_socketio import emit, join_room, leave_room, disconnect
+from flask import request
 from app import socketio
 from utils.auth import verify_token
 
@@ -155,3 +157,121 @@ def broadcast_system_notification(message, user_ids=None):
         socketio.emit('notification', notification, broadcast=True)
     
     logger.info(f"System notification sent: {message}")
+
+def notify_integration_status_update(integration_status, user_id):
+    """
+    Notify clients about an integration status update for the real-time dashboard.
+    
+    Args:
+        integration_status: The updated integration status object.
+        user_id: The user ID to notify.
+    """
+    socketio.emit('integration_status_update', {
+        'integration_status': integration_status
+    }, room=user_id)
+    
+    logger.info(f"Integration status update sent for {integration_status.get('integration_type', 'unknown')} to user {user_id}")
+
+@socketio.on('join_integration_dashboard')
+def handle_join_integration_dashboard():
+    """
+    Handle client joining the integration dashboard room for real-time updates.
+    """
+    # Get current user ID from token
+    token = request.args.get('token')
+    
+    if not token:
+        emit('error', {'message': 'Authorization token is required'})
+        return
+    
+    # Verify token
+    from utils.auth import verify_token
+    payload = verify_token(token)
+    
+    if not payload:
+        emit('error', {'message': 'Invalid token'})
+        return
+    
+    user_id = payload.get('sub')
+    if not user_id:
+        emit('error', {'message': 'User ID not found in token'})
+        return
+    
+    # Join personal integration dashboard room
+    dashboard_room = f"integration_dashboard_{user_id}"
+    join_room(dashboard_room)
+    emit('joined_integration_dashboard', {'success': True})
+    logger.debug(f"Client joined integration dashboard room for user: {user_id}")
+    
+@socketio.on('test_integration_connection')
+def handle_test_integration_connection(data):
+    """
+    Handle client request to test an integration connection.
+    
+    Client should provide:
+    {
+        'integration_type': 'the-integration-type',
+        'config': {integration-specific-config}
+    }
+    """
+    if 'integration_type' not in data:
+        emit('error', {'message': 'integration_type is required'})
+        return
+    
+    if 'config' not in data:
+        emit('error', {'message': 'config is required'})
+        return
+    
+    integration_type = data['integration_type']
+    config = data['config']
+    
+    # Get current user from token
+    token = request.args.get('token')
+    
+    if not token:
+        emit('error', {'message': 'Authorization token is required'})
+        return
+    
+    # Verify token
+    from utils.auth import verify_token
+    payload = verify_token(token)
+    
+    if not payload:
+        emit('error', {'message': 'Invalid token'})
+        return
+    
+    user_id = payload.get('sub')
+    if not user_id:
+        emit('error', {'message': 'User ID not found in token'})
+        return
+    
+    # Asynchronously test integration and emit result when done
+    emit('integration_test_started', {
+        'integration_type': integration_type,
+        'message': f'Testing {integration_type} integration...'
+    })
+    
+    # Import test function from integrations module
+    # Since we can't await in this socket handler, we'll start a background task
+    from routes.integrations import test_integration
+    import asyncio
+    
+    def background_test_task():
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        test_result = loop.run_until_complete(test_integration(user_id, integration_type))
+        
+        # Emit test results
+        socketio.emit('integration_test_result', {
+            'integration_type': integration_type,
+            'result': test_result
+        }, room=request.sid)
+        
+        loop.close()
+    
+    # Start background task
+    from threading import Thread
+    thread = Thread(target=background_test_task)
+    thread.daemon = True
+    thread.start()
