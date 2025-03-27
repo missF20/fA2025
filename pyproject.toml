@@ -5,6 +5,9 @@ description = "Add your description here"
 requires-python = ">=3.11"
 dependencies = [
     "aiohttp>=3.11.14",
+    "aiomysql>=0.2.0",
+    "aioodbc>=0.5.0",
+    "asyncpg>=0.30.0",
     "django-socket-server>=0.0.4",
     "email-validator>=2.2.0",
     "flask>=3.1.0",
@@ -12,10 +15,14 @@ dependencies = [
     "flask-socketio>=5.5.1",
     "flask-sqlalchemy>=3.1.1",
     "gunicorn>=23.0.0",
+    "motor>=3.7.0",
     "openai>=1.69.0",
     "psycopg2-binary>=2.9.10",
     "pydantic>=2.11.0",
+    "pymongo>=4.11.3",
+    "pyodbc>=5.2.0",
     "python-jose[cryptography]>=3.4.0",
     "routes>=2.5.1",
+    "slack-sdk>=3.35.0",
     "supabase>=2.15.0",
 ]

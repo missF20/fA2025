@@ -44,9 +44,24 @@ class SubscriptionStatus(str, Enum):
     PENDING = "pending"
 
 class IntegrationType(str, Enum):
+    # Social media platforms
     FACEBOOK = "facebook"
     INSTAGRAM = "instagram"
     WHATSAPP = "whatsapp"
+    
+    # Business tools
+    EMAIL = "email"
+    HUBSPOT = "hubspot"
+    SALESFORCE = "salesforce"
+    SLACK = "slack"
+    GOOGLE_ANALYTICS = "google_analytics"
+    ZENDESK = "zendesk"
+    
+    # Database connectors
+    DATABASE_MYSQL = "mysql"
+    DATABASE_POSTGRESQL = "postgresql"
+    DATABASE_MONGODB = "mongodb"
+    DATABASE_SQLSERVER = "sqlserver"
     
 class IntegrationStatus(str, Enum):
     ACTIVE = "active"

@@ -41,13 +41,25 @@ def status():
             {"path": "/api/status", "method": "GET", "description": "API status information"},
             {"path": "/webhooks/facebook", "method": "GET/POST", "description": "Facebook webhook endpoint"},
             {"path": "/webhooks/instagram", "method": "GET/POST", "description": "Instagram webhook endpoint"},
-            {"path": "/webhooks/whatsapp", "method": "POST", "description": "WhatsApp webhook endpoint"}
+            {"path": "/webhooks/whatsapp", "method": "POST", "description": "WhatsApp webhook endpoint"},
+            {"path": "/api/integrations", "method": "GET", "description": "Get all integration types"},
+            {"path": "/api/integrations/schema/<integration_type>", "method": "GET", "description": "Get configuration schema for an integration type"},
+            {"path": "/api/integrations/user/<user_id>", "method": "GET", "description": "Get all integrations for a user"},
+            {"path": "/api/integrations/user/<user_id>", "method": "POST", "description": "Create a new integration for a user"},
+            {"path": "/api/integrations/user/<user_id>/<integration_type>", "method": "GET", "description": "Get specific integration for a user"},
+            {"path": "/api/integrations/user/<user_id>/<integration_type>", "method": "PUT", "description": "Update an integration for a user"},
+            {"path": "/api/integrations/user/<user_id>/<integration_type>", "method": "DELETE", "description": "Delete an integration for a user"},
+            {"path": "/api/integrations/user/<user_id>/<integration_type>/test", "method": "POST", "description": "Test an integration connection"}
         ]
     }), 200
 
 # Register blueprints
 from routes.webhooks import webhooks
 app.register_blueprint(webhooks, url_prefix='/webhooks')
+
+# Register integrations blueprint
+from routes.integrations import integrations_bp
+app.register_blueprint(integrations_bp, url_prefix='/api')
 
 # Initialize automation system
 def init_automation():
