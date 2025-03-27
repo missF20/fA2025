@@ -11,7 +11,7 @@ from functools import wraps
 from typing import Dict, Any, Optional, List, Callable, Union
 from flask import request, jsonify, g, current_app
 from werkzeug.local import LocalProxy
-from jose import jwt, JWTError
+import jwt
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -70,7 +70,7 @@ def decode_token(token: str) -> Optional[Dict[str, Any]]:
     """
     try:
         return jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
-    except JWTError as e:
+    except Exception as e:
         logger.error(f"Error decoding token: {str(e)}")
         return None
 

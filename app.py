@@ -4,14 +4,37 @@ import asyncio
 from flask import Flask, jsonify
 from flask_cors import CORS
 from flask_socketio import SocketIO
+from flask_sqlalchemy import SQLAlchemy
+from flask_login import LoginManager
+from sqlalchemy.orm import DeclarativeBase
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
+# Define base class for SQLAlchemy models
+class Base(DeclarativeBase):
+    pass
+
+# Initialize extensions
+db = SQLAlchemy(model_class=Base)
+login_manager = LoginManager()
+
 # Initialize Flask app
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "dana-ai-dev-secret-key")
+
+# Configure database
+app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///app.db")
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+    "pool_recycle": 300,
+    "pool_pre_ping": True,
+}
+
+# Initialize extensions with app
+db.init_app(app)
+login_manager.init_app(app)
 
 # Enable CORS
 CORS(app, resources={r"/*": {"origins": "*"}})
@@ -56,6 +79,12 @@ def status():
             {"path": "/api/slack/messages", "method": "POST", "description": "Send a message to Slack"},
             {"path": "/api/slack/threads/<thread_ts>", "method": "GET", "description": "Get thread replies from Slack"},
             
+            # New Slack API endpoints
+            {"path": "/api/integrations/slack/verify", "method": "GET", "description": "Verify Slack credentials"},
+            {"path": "/api/integrations/slack/send", "method": "POST", "description": "Send a message to configured Slack channel"},
+            {"path": "/api/integrations/slack/messages", "method": "GET", "description": "Get channel history from configured Slack channel"},
+            {"path": "/api/integrations/slack/thread/<thread_ts>", "method": "GET", "description": "Get thread replies from Slack"},
+            
             # Admin endpoints
             {"path": "/api/admin/users", "method": "GET", "description": "Get all users (admin only)"},
             {"path": "/api/admin/users/<user_id>", "method": "GET", "description": "Get details for a specific user (admin only)"},
@@ -91,6 +120,14 @@ app.register_blueprint(integrations_bp, url_prefix='/api')
 from routes.slack import slack_bp
 app.register_blueprint(slack_bp)
 
+# Register Slack API routes blueprint
+try:
+    from routes.slack_api import register_slack_api_routes
+    register_slack_api_routes(app)
+    logger.info("Slack API routes registered")
+except ImportError as e:
+    logger.warning(f"Could not register Slack API routes: {str(e)}")
+
 # Register admin routes blueprint
 from routes.admin import admin_bp
 app.register_blueprint(admin_bp)
@@ -98,6 +135,33 @@ app.register_blueprint(admin_bp)
 # Register subscription routes blueprint
 from routes.subscription import subscription_bp
 app.register_blueprint(subscription_bp)
+
+# Register user management routes
+try:
+    from routes.users import users_bp
+    app.register_blueprint(users_bp)
+    logger.info("User management routes registered")
+except ImportError as e:
+    logger.warning(f"Could not register user routes: {str(e)}")
+
+# Configure login manager
+@login_manager.user_loader
+def load_user(user_id):
+    try:
+        from models_db import User
+        return User.query.get(int(user_id))
+    except Exception as e:
+        logger.warning(f"Error loading user: {str(e)}")
+        return None
+
+# Create database tables
+with app.app_context():
+    try:
+        from models_db import User, Profile, Conversation, Message, Task, Response, IntegrationConfig, KnowledgeFile, SubscriptionTier, UserSubscription, AdminUser, Interaction
+        db.create_all()
+        logger.info("Database tables created")
+    except Exception as e:
+        logger.warning(f"Could not create database tables: {str(e)}")
 
 # Initialize automation system
 def init_automation():

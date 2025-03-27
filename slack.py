@@ -1,15 +1,21 @@
-from typing import Any, Optional, List
+from typing import Any, Optional, List, Dict, Union
 import os
 from datetime import datetime
 
-from slack_sdk import WebClient
-from slack_sdk.errors import SlackApiError
+try:
+    from slack_sdk import WebClient
+    from slack_sdk.errors import SlackApiError
+    SLACK_SDK_AVAILABLE = True
+except ImportError:
+    SLACK_SDK_AVAILABLE = False
+    # Create mock classes for type checking
+    class SlackApiError(Exception):
+        pass
+    WebClient = None
 
-slack_token: str = (os.environ.get('SLACK_BOT_TOKEN') or
-               None)
-
-slack_channel_id: str = (os.environ.get('SLACK_CHANNEL_ID') or
-               None)
+# Safely get environment variables
+slack_token = os.environ.get('SLACK_BOT_TOKEN')
+slack_channel_id = os.environ.get('SLACK_CHANNEL_ID')
 
 slack_client = WebClient(token=slack_token) if slack_token else None
 

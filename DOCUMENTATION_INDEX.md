@@ -10,6 +10,8 @@ This documentation index provides a comprehensive overview of all documentation 
 | [DOCUMENTATION.md](DOCUMENTATION.md) | Comprehensive system documentation with architecture, components, and functionality | Developers, System Administrators |
 | [SETUP_GUIDE.md](SETUP_GUIDE.md) | Step-by-step guide for setting up and running the Dana AI platform | Developers, System Administrators |
 | [API_REFERENCE.md](API_REFERENCE.md) | Detailed specifications for all API endpoints in the Dana AI platform | API Developers, Integrators |
+| [API_REFERENCE_SLACK.md](API_REFERENCE_SLACK.md) | Detailed specifications for Slack integration API endpoints | API Developers, Integrators |
+| [SLACK_SETUP_GUIDE.md](SLACK_SETUP_GUIDE.md) | Step-by-step guide for setting up and configuring Slack integration | Developers, System Administrators |
 
 ## Contents by Topic
 
@@ -65,6 +67,10 @@ This documentation index provides a comprehensive overview of all documentation 
 
 - [Email Integration](DOCUMENTATION.md#email)
 - [Slack Integration](DOCUMENTATION.md#slack)
+  - [Slack API Reference](API_REFERENCE_SLACK.md)
+  - [Slack Setup Guide](SLACK_SETUP_GUIDE.md)
+  - [Slack API Endpoints](API_REFERENCE_SLACK.md#api-endpoints)
+  - [Slack Troubleshooting](SLACK_SETUP_GUIDE.md#troubleshooting)
 - [HubSpot Integration](DOCUMENTATION.md#hubspot)
 - [Salesforce Integration](DOCUMENTATION.md#salesforce)
 - [Google Analytics Integration](DOCUMENTATION.md#google-analytics)

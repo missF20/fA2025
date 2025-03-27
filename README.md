@@ -21,6 +21,8 @@ Detailed documentation for the Dana AI platform is available in the following fi
 - [System Documentation](DOCUMENTATION.md): Comprehensive documentation of the system architecture, components, and functionality.
 - [Setup Guide](SETUP_GUIDE.md): Step-by-step guide for setting up and running the Dana AI platform.
 - [API Reference](API_REFERENCE.md): Detailed specifications for all API endpoints in the Dana AI platform.
+- [Slack API Reference](API_REFERENCE_SLACK.md): Detailed documentation for the Slack integration API.
+- [Slack Setup Guide](SLACK_SETUP_GUIDE.md): Step-by-step guide for setting up the Slack integration.
 
 ## Technical Overview
 
@@ -56,7 +58,7 @@ Dana AI follows a modular architecture pattern with clear separation of concerns
 #### Business Tools
 
 - Email
-- Slack
+- Slack (with comprehensive API and setup documentation)
 - HubSpot
 - Salesforce
 - Google Analytics
@@ -92,6 +94,7 @@ The Dana AI API is RESTful and provides endpoints for all platform functionality
 - **Knowledge Management**: Upload and manage knowledge files
 - **Webhooks**: Receive webhooks from social media platforms
 - **Integrations**: Configure and manage integrations with business tools
+- **Slack Integration**: Send messages, retrieve conversations, and manage channels
 
 For detailed API documentation, refer to the [API Reference](API_REFERENCE.md).
 
