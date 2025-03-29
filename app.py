@@ -6,7 +6,7 @@ Main application module for the Dana AI Platform.
 
 import os
 import logging
-from flask import Flask, jsonify, g
+from flask import Flask, jsonify, g, render_template
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from sqlalchemy.orm import DeclarativeBase
@@ -56,6 +56,21 @@ def handle_server_error(error):
 # Register root routes
 @app.route("/")
 def index():
+    """Web UI homepage"""
+    return render_template("index.html")
+
+@app.route("/frontend")
+def frontend():
+    """Frontend access instructions"""
+    return render_template("frontend.html")
+
+@app.route("/slack")
+def slack_dashboard():
+    """Slack dashboard UI"""
+    return render_template("slack/dashboard.html")
+
+@app.route("/api")
+def api_index():
     """API root endpoint"""
     return jsonify({
         "name": "Dana AI API",
