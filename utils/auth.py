@@ -124,15 +124,41 @@ def token_required(f):
     
     return decorated
 
+# Alias for token_required for compatibility
+require_auth = token_required
+
+def validate_user_access(user_id):
+    """
+    Validate that the authenticated user has access to the specified user_id
+    
+    Args:
+        user_id: User ID to check access for
+        
+    Returns:
+        True if the user has access, False otherwise
+    """
+    # Get the current user from g object
+    current_user = getattr(g, 'user', None)
+    if not current_user:
+        return False
+    
+    # Admin users have access to all users
+    if current_user.get('is_admin', False):
+        return True
+    
+    # Regular users only have access to their own data
+    return str(current_user.get('user_id')) == str(user_id)
+
+# Original function definition
 def admin_required(f):
     """
     Decorator to require an admin user for a route
     
-    Must be used after @token_required
+    Must be used after @token_required or @require_auth
     
     Usage:
         @app.route('/admin-only')
-        @token_required
+        @require_auth
         @admin_required
         def admin_route():
             # Access authenticated admin user with g.user
@@ -147,6 +173,9 @@ def admin_required(f):
         return f(*args, **kwargs)
     
     return decorated
+
+# Alias for admin_required for compatibility
+require_admin = admin_required
 
 def hash_password(password):
     """

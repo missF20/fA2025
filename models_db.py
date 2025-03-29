@@ -145,6 +145,20 @@ class KnowledgeFile(db.Model):
     def __repr__(self):
         return f'<KnowledgeFile {self.file_name}>'
 
+class SubscriptionFeature(db.Model):
+    """SubscriptionFeature model for individual features offered in subscription tiers"""
+    __tablename__ = 'subscription_features'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False, unique=True)
+    description = db.Column(db.Text, nullable=False)
+    icon = db.Column(db.String(100))
+    date_created = db.Column(db.DateTime, default=datetime.utcnow)
+    date_updated = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<SubscriptionFeature {self.name}>'
+
 class SubscriptionTier(db.Model):
     """SubscriptionTier model for defining subscription plans"""
     __tablename__ = 'subscription_tiers'
@@ -155,7 +169,13 @@ class SubscriptionTier(db.Model):
     price = db.Column(db.Float, nullable=False)
     features = db.Column(db.JSON, nullable=False)
     platforms = db.Column(db.JSON, nullable=False)
+    monthly_price = db.Column(db.Float)
+    annual_price = db.Column(db.Float)
+    is_popular = db.Column(db.Boolean, default=False)
+    trial_days = db.Column(db.Integer, default=0)
+    max_users = db.Column(db.Integer)
     is_active = db.Column(db.Boolean, default=True)
+    feature_limits = db.Column(db.JSON)
     date_created = db.Column(db.DateTime, default=datetime.utcnow)
     date_updated = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -175,8 +195,19 @@ class UserSubscription(db.Model):
     status = db.Column(db.String(20), default='pending')
     start_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     end_date = db.Column(db.DateTime)
+    payment_method_id = db.Column(db.String(100))
+    billing_cycle = db.Column(db.String(20), default='monthly')
+    auto_renew = db.Column(db.Boolean, default=True)
+    trial_end_date = db.Column(db.DateTime)
+    last_billing_date = db.Column(db.DateTime)
+    next_billing_date = db.Column(db.DateTime)
+    cancellation_date = db.Column(db.DateTime)
+    cancellation_reason = db.Column(db.Text)
     date_created = db.Column(db.DateTime, default=datetime.utcnow)
     date_updated = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    invoices = db.relationship('SubscriptionInvoice', backref='subscription', lazy='dynamic', cascade='all, delete-orphan')
     
     __table_args__ = (
         db.UniqueConstraint('user_id', 'subscription_tier_id', name='unique_user_subscription'),
@@ -184,6 +215,27 @@ class UserSubscription(db.Model):
     
     def __repr__(self):
         return f'<UserSubscription {self.user_id}: {self.status}>'
+
+class SubscriptionInvoice(db.Model):
+    """SubscriptionInvoice model for tracking subscription payments"""
+    __tablename__ = 'subscription_invoices'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    subscription_id = db.Column(db.Integer, db.ForeignKey('user_subscriptions.id'), nullable=False)
+    amount = db.Column(db.Float, nullable=False)
+    currency = db.Column(db.String(3), default='USD', nullable=False)
+    status = db.Column(db.String(20), default='pending', nullable=False)
+    billing_date = db.Column(db.DateTime, nullable=False)
+    paid_date = db.Column(db.DateTime)
+    payment_method_id = db.Column(db.String(100))
+    invoice_number = db.Column(db.String(50), nullable=False, unique=True)
+    items = db.Column(db.JSON, nullable=False)
+    date_created = db.Column(db.DateTime, default=datetime.utcnow)
+    date_updated = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<SubscriptionInvoice {self.invoice_number}: ${self.amount} {self.currency}>'
 
 class AdminUser(db.Model):
     """AdminUser model for administrative user information"""

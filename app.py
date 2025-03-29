@@ -106,9 +106,11 @@ def register_blueprints():
     try:
         # Import all blueprints
         from routes.ai_test import ai_test_bp
+        from routes.subscription_management import subscription_mgmt_bp
         
         # Register blueprints
         app.register_blueprint(ai_test_bp)
+        app.register_blueprint(subscription_mgmt_bp)
         logger.info("Route blueprints registered")
     except Exception as e:
         logger.error(f"Error registering blueprints: {e}")

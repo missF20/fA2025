@@ -1,7 +1,8 @@
 """
 File Parser Utility
 
-This module provides utilities for parsing various file types.
+This module provides utilities for parsing various file types and extracting their content.
+Supports PDF, DOCX, and TXT files with extensibility for additional formats.
 """
 
 import os
@@ -10,6 +11,7 @@ import json
 import base64
 from typing import Dict, List, Any, Optional, Union, Tuple
 import tempfile
+import re
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -242,3 +244,140 @@ class FileParser:
                 "success": False,
                 "error": f"Unsupported file type: {file_type}"
             }
+    
+    @staticmethod
+    def parse_base64_file(base64_data: str, file_type: str) -> Tuple[str, Dict[str, Any]]:
+        """
+        Parse a base64-encoded file
+        
+        Args:
+            base64_data: Base64-encoded file data
+            file_type: Type of file (pdf, docx, txt)
+            
+        Returns:
+            Tuple of (extracted_text, metadata)
+        """
+        try:
+            # Try to decode the base64 data
+            # Remove data URL prefix if present (e.g., "data:application/pdf;base64,")
+            if ';base64,' in base64_data:
+                base64_data = base64_data.split(';base64,')[1]
+            
+            # Convert base64 to bytes
+            file_bytes = base64.b64decode(base64_data)
+            
+            # Parse the file
+            result = FileParser.parse_file(file_bytes, file_type)
+            
+            if not result.get('success', False):
+                logger.error(f"Error parsing base64 file: {result.get('error', 'Unknown error')}")
+                return "", {}
+            
+            # Return extracted text and metadata
+            extracted_text = result.get('content', '')
+            metadata = result.get('metadata', {})
+            
+            return extracted_text, metadata
+            
+        except Exception as e:
+            logger.error(f"Error parsing base64 file: {str(e)}")
+            return "", {}
+    
+    @staticmethod
+    def parse_file_content(content: str, file_type: str) -> Tuple[str, Dict[str, Any]]:
+        """
+        Parse file content (raw content as string) based on its type
+        
+        Args:
+            content: Raw file content as string
+            file_type: Type of file (primarily for txt)
+            
+        Returns:
+            Tuple of (extracted_text, metadata)
+        """
+        try:
+            # For text files, we can just return the content
+            if file_type.lower() in ['txt', 'text', 'plain']:
+                return content, {}
+            
+            # For other file types, we need to convert to bytes and parse
+            # This is primarily a fallback - using parse_base64_file or parse_file is preferred
+            file_bytes = content.encode('utf-8')
+            result = FileParser.parse_file(file_bytes, file_type)
+            
+            if not result.get('success', False):
+                logger.error(f"Error parsing file content: {result.get('error', 'Unknown error')}")
+                return content, {}  # Return original content on failure
+            
+            # Return extracted text and metadata
+            extracted_text = result.get('content', '')
+            metadata = result.get('metadata', {})
+            
+            return extracted_text, metadata
+            
+        except Exception as e:
+            logger.error(f"Error parsing file content: {str(e)}")
+            return content, {}  # Return original content on failure
+            
+    @staticmethod
+    def extract_text_snippets(text: str, query: str, snippet_length: int = 200) -> List[str]:
+        """
+        Extract relevant text snippets containing the query
+        
+        Args:
+            text: Full text to search in
+            query: Search query to find
+            snippet_length: Approximate length of each snippet (characters)
+            
+        Returns:
+            List of text snippets
+        """
+        try:
+            snippets = []
+            query_lower = query.lower()
+            text_lower = text.lower()
+            
+            # Find all occurrences of the query in the text
+            index = 0
+            while index < len(text_lower):
+                pos = text_lower.find(query_lower, index)
+                if pos == -1:
+                    break
+                    
+                # Calculate snippet boundaries
+                half_length = snippet_length // 2
+                start = max(0, pos - half_length)
+                end = min(len(text), pos + len(query) + half_length)
+                
+                # Find word boundaries if possible
+                if start > 0:
+                    # Find the first space before the start point
+                    space_before = text.rfind(' ', 0, start)
+                    if space_before != -1:
+                        start = space_before + 1
+                
+                if end < len(text):
+                    # Find the first space after the end point
+                    space_after = text.find(' ', end)
+                    if space_after != -1:
+                        end = space_after
+                
+                # Extract snippet and add to results
+                snippet = text[start:end].strip()
+                
+                # Add ellipsis if needed
+                if start > 0:
+                    snippet = "..." + snippet
+                if end < len(text):
+                    snippet = snippet + "..."
+                    
+                snippets.append(snippet)
+                
+                # Move index to after this occurrence
+                index = pos + len(query)
+            
+            return snippets
+            
+        except Exception as e:
+            logger.error(f"Error extracting snippets: {str(e)}")
+            return []

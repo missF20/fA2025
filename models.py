@@ -163,15 +163,49 @@ class KnowledgeFileUpdate(BaseModel):
     category: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
 
+class SubscriptionFeatureBase(BaseModel):
+    name: str
+    description: str
+    icon: Optional[str] = None
+
+class SubscriptionFeatureCreate(SubscriptionFeatureBase):
+    pass
+
+class SubscriptionFeatureUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    icon: Optional[str] = None
+
 class SubscriptionTierBase(BaseModel):
     name: str
     description: str
     price: float
     features: List[str]
     platforms: List[Platform]
+    monthly_price: Optional[float] = None
+    annual_price: Optional[float] = None
+    is_popular: bool = False
+    trial_days: int = 0
+    max_users: Optional[int] = None
+    is_active: bool = True
+    feature_limits: Optional[Dict[str, int]] = None
 
 class SubscriptionTierCreate(SubscriptionTierBase):
     pass
+
+class SubscriptionTierUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    price: Optional[float] = None
+    features: Optional[List[str]] = None
+    platforms: Optional[List[Platform]] = None
+    monthly_price: Optional[float] = None
+    annual_price: Optional[float] = None
+    is_popular: Optional[bool] = None
+    trial_days: Optional[int] = None
+    max_users: Optional[int] = None
+    is_active: Optional[bool] = None
+    feature_limits: Optional[Dict[str, int]] = None
 
 class UserSubscriptionBase(BaseModel):
     user_id: str
@@ -179,6 +213,14 @@ class UserSubscriptionBase(BaseModel):
     status: SubscriptionStatus = SubscriptionStatus.PENDING
     start_date: datetime
     end_date: Optional[datetime] = None
+    payment_method_id: Optional[str] = None
+    billing_cycle: Optional[str] = "monthly"
+    auto_renew: bool = True
+    trial_end_date: Optional[datetime] = None
+    last_billing_date: Optional[datetime] = None
+    next_billing_date: Optional[datetime] = None
+    cancellation_date: Optional[datetime] = None
+    cancellation_reason: Optional[str] = None
 
 class UserSubscriptionCreate(UserSubscriptionBase):
     pass
@@ -186,6 +228,32 @@ class UserSubscriptionCreate(UserSubscriptionBase):
 class UserSubscriptionUpdate(BaseModel):
     status: Optional[SubscriptionStatus] = None
     end_date: Optional[datetime] = None
+    subscription_tier_id: Optional[str] = None
+    payment_method_id: Optional[str] = None
+    billing_cycle: Optional[str] = None
+    auto_renew: Optional[bool] = None
+    next_billing_date: Optional[datetime] = None
+    cancellation_reason: Optional[str] = None
+
+class SubscriptionInvoiceBase(BaseModel):
+    user_id: str
+    subscription_id: str
+    amount: float
+    currency: str = "USD"
+    status: str = "pending"
+    billing_date: datetime
+    paid_date: Optional[datetime] = None
+    payment_method_id: Optional[str] = None
+    invoice_number: str
+    items: List[Dict[str, Any]]
+
+class SubscriptionInvoiceCreate(SubscriptionInvoiceBase):
+    pass
+
+class SubscriptionInvoiceUpdate(BaseModel):
+    status: Optional[str] = None
+    paid_date: Optional[datetime] = None
+    payment_method_id: Optional[str] = None
 
 class AdminUserBase(BaseModel):
     user_id: str
