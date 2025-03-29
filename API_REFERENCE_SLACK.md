@@ -23,11 +23,11 @@ Before using the Slack integration, you must:
 
 ## API Endpoints
 
-### Verify Slack Credentials
+### Verify Slack Health
 
 Verifies if the Slack API token and channel ID are valid and properly configured.
 
-**Endpoint:** `/api/integrations/slack/verify`
+**Endpoint:** `/api/slack/health`
 
 **Method:** GET
 
@@ -36,19 +36,24 @@ Verifies if the Slack API token and channel ID are valid and properly configured
 **Response Example (Success):**
 ```json
 {
-    "valid": true,
-    "message": "Slack credentials are valid",
-    "team": "Your Team Name",
-    "bot_id": "B01A2B3C4D5",
-    "channel_name": "your-channel"
+    "success": true,
+    "message": "Slack integration is active",
+    "status": "connected",
+    "details": {
+        "team": "Your Team Name",
+        "channel_name": "your-channel",
+        "bot_id": "B01A2B3C4D5"
+    }
 }
 ```
 
 **Response Example (Failure):**
 ```json
 {
-    "valid": false,
-    "message": "Slack API token (SLACK_BOT_TOKEN) is not configured",
+    "success": false,
+    "message": "Slack integration is not configured properly",
+    "status": "disconnected",
+    "details": "API token or channel ID is invalid",
     "missing": ["SLACK_BOT_TOKEN"]
 }
 ```
@@ -57,7 +62,7 @@ Verifies if the Slack API token and channel ID are valid and properly configured
 
 Sends a message to the configured Slack channel.
 
-**Endpoint:** `/api/integrations/slack/send`
+**Endpoint:** `/api/slack/messages`
 
 **Method:** POST
 
@@ -66,7 +71,9 @@ Sends a message to the configured Slack channel.
 **Request Body:**
 ```json
 {
-    "message": "Hello from Dana AI!"
+    "message": "Hello from Dana AI!",
+    "thread_ts": "optional thread timestamp to reply in a thread",
+    "blocks": [] // Optional blocks for rich formatting
 }
 ```
 
@@ -93,7 +100,7 @@ Sends a message to the configured Slack channel.
 
 Retrieves the message history from the configured Slack channel.
 
-**Endpoint:** `/api/integrations/slack/messages`
+**Endpoint:** `/api/slack/messages`
 
 **Method:** GET
 
@@ -107,6 +114,8 @@ Retrieves the message history from the configured Slack channel.
 **Response Example (Success):**
 ```json
 {
+    "success": true,
+    "message": "Successfully retrieved Slack messages",
     "count": 2,
     "messages": [
         {
@@ -139,8 +148,9 @@ Retrieves the message history from the configured Slack channel.
 ```json
 {
     "success": false,
-    "message": "Error retrieving channel history",
-    "error": "channel_not_found"
+    "message": "Failed to get Slack messages",
+    "status": "error",
+    "details": "channel_not_found"
 }
 ```
 
@@ -148,7 +158,7 @@ Retrieves the message history from the configured Slack channel.
 
 Retrieves the replies in a specific message thread.
 
-**Endpoint:** `/api/integrations/slack/thread/{thread_ts}`
+**Endpoint:** `/api/slack/threads/{thread_ts}`
 
 **Method:** GET
 
@@ -163,6 +173,8 @@ Retrieves the replies in a specific message thread.
 **Response Example (Success):**
 ```json
 {
+    "success": true,
+    "message": "Successfully retrieved thread replies",
     "count": 2,
     "thread_ts": "1615982330.000200",
     "replies": [
@@ -186,8 +198,9 @@ Retrieves the replies in a specific message thread.
 ```json
 {
     "success": false,
-    "message": "Error retrieving thread replies",
-    "error": "thread_not_found"
+    "message": "Failed to get thread replies",
+    "status": "error",
+    "details": "thread_not_found"
 }
 ```
 

@@ -155,6 +155,14 @@ class KnowledgeFileBase(BaseModel):
 class KnowledgeFileCreate(KnowledgeFileBase):
     pass
 
+class KnowledgeFileUpdate(BaseModel):
+    file_name: Optional[str] = None
+    file_type: Optional[str] = None
+    content: Optional[str] = None
+    tags: Optional[List[str]] = None
+    category: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
+
 class SubscriptionTierBase(BaseModel):
     name: str
     description: str

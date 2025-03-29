@@ -225,10 +225,17 @@ class ResponseGenerator:
 generator = ResponseGenerator()
 
 
-# OpenAI provider implementation
+# Import our rules-based provider
+from automation.ai.rules_based_generator import rules_based_provider
+
+# Register the rules-based provider as default
+generator.register_provider('rules_based', rules_based_provider)
+generator.register_provider('default', rules_based_provider)
+
+# Optional fallback OpenAI provider if API key is configured
 async def openai_provider(message: Dict[str, Any], context: ConversationContext) -> str:
     """
-    Generate response using OpenAI
+    Generate response using OpenAI (optional fallback)
     
     Args:
         message: Message to respond to
@@ -239,13 +246,17 @@ async def openai_provider(message: Dict[str, Any], context: ConversationContext)
     """
     # Get API configuration
     api_key = get_config('ai', 'openai_api_key')
-    model = get_config('ai', 'openai_model', 'gpt-4')
+    
+    # If no API key, use rules-based provider instead
+    if not api_key:
+        logger.warning("OpenAI API key not configured, falling back to rules-based provider")
+        return await rules_based_provider(message, context)
+        
+    # If API key is configured, try to use OpenAI
+    model = get_config('ai', 'openai_model', 'gpt-4o')
     max_tokens = get_config('ai', 'max_tokens', 1000)
     temperature = get_config('ai', 'temperature', 0.7)
     
-    if not api_key:
-        raise ValueError("OpenAI API key not configured")
-        
     try:
         # Import here to avoid dependency if not using this provider
         import openai
@@ -283,11 +294,12 @@ async def openai_provider(message: Dict[str, Any], context: ConversationContext)
         return response.choices[0].message.content
         
     except Exception as e:
-        logger.error(f"OpenAI API error: {str(e)}", exc_info=True)
-        raise
+        logger.error(f"OpenAI API error: {str(e)}, falling back to rules-based provider", exc_info=True)
+        # Fallback to rules-based provider if OpenAI fails
+        return await rules_based_provider(message, context)
 
 
-# Register the OpenAI provider
+# Register the OpenAI provider as a fallback option
 generator.register_provider('openai', openai_provider)
 
 

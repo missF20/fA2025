@@ -149,15 +149,101 @@ class KnowledgeDatabase:
             db_config = get_config('database')
             if not db_config or not db_config.get('connection_string'):
                 logger.warning("No database configuration available")
-                return []
                 
-            # This would be a database query in a real implementation
+                # Use direct Supabase API calls instead
+                from utils.supabase import get_supabase_client
+                
+                # Get Supabase client
+                supabase = get_supabase_client()
+                if not supabase:
+                    logger.warning("Supabase client not available")
+                    return []
+                
+                try:
+                    # Search for matching knowledge files
+                    # First, get files that match the query by name
+                    files_result = supabase.table('knowledge_files')\
+                        .select('id,file_name,file_type,created_at')\
+                        .filter('user_id', 'eq', business_id or '')\
+                        .execute()
+                    
+                    # Then get content to search within it
+                    content_result = supabase.table('knowledge_files')\
+                        .select('id,content')\
+                        .filter('user_id', 'eq', business_id or '')\
+                        .execute()
+                    
+                    # Combine results
+                    results = []
+                    query_lower = query.lower()
+                    
+                    for file in files_result.data:
+                        # Find corresponding content
+                        content_file = next((item for item in content_result.data if item['id'] == file['id']), None)
+                        if content_file:
+                            content = content_file.get('content', '')
+                            # Check if query matches content
+                            if query_lower in content.lower() or query_lower in file['file_name'].lower():
+                                # Extract a relevant snippet
+                                snippet = self._extract_relevant_snippet(content, query_lower)
+                                results.append({
+                                    'id': file['id'],
+                                    'title': file['file_name'],
+                                    'content': snippet,
+                                    'tags': [],
+                                    'created_at': file.get('created_at', ''),
+                                    'file_type': file.get('file_type', '')
+                                })
+                    
+                    return results[:5]  # Limit to 5 results
+                    
+                except Exception as e:
+                    logger.error(f"Error searching Supabase for knowledge files: {str(e)}", exc_info=True)
+                    return []
+            
+            # This would be a database query in a real implementation with direct DB connection
             logger.info(f"Would search stored responses for: {query}")
             return []
             
         except Exception as e:
             logger.error(f"Error retrieving stored responses: {str(e)}", exc_info=True)
             return []
+            
+    def _extract_relevant_snippet(self, content: str, query: str, context_size: int = 200) -> str:
+        """
+        Extract a relevant snippet from content containing the query
+        
+        Args:
+            content: Full content text
+            query: Search query
+            context_size: Number of characters of context to include
+            
+        Returns:
+            Snippet containing the query with context
+        """
+        if not content or not query:
+            return ""
+            
+        content_lower = content.lower()
+        query_pos = content_lower.find(query)
+        
+        if query_pos == -1:
+            # Query not found, return first part of content
+            return content[:min(len(content), 300)]
+            
+        # Extract context around query
+        start_pos = max(0, query_pos - context_size)
+        end_pos = min(len(content), query_pos + len(query) + context_size)
+        
+        snippet = content[start_pos:end_pos]
+        
+        # Add ellipsis if needed
+        if start_pos > 0:
+            snippet = "..." + snippet
+        if end_pos < len(content):
+            snippet += "..."
+            
+        return snippet
             
     async def get_user_profile(self, user_id: str) -> Optional[Dict[str, Any]]:
         """
@@ -174,9 +260,52 @@ class KnowledgeDatabase:
             db_config = get_config('database')
             if not db_config or not db_config.get('connection_string'):
                 logger.warning("No database configuration available")
-                return None
                 
-            # This would be a database query in a real implementation
+                # Use direct Supabase API calls instead
+                from utils.supabase import get_supabase_client
+                
+                # Get Supabase client
+                supabase = get_supabase_client()
+                if not supabase:
+                    logger.warning("Supabase client not available")
+                    return None
+                
+                try:
+                    # Get user profile from Supabase
+                    profile_result = supabase.table('profiles')\
+                        .select('*')\
+                        .eq('user_id', user_id)\
+                        .execute()
+                    
+                    if profile_result.data and len(profile_result.data) > 0:
+                        profile = profile_result.data[0]
+                        
+                        # Get subscription information
+                        subscription_result = supabase.table('user_subscriptions')\
+                            .select('*')\
+                            .eq('user_id', user_id)\
+                            .execute()
+                        
+                        subscription = None
+                        if subscription_result.data and len(subscription_result.data) > 0:
+                            subscription = subscription_result.data[0]
+                        
+                        # Return combined user profile
+                        return {
+                            'id': user_id,
+                            'name': profile.get('company', 'User'),
+                            'email': profile.get('email', ''),
+                            'bio': '',  # No bio field in current schema
+                            'account_setup_complete': profile.get('account_setup_complete', False),
+                            'subscription': subscription
+                        }
+                    return None
+                    
+                except Exception as e:
+                    logger.error(f"Error retrieving user profile from Supabase: {str(e)}", exc_info=True)
+                    return None
+                
+            # This would be a database query in a real implementation with direct DB connection
             logger.info(f"Would query user profile for: {user_id}")
             return None
             

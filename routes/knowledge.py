@@ -1,9 +1,13 @@
 from flask import Blueprint, request, jsonify
 import logging
+import base64
+import json
+import os
 from utils.validation import validate_request_json
 from utils.supabase import get_supabase_client
 from utils.auth import get_user_from_token, require_auth
-from models import KnowledgeFileCreate
+from utils.file_parser import parse_file_content, parse_base64_file
+from models import KnowledgeFileCreate, KnowledgeFileUpdate
 from app import socketio
 from datetime import datetime
 
@@ -89,6 +93,11 @@ def get_knowledge_file(file_id):
         type: string
         required: true
         description: File ID
+      - name: exclude_content
+        in: query
+        type: boolean
+        required: false
+        description: Whether to exclude the file content in the response
     responses:
       200:
         description: File details
@@ -100,10 +109,14 @@ def get_knowledge_file(file_id):
         description: Server error
     """
     user = get_user_from_token(request)
+    exclude_content = request.args.get('exclude_content', 'false').lower() == 'true'
     
     try:
+        # Determine what fields to select
+        select_fields = '*' if not exclude_content else 'id,user_id,file_name,file_size,file_type,created_at,updated_at,tags,category,metadata'
+        
         # Get file
-        file_result = supabase.table('knowledge_files').select('*').eq('id', file_id).eq('user_id', user['id']).execute()
+        file_result = supabase.table('knowledge_files').select(select_fields).eq('id', file_id).eq('user_id', user['id']).execute()
         
         if not file_result.data:
             return jsonify({'error': 'File not found'}), 404
@@ -113,6 +126,81 @@ def get_knowledge_file(file_id):
     except Exception as e:
         logger.error(f"Error getting knowledge file: {str(e)}", exc_info=True)
         return jsonify({'error': 'Error getting knowledge file'}), 500
+
+@knowledge_bp.route('/files/<file_id>', methods=['PUT'])
+@require_auth
+@validate_request_json(KnowledgeFileUpdate)
+def update_knowledge_file(file_id):
+    """
+    Update a knowledge file
+    ---
+    parameters:
+      - name: Authorization
+        in: header
+        type: string
+        required: true
+        description: Bearer token
+      - name: file_id
+        in: path
+        type: string
+        required: true
+        description: File ID
+      - name: body
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/KnowledgeFileUpdate'
+    responses:
+      200:
+        description: File updated
+      400:
+        description: Invalid request data
+      401:
+        description: Unauthorized
+      404:
+        description: File not found
+      500:
+        description: Server error
+    """
+    user = get_user_from_token(request)
+    data = request.json
+    
+    try:
+        # Check if file exists and belongs to user
+        verify_result = supabase.table('knowledge_files').select('id').eq('id', file_id).eq('user_id', user['id']).execute()
+        
+        if not verify_result.data:
+            return jsonify({'error': 'File not found'}), 404
+        
+        # Add update timestamp
+        update_data = {k: v for k, v in data.items() if v is not None}
+        update_data['updated_at'] = datetime.now().isoformat()
+        
+        # Update file
+        update_result = supabase.table('knowledge_files').update(update_data).eq('id', file_id).execute()
+        
+        if not update_result.data:
+            return jsonify({'error': 'Failed to update file'}), 500
+        
+        updated_file = update_result.data[0]
+        
+        # Don't include content in the response
+        if 'content' in updated_file:
+            updated_file.pop('content', None)
+        
+        # Emit socket event
+        socketio.emit('knowledge_file_updated', {
+            'file': updated_file
+        }, room=user['id'])
+        
+        return jsonify({
+            'message': 'File updated successfully',
+            'file': updated_file
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error updating knowledge file: {str(e)}", exc_info=True)
+        return jsonify({'error': 'Error updating knowledge file'}), 500
 
 @knowledge_bp.route('/files', methods=['POST'])
 @require_auth
@@ -148,10 +236,46 @@ def create_knowledge_file():
     # Ensure user_id is set to authenticated user
     data['user_id'] = user['id']
     
-    # Add creation timestamp
-    data['created_at'] = datetime.now().isoformat()
-    
+    # Process file content based on file type
     try:
+        # Check if file needs parsing (only if it's a supported file type and content is base64)
+        file_name = data.get('file_name', '')
+        file_type = data.get('file_type', '')
+        is_base64 = data.get('is_base64', True)
+        file_content = data.get('content', '')
+        
+        # If we have a file extension or type and content, try to parse it
+        if (file_name or file_type) and file_content:
+            # Determine file extension from name if not provided in type
+            if not file_type and file_name:
+                # Extract extension from filename
+                _, ext = os.path.splitext(file_name)
+                file_type = ext[1:] if ext else ''
+                
+            # Parse file if it's base64 encoded
+            if is_base64 and file_type:
+                try:
+                    # Parse file to extract content and metadata
+                    extracted_text, metadata = parse_base64_file(file_content, file_type)
+                    
+                    # Update data with parsed content if extraction was successful
+                    if extracted_text:
+                        data['content'] = extracted_text
+                    
+                    # Extract metadata if available
+                    if metadata:
+                        data['metadata'] = json.dumps(metadata)
+                        
+                    logger.info(f"Successfully parsed {file_type} file: {file_name}")
+                except Exception as e:
+                    logger.error(f"Error parsing file {file_name}: {str(e)}", exc_info=True)
+                    # Keep original content if parsing fails
+        
+        # Add timestamps
+        now = datetime.now().isoformat()
+        data['created_at'] = now
+        data['updated_at'] = now
+        
         # Create file entry
         file_result = supabase.table('knowledge_files').insert(data).execute()
         
@@ -246,6 +370,31 @@ def search_knowledge_base():
         type: string
         required: true
         description: Search query
+      - name: category
+        in: query
+        type: string
+        required: false
+        description: Filter by category
+      - name: file_type
+        in: query
+        type: string
+        required: false
+        description: Filter by file type
+      - name: tags
+        in: query
+        type: string
+        required: false
+        description: Comma-separated list of tags to filter by
+      - name: limit
+        in: query
+        type: integer
+        required: false
+        description: Limit number of results (default 20)
+      - name: include_snippets
+        in: query
+        type: boolean
+        required: false
+        description: Whether to include text snippets in results (default false)
     responses:
       200:
         description: Search results
@@ -258,40 +407,221 @@ def search_knowledge_base():
     """
     user = get_user_from_token(request)
     
-    # Get query parameter
+    # Get query parameters
     query = request.args.get('query')
+    category = request.args.get('category')
+    file_type = request.args.get('file_type')
+    tags_str = request.args.get('tags')
+    limit = request.args.get('limit', 20, type=int)
+    include_snippets = request.args.get('include_snippets', 'false').lower() == 'true'
+    
+    # Parse tags if provided
+    tags = tags_str.split(',') if tags_str else None
     
     if not query:
         return jsonify({'error': 'query parameter is required'}), 400
     
     try:
-        # Search files (basic implementation - in a real application, 
-        # you would use a more sophisticated search mechanism)
-        files_result = supabase.table('knowledge_files').select('id,file_name,file_type').eq('user_id', user['id']).execute()
+        # Build base query to get all user's files
+        base_query = supabase.table('knowledge_files').select('id,file_name,file_type,category,tags,metadata,created_at,updated_at').eq('user_id', user['id'])
         
-        # Filter files based on content containing query
+        # Apply filters if provided
+        if category:
+            base_query = base_query.eq('category', category)
+        
+        if file_type:
+            base_query = base_query.eq('file_type', file_type)
+            
+        # Execute the query to get the filtered files
+        files_result = base_query.execute()
+        
+        # Get content for all files for searching
         content_result = supabase.table('knowledge_files').select('id,content').eq('user_id', user['id']).execute()
         
         matches = []
         for file in files_result.data:
+            # Skip files with no matching tags if tags filter is provided
+            if tags and file.get('tags'):
+                # Make sure tags is a list
+                if isinstance(file['tags'], str):
+                    try:
+                        file_tags = json.loads(file['tags'])
+                    except:
+                        file_tags = [file['tags']]
+                else:
+                    file_tags = file['tags']
+                
+                # Check if any of the requested tags match
+                if not any(tag in file_tags for tag in tags):
+                    continue
+            
             # Find corresponding content
             content_file = next((item for item in content_result.data if item['id'] == file['id']), None)
             if content_file:
                 content = content_file.get('content', '')
+                
+                # Check if query matches file name or content
                 if query.lower() in content.lower() or query.lower() in file['file_name'].lower():
-                    # Add to matches but don't include content in response
-                    matches.append({
+                    result = {
                         'id': file['id'],
                         'file_name': file['file_name'],
-                        'file_type': file['file_type']
-                    })
+                        'file_type': file['file_type'],
+                        'category': file.get('category'),
+                        'tags': file.get('tags'),
+                        'created_at': file.get('created_at'),
+                        'updated_at': file.get('updated_at')
+                    }
+                    
+                    # Include snippets if requested
+                    if include_snippets:
+                        # Find the context around the match
+                        snippets = []
+                        query_lower = query.lower()
+                        content_lower = content.lower()
+                        
+                        # Find all occurrences of the query in the content
+                        start_pos = 0
+                        while start_pos < len(content_lower):
+                            pos = content_lower.find(query_lower, start_pos)
+                            if pos == -1:
+                                break
+                                
+                            # Get context (100 chars before and after)
+                            snippet_start = max(0, pos - 100)
+                            snippet_end = min(len(content), pos + len(query) + 100)
+                            
+                            # Extract snippet and highlight the query
+                            snippet = content[snippet_start:snippet_end]
+                            
+                            # Add ellipsis if snippet is cut
+                            if snippet_start > 0:
+                                snippet = "..." + snippet
+                            if snippet_end < len(content):
+                                snippet = snippet + "..."
+                                
+                            snippets.append(snippet)
+                            
+                            # Move to next occurrence
+                            start_pos = pos + len(query)
+                            
+                            # Limit to 3 snippets max
+                            if len(snippets) >= 3:
+                                break
+                                
+                        result['snippets'] = snippets
+                    
+                    # Add to matches
+                    matches.append(result)
+                    
+                    # Limit results
+                    if len(matches) >= limit:
+                        break
         
         return jsonify({
             'query': query,
+            'filters': {
+                'category': category,
+                'file_type': file_type,
+                'tags': tags
+            },
             'results': matches,
-            'count': len(matches)
+            'count': len(matches),
+            'limit': limit
         }), 200
         
     except Exception as e:
         logger.error(f"Error searching knowledge base: {str(e)}", exc_info=True)
         return jsonify({'error': 'Error searching knowledge base'}), 500
+
+@knowledge_bp.route('/files/categories', methods=['GET'])
+@require_auth
+def get_knowledge_categories():
+    """
+    Get all categories in the knowledge base
+    ---
+    parameters:
+      - name: Authorization
+        in: header
+        type: string
+        required: true
+        description: Bearer token
+    responses:
+      200:
+        description: List of categories
+      401:
+        description: Unauthorized
+      500:
+        description: Server error
+    """
+    user = get_user_from_token(request)
+    
+    try:
+        # Get all distinct categories
+        categories_result = supabase.table('knowledge_files').select('category').eq('user_id', user['id']).execute()
+        
+        # Extract unique categories
+        categories = set()
+        for item in categories_result.data:
+            category = item.get('category')
+            if category:
+                categories.add(category)
+        
+        return jsonify({
+            'categories': sorted(list(categories))
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error getting knowledge categories: {str(e)}", exc_info=True)
+        return jsonify({'error': 'Error getting knowledge categories'}), 500
+
+@knowledge_bp.route('/files/tags', methods=['GET'])
+@require_auth
+def get_knowledge_tags():
+    """
+    Get all tags in the knowledge base
+    ---
+    parameters:
+      - name: Authorization
+        in: header
+        type: string
+        required: true
+        description: Bearer token
+    responses:
+      200:
+        description: List of tags
+      401:
+        description: Unauthorized
+      500:
+        description: Server error
+    """
+    user = get_user_from_token(request)
+    
+    try:
+        # Get all tags
+        tags_result = supabase.table('knowledge_files').select('tags').eq('user_id', user['id']).execute()
+        
+        # Extract unique tags
+        all_tags = set()
+        for item in tags_result.data:
+            tags = item.get('tags')
+            if tags:
+                # Handle both string (JSON) and array formats
+                if isinstance(tags, str):
+                    try:
+                        tags_list = json.loads(tags)
+                        if isinstance(tags_list, list):
+                            for tag in tags_list:
+                                all_tags.add(tag)
+                    except:
+                        all_tags.add(tags)
+                elif isinstance(tags, list):
+                    for tag in tags:
+                        all_tags.add(tag)
+        
+        return jsonify({
+            'tags': sorted(list(all_tags))
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error getting knowledge tags: {str(e)}", exc_info=True)
+        return jsonify({'error': 'Error getting knowledge tags'}), 500

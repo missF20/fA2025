@@ -7,7 +7,7 @@ Dana AI is a comprehensive social media management platform that uses artificial
 - **AI-Driven Response Generation**: Automatically generate context-aware responses to customer inquiries.
 - **Multi-Platform Support**: Manage interactions across Facebook, Instagram, and WhatsApp.
 - **Business Tool Integration**: Connect to business tools like Slack, Email, HubSpot, Salesforce, Google Analytics, and Zendesk.
-- **Knowledge Management**: Upload and leverage company-specific knowledge for better AI responses.
+- **Knowledge Management**: Upload and leverage company-specific knowledge for better AI responses, with support for PDF, DOCX, and TXT file parsing.
 - **Task Management**: Create, assign, and track tasks related to social media interactions.
 - **Real-Time Notifications**: Get instant updates on new messages and interactions.
 - **Analytics and Reporting**: Track performance metrics and generate reports.
@@ -38,13 +38,24 @@ Dana AI follows a modular architecture pattern with clear separation of concerns
 - **Database Access Layer**: Abstracts database operations.
 - **Knowledge Management**: Stores and retrieves company-specific knowledge.
 
+### Self-Contained AI System
+
+Dana AI features a privacy-focused, self-contained AI implementation that doesn't require any external AI APIs:
+
+- **Rules-Based Response Generator**: Pattern matching and templating system for generating contextually relevant responses.
+- **Knowledge Database Integration**: Local knowledge retrieval system that searches through company documents and knowledge base.
+- **File Content Extraction**: Built-in parsers for PDF, DOCX, and TXT files that extract text for knowledge processing.
+- **Intent Recognition**: Local intent detection system that identifies user needs from message patterns.
+- **Contextual Responses**: Maintains conversation context to provide consistent, coherent interactions.
+- **Zero External Dependencies**: The entire AI system operates locally without sending data to external services.
+
 ### Technologies Used
 
 - **Backend Framework**: Flask (Python)
 - **Database ORM**: SQLAlchemy
 - **Real-Time Communication**: Flask-SocketIO
 - **Authentication**: JWT (JSON Web Tokens)
-- **AI Services**: OpenAI API
+- **AI Services**: Fully self-contained rules-based AI system (no external AI APIs required)
 - **API Documentation**: Swagger/OpenAPI
 
 ### Supported Platforms

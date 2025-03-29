@@ -136,6 +136,14 @@ app.register_blueprint(admin_bp)
 from routes.subscription import subscription_bp
 app.register_blueprint(subscription_bp)
 
+# Register Supabase subscription routes blueprint
+try:
+    from routes.supabase_subscription import supabase_subscription_bp
+    app.register_blueprint(supabase_subscription_bp)
+    logger.info("Supabase subscription routes registered")
+except ImportError as e:
+    logger.warning(f"Could not register Supabase subscription routes: {str(e)}")
+
 # Register user management routes
 try:
     from routes.users import users_bp
