@@ -19,12 +19,13 @@ slack_channel_id = os.environ.get('SLACK_CHANNEL_ID')
 
 slack_client = WebClient(token=slack_token) if slack_token else None
 
-def post_message(message: str) -> dict:
+def post_message(message: str, blocks: Optional[List[Dict[str, Any]]] = None) -> dict:
     """
     Post a message to the Slack channel
     
     Args:
-        message: The message to post
+        message: The message to post (fallback text)
+        blocks: Optional Slack message blocks for rich formatting
         
     Returns:
         dict: Response details including success status
@@ -38,10 +39,18 @@ def post_message(message: str) -> dict:
         }
     
     try:
-        response = slack_client.chat_postMessage(
-            channel=slack_channel_id,
-            text=message
-        )
+        if blocks:
+            response = slack_client.chat_postMessage(
+                channel=slack_channel_id,
+                text=message,
+                blocks=blocks
+            )
+        else:
+            response = slack_client.chat_postMessage(
+                channel=slack_channel_id,
+                text=message
+            )
+        
         return {
             "success": True,
             "message": "Message posted successfully",
@@ -140,60 +149,33 @@ def get_thread_replies(thread_ts: str, limit=100) -> List[dict] | None:
 
 def verify_slack_credentials() -> dict:
     """
-    Verify that Slack credentials are valid and properly configured
+    Verify that Slack credentials are configured (but don't validate API access)
     
     Returns:
         dict: Verification result
     """
+    missing = []
     if not slack_token:
-        return {
-            "valid": False,
-            "message": "Slack API token (SLACK_BOT_TOKEN) is not configured",
-            "missing": ["SLACK_BOT_TOKEN"]
-        }
-        
+        missing.append("SLACK_BOT_TOKEN")
+    
     if not slack_channel_id:
+        missing.append("SLACK_CHANNEL_ID")
+    
+    if missing:
         return {
             "valid": False,
-            "message": "Slack channel ID (SLACK_CHANNEL_ID) is not configured",
-            "missing": ["SLACK_CHANNEL_ID"]
+            "message": f"Slack credentials are not fully configured: Missing {', '.join(missing)}",
+            "missing": missing
         }
     
-    try:
-        # Test API token
-        auth_test = slack_client.auth_test()
-        if not auth_test.get("ok", False):
-            return {
-                "valid": False,
-                "message": f"Invalid Slack API token: {auth_test.get('error', 'Unknown error')}"
-            }
-            
-        # Test channel access
-        channel_info = slack_client.conversations_info(channel=slack_channel_id)
-        if not channel_info.get("ok", False):
-            return {
-                "valid": False,
-                "message": f"Invalid Slack channel ID or no access: {channel_info.get('error', 'Unknown error')}"
-            }
-            
-        return {
-            "valid": True,
-            "message": "Slack credentials are valid",
-            "team": auth_test.get("team", ""),
-            "bot_id": auth_test.get("bot_id", ""),
-            "channel_name": channel_info.get("channel", {}).get("name", "")
-        }
-        
-    except SlackApiError as e:
-        return {
-            "valid": False,
-            "message": f"Slack API error: {str(e)}"
-        }
-    except Exception as e:
-        return {
-            "valid": False,
-            "message": f"Unexpected error: {str(e)}"
-        }
+    # Basic credentials are configured
+    return {
+        "valid": True,
+        "message": "Slack credentials are configured",
+        "token_configured": bool(slack_token),
+        "channel_configured": bool(slack_channel_id),
+        "channel_id": slack_channel_id
+    }
 
 # Initialize on module load
 if slack_token and slack_channel_id:

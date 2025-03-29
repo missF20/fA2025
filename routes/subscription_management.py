@@ -20,6 +20,7 @@ from models_db import (
 )
 from utils.auth import require_auth, require_admin, validate_user_access
 from utils.validation import validate_request_json
+from utils.subscription_notifications import send_subscription_notification
 from models import (
     SubscriptionFeatureCreate, SubscriptionFeatureUpdate,
     SubscriptionTierCreate, SubscriptionTierUpdate,
@@ -1113,6 +1114,21 @@ def create_user_subscription():
             }
         }
         
+        # Send notification to Slack
+        try:
+            notification_data = {
+                'user_id': user.id,
+                'tier_name': tier.name,
+                'price': tier.monthly_price if data.get('billing_cycle') == 'monthly' else tier.annual_price,
+                'billing_cycle': data.get('billing_cycle', 'monthly')
+            }
+            
+            send_subscription_notification('subscription_created', notification_data)
+            logger.info(f"Subscription creation notification sent for user {user.id}")
+        except Exception as notification_error:
+            # Log but don't fail if notification fails
+            logger.warning(f"Failed to send subscription notification: {str(notification_error)}")
+        
         return jsonify({
             'success': True,
             'message': 'Subscription created successfully',
@@ -1373,6 +1389,20 @@ def cancel_subscription(subscription_id):
         
         # Get the tier details
         tier = SubscriptionTier.query.get(subscription.subscription_tier_id)
+        
+        # Send cancellation notification to Slack
+        try:
+            notification_data = {
+                'user_id': user.id,
+                'tier_name': tier.name if tier else 'Unknown',
+                'reason': subscription.cancellation_reason or 'No reason provided'
+            }
+            
+            send_subscription_notification('subscription_cancelled', notification_data)
+            logger.info(f"Subscription cancellation notification sent for user {user.id}")
+        except Exception as notification_error:
+            # Log but don't fail if notification fails
+            logger.warning(f"Failed to send subscription cancellation notification: {str(notification_error)}")
         
         # Format response
         subscription_data = {
@@ -1686,6 +1716,31 @@ def create_invoice():
         
         db.session.commit()
         
+        # Send invoice notification to Slack
+        try:
+            # Get subscription tier
+            tier = SubscriptionTier.query.get(subscription.subscription_tier_id)
+            
+            notification_data = {
+                'user_id': user.id,
+                'tier_name': tier.name if tier else 'Unknown',
+                'invoice_number': invoice_number,
+                'amount': data['amount'],
+                'currency': data.get('currency', 'USD'),
+                'status': data.get('status', 'pending'),
+                'billing_date': data['billing_date'].isoformat() if isinstance(data['billing_date'], datetime) else data['billing_date']
+            }
+            
+            event_type = 'invoice_created'
+            if data.get('status') == 'paid':
+                event_type = 'invoice_paid'
+                
+            send_subscription_notification(event_type, notification_data)
+            logger.info(f"Invoice notification sent for user {user.id}")
+        except Exception as notification_error:
+            # Log but don't fail if notification fails
+            logger.warning(f"Failed to send invoice notification: {str(notification_error)}")
+        
         # Format response
         invoice_data = {
             'id': new_invoice.id,
@@ -1792,6 +1847,9 @@ def update_invoice(invoice_id):
         
         # If status updated to paid, update the subscription's last_billing_date
         # and calculate next_billing_date
+        subscription = None
+        tier = None
+        
         if status_updated_to_paid:
             subscription = UserSubscription.query.get(invoice.subscription_id)
             if subscription:
@@ -1803,8 +1861,32 @@ def update_invoice(invoice_id):
                     subscription.next_billing_date = invoice.billing_date + timedelta(days=30)
                 elif subscription.billing_cycle == 'annual':
                     subscription.next_billing_date = invoice.billing_date + timedelta(days=365)
+                
+                # Get the tier for notification
+                tier = SubscriptionTier.query.get(subscription.subscription_tier_id)
         
         db.session.commit()
+        
+        # Send notification if invoice was marked as paid
+        if status_updated_to_paid and subscription:
+            try:
+                # Get user details
+                user = User.query.get(invoice.user_id)
+                
+                notification_data = {
+                    'user_id': invoice.user_id,
+                    'tier_name': tier.name if tier else 'Unknown',
+                    'invoice_number': invoice.invoice_number,
+                    'amount': invoice.amount,
+                    'currency': invoice.currency,
+                    'payment_date': invoice.paid_date.isoformat() if invoice.paid_date else datetime.utcnow().isoformat()
+                }
+                
+                send_subscription_notification('invoice_paid', notification_data)
+                logger.info(f"Invoice payment notification sent for user {invoice.user_id}")
+            except Exception as notification_error:
+                # Log but don't fail if notification fails
+                logger.warning(f"Failed to send invoice payment notification: {str(notification_error)}")
         
         # Format response
         invoice_data = {
@@ -1891,8 +1973,29 @@ def delete_invoice(invoice_id):
             }), 400
             
         # Delete invoice
+        invoice_number = invoice.invoice_number
+        user_id = invoice.user_id
+        
         db.session.delete(invoice)
         db.session.commit()
+        
+        # Send notification about invoice deletion
+        try:
+            # Get user
+            user = User.query.get(user_id)
+            
+            notification_data = {
+                'user_id': user_id,
+                'invoice_number': invoice_number,
+                'amount': invoice.amount,
+                'currency': invoice.currency
+            }
+            
+            send_subscription_notification('invoice_deleted', notification_data)
+            logger.info(f"Invoice deletion notification sent for invoice {invoice_number}")
+        except Exception as notification_error:
+            # Log but don't fail if notification fails
+            logger.warning(f"Failed to send invoice deletion notification: {str(notification_error)}")
         
         return jsonify({
             'success': True,
