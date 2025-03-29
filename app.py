@@ -118,6 +118,7 @@ def register_blueprints():
         from routes.batch import batch_bp
         from routes.email import email_bp
         from routes.ai_responses import ai_response_bp
+        from routes.slack.routes import slack_bp
         
         # Register existing blueprints
         app.register_blueprint(ai_test_bp)
@@ -133,6 +134,7 @@ def register_blueprints():
         app.register_blueprint(batch_bp)
         app.register_blueprint(email_bp)
         app.register_blueprint(ai_response_bp)
+        app.register_blueprint(slack_bp)
         
         logger.info("Route blueprints registered")
     except Exception as e:
