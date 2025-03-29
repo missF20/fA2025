@@ -130,7 +130,10 @@ Features:
 - **Multi-Language Support**: Generates responses in multiple languages
 
 Supported AI providers:
-- OpenAI (default)
+- OpenAI (primary provider) - Uses the latest gpt-4o model
+- Anthropic (fallback provider) - Uses the latest claude-3-5-sonnet model
+
+For detailed information about AI providers and integration, refer to the [AI Services Integration Guide](./AI_SERVICES.md).
 
 ### Knowledge Management
 
@@ -368,6 +371,7 @@ Dana AI uses environment variables for configuration:
 - **Flask**: SESSION_SECRET, JWT_SECRET_KEY, FLASK_ENV
 - **Supabase**: SUPABASE_URL, SUPABASE_KEY
 - **Socket.IO**: SOCKETIO_CORS_ALLOWED_ORIGINS
+- **AI Services**: OPENAI_API_KEY, ANTHROPIC_API_KEY
 - **Rate Limiting**: RATE_LIMIT_DEFAULT, RATE_LIMIT_AUTH
 - **Integration-specific**: Variables for each integration (e.g., SLACK_BOT_TOKEN, SLACK_CHANNEL_ID)
 
@@ -384,6 +388,8 @@ Feature flags can be used to enable or disable specific features:
 - ENABLE_SALESFORCE_INTEGRATION
 - ENABLE_GOOGLE_ANALYTICS_INTEGRATION
 - ENABLE_ZENDESK_INTEGRATION
+- ENABLE_OPENAI_INTEGRATION
+- ENABLE_ANTHROPIC_INTEGRATION
 
 ## Deployment
 

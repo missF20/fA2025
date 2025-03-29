@@ -1,200 +1,174 @@
 """
-Authentication and Authorization Utilities
+Authentication Utilities
 
-This module provides utilities for authentication and authorization.
+This module provides utility functions for authentication and authorization.
 """
 
 import os
-import time
 import logging
-from functools import wraps
-from typing import Dict, Any, Optional, List, Callable, Union
-from flask import request, jsonify, g, current_app
-from werkzeug.local import LocalProxy
 import jwt
+from functools import wraps
+from datetime import datetime, timedelta
+from flask import request, jsonify, g
+from werkzeug.security import generate_password_hash, check_password_hash
 
-# Setup logging
+# Configure logging
 logger = logging.getLogger(__name__)
 
-# JWT configuration
-JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'dana-ai-dev-secret-key')
-JWT_ALGORITHM = 'HS256'
-JWT_ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
+# Get JWT secret key from environment
+JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "dana-ai-dev-jwt-secret")
+JWT_ALGORITHM = "HS256"
+JWT_EXPIRATION_HOURS = 24  # Token expiration time in hours
 
-# Admin roles
-ADMIN_ROLES = ['admin', 'super_admin']
-
-
-def get_current_user():
+def generate_token(user_id, username=None, email=None, is_admin=False, expiration_hours=JWT_EXPIRATION_HOURS):
     """
-    Get the current authenticated user.
-    Returns None if no user is authenticated.
-    """
-    return getattr(g, 'user', None)
-
-
-current_user = LocalProxy(get_current_user)
-
-
-def create_access_token(data: Dict[str, Any], expires_delta: Optional[int] = None) -> str:
-    """
-    Create a new JWT access token
+    Generate a JWT token for a user
     
     Args:
-        data: Data to encode in the token
-        expires_delta: Optional expiration time in minutes
+        user_id: User ID
+        username: Username (optional)
+        email: Email (optional)
+        is_admin: Whether the user is an admin
+        expiration_hours: Token expiration time in hours
         
     Returns:
         JWT token string
     """
-    to_encode = data.copy()
-    expires = time.time() + (expires_delta or JWT_ACCESS_TOKEN_EXPIRE_MINUTES) * 60
+    try:
+        # Set token expiration time
+        expiration = datetime.utcnow() + timedelta(hours=expiration_hours)
+        
+        # Create token payload
+        payload = {
+            "user_id": user_id,
+            "exp": expiration
+        }
+        
+        # Add optional fields if provided
+        if username:
+            payload["username"] = username
+        if email:
+            payload["email"] = email
+        if is_admin:
+            payload["is_admin"] = is_admin
+        
+        # Generate token
+        token = jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+        
+        return token
     
-    to_encode.update({
-        "exp": expires,
-        "iat": time.time()
-    })
-    
-    return jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+    except Exception as e:
+        logger.error(f"Error generating token: {str(e)}")
+        return None
 
-
-def decode_token(token: str) -> Optional[Dict[str, Any]]:
+def validate_token(token):
     """
-    Decode and verify a JWT token
+    Validate a JWT token
     
     Args:
         token: JWT token string
         
     Returns:
-        Decoded token payload or None if invalid
+        Decoded token payload if valid, None otherwise
     """
     try:
-        return jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        # Decode and validate token
+        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        return payload
+    
+    except jwt.ExpiredSignatureError:
+        logger.warning("Token expired")
+        return None
+    
+    except jwt.InvalidTokenError as e:
+        logger.warning(f"Invalid token: {str(e)}")
+        return None
+    
     except Exception as e:
-        logger.error(f"Error decoding token: {str(e)}")
+        logger.error(f"Error validating token: {str(e)}")
         return None
 
-
-def verify_token(token: str) -> Optional[Dict[str, Any]]:
+def token_required(f):
     """
-    Verify a JWT token and return the payload if valid
+    Decorator to require a valid JWT token for a route
     
-    Args:
-        token: JWT token string
-        
-    Returns:
-        Decoded token payload or None if invalid
-    """
-    return decode_token(token)
-
-
-def get_token_from_header() -> Optional[str]:
-    """
-    Extract JWT token from Authorization header
-    
-    Returns:
-        Token string or None if not found
-    """
-    auth_header = request.headers.get('Authorization')
-    if not auth_header or not auth_header.startswith('Bearer '):
-        return None
-    
-    return auth_header.split(' ')[1]
-
-
-def authenticate_request():
-    """
-    Authenticate the current request using JWT token
-    
-    Returns:
-        Tuple (success, error_response)
-        - If success is True, error_response is None
-        - If success is False, error_response is the response to return
-    """
-    # Get token from header
-    token = get_token_from_header()
-    if not token:
-        return False, jsonify({
-            "success": False,
-            "message": "Missing authentication token"
-        }), 401
-    
-    # Decode and verify token
-    payload = decode_token(token)
-    if not payload:
-        return False, jsonify({
-            "success": False,
-            "message": "Invalid authentication token"
-        }), 401
-    
-    # Store user in g for access in route handlers
-    g.user = {
-        "id": payload.get("sub"),
-        "email": payload.get("email"),
-        "role": payload.get("role", "user")
-    }
-    
-    return True, None
-
-
-def require_auth(f):
-    """
-    Decorator to require authentication for a route
+    Usage:
+        @app.route('/protected')
+        @token_required
+        def protected_route():
+            # Access authenticated user with g.user
+            return jsonify({"user_id": g.user["user_id"]})
     """
     @wraps(f)
     def decorated(*args, **kwargs):
-        result = authenticate_request()
-        if isinstance(result, tuple) and len(result) >= 2 and not result[0]:
-            # Authentication failed, return the error response
-            return result[1:]  # Return the response and status code
+        token = None
+        
+        # Get token from header
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split(" ")[1]
+        
+        # Return error if no token provided
+        if not token:
+            return jsonify({"error": "Authentication token required"}), 401
+        
+        # Validate token
+        payload = validate_token(token)
+        if not payload:
+            return jsonify({"error": "Invalid or expired token"}), 401
+        
+        # Store user info in g object for access in the route function
+        g.user = payload
         
         return f(*args, **kwargs)
     
     return decorated
 
-
-def require_admin(f):
+def admin_required(f):
     """
-    Decorator to require admin role for a route
+    Decorator to require an admin user for a route
+    
+    Must be used after @token_required
+    
+    Usage:
+        @app.route('/admin-only')
+        @token_required
+        @admin_required
+        def admin_route():
+            # Access authenticated admin user with g.user
+            return jsonify({"user_id": g.user["user_id"]})
     """
     @wraps(f)
     def decorated(*args, **kwargs):
-        result = authenticate_request()
-        if isinstance(result, tuple) and len(result) >= 2 and not result[0]:
-            # Authentication failed, return the error response
-            return result[1:]  # Return the response and status code
-        
-        # Check if user has admin role
-        if g.user.get('role') not in ADMIN_ROLES:
-            return jsonify({
-                "success": False,
-                "message": "Admin access required"
-            }), 403
+        # Check if user is an admin
+        if not g.user.get("is_admin", False):
+            return jsonify({"error": "Admin privileges required"}), 403
         
         return f(*args, **kwargs)
     
     return decorated
 
-
-def validate_user_access(user_id: str):
+def hash_password(password):
     """
-    Validate if the current user has access to the specified user_id
+    Generate a hash for a password
     
     Args:
-        user_id: User ID to validate access for
+        password: Plain text password
         
     Returns:
-        Error response tuple if access denied, None if access granted
+        Password hash
     """
-    # Admins can access all user data
-    if g.user.get('role') in ADMIN_ROLES:
-        return None
+    return generate_password_hash(password)
+
+def verify_password(password_hash, password):
+    """
+    Verify a password against a hash
     
-    # Regular users can only access their own data
-    if g.user.get('id') != user_id:
-        return (jsonify({
-            "success": False,
-            "message": "Unauthorized access to another user's data"
-        }), 403)
-    
-    return None
+    Args:
+        password_hash: Stored password hash
+        password: Plain text password to verify
+        
+    Returns:
+        True if the password is correct, False otherwise
+    """
+    return check_password_hash(password_hash, password)

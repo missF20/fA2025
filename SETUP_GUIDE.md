@@ -72,8 +72,11 @@ FACEBOOK_APP_SECRET=your-app-secret
 SLACK_BOT_TOKEN=xoxb-your-token
 SLACK_CHANNEL_ID=C0123456789
 
-# OpenAI (for AI responses)
+# AI Services
+# OpenAI (Primary AI provider)
 OPENAI_API_KEY=your-openai-api-key
+# Anthropic (Fallback AI provider)
+ANTHROPIC_API_KEY=your-anthropic-api-key
 ```
 
 ### 5. Database Setup
@@ -152,6 +155,43 @@ gunicorn --bind 0.0.0.0:5000 --workers 4 main:app
 1. Set up a Salesforce Connected App
 2. Generate API credentials
 3. Add the credentials to your `.env` file
+
+## AI Services Configuration
+
+Dana AI uses external AI services to generate responses, analyze messages, and enhance knowledge retrieval.
+
+### OpenAI (Primary Provider)
+
+1. Create an account at https://platform.openai.com/
+2. Navigate to API keys section
+3. Create a new API key
+4. Add the key to your `.env` file as `OPENAI_API_KEY`
+
+### Anthropic (Fallback Provider)
+
+1. Create an account at https://console.anthropic.com/
+2. Generate an API key
+3. Add the key to your `.env` file as `ANTHROPIC_API_KEY`
+
+### Testing AI Integration
+
+To test the AI integration:
+
+```bash
+# Send a test message to the AI
+curl -X POST \
+  http://localhost:5000/api/ai/test \
+  -H 'Content-Type: application/json' \
+  -H 'Authorization: Bearer YOUR_AUTH_TOKEN' \
+  -d '{"message": "Hello, how can Dana AI help me today?"}'
+
+# Test sentiment analysis
+curl -X POST \
+  http://localhost:5000/api/ai/analyze \
+  -H 'Content-Type: application/json' \
+  -H 'Authorization: Bearer YOUR_AUTH_TOKEN' \
+  -d '{"message": "I am very satisfied with the service."}'
+```
 
 ## Subscription Setup
 

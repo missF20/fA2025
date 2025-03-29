@@ -38,16 +38,16 @@ Dana AI follows a modular architecture pattern with clear separation of concerns
 - **Database Access Layer**: Abstracts database operations.
 - **Knowledge Management**: Stores and retrieves company-specific knowledge.
 
-### Self-Contained AI System
+### AI-Powered Intelligence
 
-Dana AI features a privacy-focused, self-contained AI implementation that doesn't require any external AI APIs:
+Dana AI leverages advanced Large Language Models through integration with leading AI providers:
 
-- **Rules-Based Response Generator**: Pattern matching and templating system for generating contextually relevant responses.
-- **Knowledge Database Integration**: Local knowledge retrieval system that searches through company documents and knowledge base.
-- **File Content Extraction**: Built-in parsers for PDF, DOCX, and TXT files that extract text for knowledge processing.
-- **Intent Recognition**: Local intent detection system that identifies user needs from message patterns.
-- **Contextual Responses**: Maintains conversation context to provide consistent, coherent interactions.
-- **Zero External Dependencies**: The entire AI system operates locally without sending data to external services.
+- **OpenAI Integration**: Primary AI provider using OpenAI's powerful GPT models for natural, context-aware responses.
+- **Fallback AI Options**: Secondary AI providers that can be used if the primary service is unavailable.
+- **Knowledge-Enhanced Responses**: Combines AI capabilities with your company's knowledge base for more relevant answers.
+- **File Content Analysis**: Extracts and processes content from PDF, DOCX, and TXT files to enhance AI understanding.
+- **Context Management**: Maintains conversation history to provide coherent, continuous interactions.
+- **Flexible Configuration**: Easy configuration options to select preferred AI providers and models.
 
 ### Technologies Used
 
@@ -55,7 +55,7 @@ Dana AI features a privacy-focused, self-contained AI implementation that doesn'
 - **Database ORM**: SQLAlchemy
 - **Real-Time Communication**: Flask-SocketIO
 - **Authentication**: JWT (JSON Web Tokens)
-- **AI Services**: Fully self-contained rules-based AI system (no external AI APIs required)
+- **AI Services**: OpenAI API integration with fallback options
 - **API Documentation**: Swagger/OpenAPI
 
 ### Supported Platforms

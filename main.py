@@ -1,7 +1,10 @@
-from app import app, socketio
-import logging
+"""
+Dana AI Platform - Main Entry Point
 
-logging.basicConfig(level=logging.DEBUG)
+This is the main entry point for running the Dana AI Platform.
+"""
+
+from app import app
 
 if __name__ == "__main__":
-    socketio.run(app, host="0.0.0.0", port=5000, debug=True, allow_unsafe_werkzeug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True)

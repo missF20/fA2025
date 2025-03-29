@@ -1,211 +1,244 @@
 """
-File Parser Module
+File Parser Utility
 
-This module provides utilities for parsing different file types to extract content
-for use in the knowledge base.
+This module provides utilities for parsing various file types.
 """
 
-import logging
-import io
 import os
+import logging
+import json
 import base64
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, List, Any, Optional, Union, Tuple
+import tempfile
 
+# Configure logging
 logger = logging.getLogger(__name__)
 
-def extract_text_from_pdf(file_content: bytes) -> Tuple[str, Optional[Dict[str, Any]]]:
-    """
-    Extract text content from a PDF file
+class FileParser:
+    """Utility class for parsing different file types"""
     
-    Args:
-        file_content: Binary file content
+    @staticmethod
+    def parse_pdf(file_data: bytes) -> Dict[str, Any]:
+        """
+        Parse a PDF file
         
-    Returns:
-        Tuple of (extracted text, metadata dictionary or None)
-    """
-    try:
-        from PyPDF2 import PdfReader
-        
-        # Create a PDF reader object
-        pdf = PdfReader(io.BytesIO(file_content))
-        
-        # Get the number of pages
-        num_pages = len(pdf.pages)
-        
-        # Extract text from each page
-        text = ""
-        for page_num in range(num_pages):
-            page = pdf.pages[page_num]
-            text += page.extract_text() + "\n\n"
+        Args:
+            file_data: Raw PDF file data
             
-        # Create metadata with page count
-        metadata = {
-            "page_count": num_pages,
-            "version": pdf.pdf_header if hasattr(pdf, 'pdf_header') else "Unknown"
-        }
-        
-        return text, metadata
-        
-    except Exception as e:
-        logger.error(f"Error extracting text from PDF: {str(e)}", exc_info=True)
-        return "", None
-
-
-def extract_text_from_docx(file_content: bytes) -> Tuple[str, Optional[Dict[str, Any]]]:
-    """
-    Extract text content from a DOCX file
-    
-    Args:
-        file_content: Binary file content
-        
-    Returns:
-        Tuple of (extracted text, metadata dictionary or None)
-    """
-    try:
-        from docx import Document
-        
-        # Create a document object
-        doc = Document(io.BytesIO(file_content))
-        
-        # Extract text from paragraphs
-        text = ""
-        for para in doc.paragraphs:
-            text += para.text + "\n"
-            
-        # Extract text from tables
-        for table in doc.tables:
-            for row in table.rows:
-                for cell in row.cells:
-                    text += cell.text + " "
-                text += "\n"
-                
-        # Create metadata with paragraph and table counts
-        metadata = {
-            "paragraph_count": len(doc.paragraphs),
-            "table_count": len(doc.tables)
-        }
-        
-        return text, metadata
-        
-    except Exception as e:
-        logger.error(f"Error extracting text from DOCX: {str(e)}", exc_info=True)
-        return "", None
-
-
-def extract_text_from_txt(file_content: bytes) -> Tuple[str, Optional[Dict[str, Any]]]:
-    """
-    Extract text content from a plain text file
-    
-    Args:
-        file_content: Binary file content
-        
-    Returns:
-        Tuple of (extracted text, metadata dictionary or None)
-    """
-    try:
-        # Decode the bytes to string
-        text = file_content.decode('utf-8')
-        
-        # Create metadata with line count
-        line_count = text.count('\n') + 1
-        metadata = {
-            "line_count": line_count,
-            "character_count": len(text)
-        }
-        
-        return text, metadata
-        
-    except UnicodeDecodeError:
-        # Try another encoding if UTF-8 fails
+        Returns:
+            Dict containing extracted content and metadata
+        """
         try:
-            text = file_content.decode('latin-1')
+            from PyPDF2 import PdfReader
             
-            # Create metadata with line count
-            line_count = text.count('\n') + 1
-            metadata = {
-                "line_count": line_count,
-                "character_count": len(text),
-                "encoding": "latin-1"
+            # Save file to temporary location
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as temp_file:
+                temp_file.write(file_data)
+                temp_path = temp_file.name
+            
+            try:
+                # Open and parse PDF
+                reader = PdfReader(temp_path)
+                
+                # Extract metadata
+                info = reader.metadata
+                metadata = {}
+                if info:
+                    for key in info:
+                        metadata[key] = str(info[key])
+                
+                # Extract text from each page
+                pages = []
+                total_text = ""
+                
+                for i, page in enumerate(reader.pages):
+                    text = page.extract_text()
+                    if text:
+                        total_text += text + "\n\n"
+                        pages.append({
+                            "page_number": i + 1,
+                            "text": text
+                        })
+                
+                result = {
+                    "success": True,
+                    "content": total_text,
+                    "metadata": metadata,
+                    "pages": pages,
+                    "page_count": len(reader.pages)
+                }
+                
+                return result
+                
+            finally:
+                # Clean up temporary file
+                os.unlink(temp_path)
+                
+        except ImportError:
+            logger.error("PyPDF2 not installed. Install with: pip install PyPDF2")
+            return {
+                "success": False,
+                "error": "PDF parser not available. Please install PyPDF2."
             }
             
-            return text, metadata
+        except Exception as e:
+            logger.error(f"Error parsing PDF: {str(e)}")
+            return {
+                "success": False,
+                "error": f"Failed to parse PDF: {str(e)}"
+            }
+    
+    @staticmethod
+    def parse_docx(file_data: bytes) -> Dict[str, Any]:
+        """
+        Parse a DOCX file
+        
+        Args:
+            file_data: Raw DOCX file data
+            
+        Returns:
+            Dict containing extracted content and metadata
+        """
+        try:
+            from docx import Document
+            
+            # Save file to temporary location
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.docx') as temp_file:
+                temp_file.write(file_data)
+                temp_path = temp_file.name
+            
+            try:
+                # Open and parse DOCX
+                doc = Document(temp_path)
+                
+                # Extract text
+                full_text = ""
+                paragraphs = []
+                
+                for para in doc.paragraphs:
+                    if para.text:
+                        full_text += para.text + "\n"
+                        paragraphs.append(para.text)
+                
+                # Get basic metadata
+                core_properties = doc.core_properties
+                metadata = {}
+                
+                if core_properties:
+                    metadata_attrs = [
+                        'author', 'category', 'comments', 'content_status', 
+                        'created', 'identifier', 'keywords', 'language', 
+                        'last_modified_by', 'last_printed', 'modified', 
+                        'revision', 'subject', 'title', 'version'
+                    ]
+                    
+                    for attr in metadata_attrs:
+                        if hasattr(core_properties, attr):
+                            value = getattr(core_properties, attr)
+                            if value is not None:
+                                metadata[attr] = str(value)
+                
+                result = {
+                    "success": True,
+                    "content": full_text,
+                    "metadata": metadata,
+                    "paragraphs": paragraphs,
+                    "paragraph_count": len(paragraphs)
+                }
+                
+                return result
+                
+            finally:
+                # Clean up temporary file
+                os.unlink(temp_path)
+                
+        except ImportError:
+            logger.error("python-docx not installed. Install with: pip install python-docx")
+            return {
+                "success": False,
+                "error": "DOCX parser not available. Please install python-docx."
+            }
             
         except Exception as e:
-            logger.error(f"Error decoding text file: {str(e)}", exc_info=True)
-            return "", None
+            logger.error(f"Error parsing DOCX: {str(e)}")
+            return {
+                "success": False,
+                "error": f"Failed to parse DOCX: {str(e)}"
+            }
+    
+    @staticmethod
+    def parse_txt(file_data: bytes) -> Dict[str, Any]:
+        """
+        Parse a TXT file
+        
+        Args:
+            file_data: Raw TXT file data
             
-    except Exception as e:
-        logger.error(f"Error extracting text from TXT: {str(e)}", exc_info=True)
-        return "", None
-
-
-def parse_file_content(file_content: bytes, file_type: str) -> Tuple[str, Optional[Dict[str, Any]]]:
-    """
-    Parse file content based on file type
-    
-    Args:
-        file_content: Binary file content
-        file_type: File type/extension (pdf, docx, txt, etc.)
-        
-    Returns:
-        Tuple of (extracted text, metadata dictionary or None)
-    """
-    file_type = file_type.lower()
-    
-    if file_type == 'pdf':
-        return extract_text_from_pdf(file_content)
-    elif file_type in ['docx', 'doc']:
-        return extract_text_from_docx(file_content)
-    elif file_type == 'txt':
-        return extract_text_from_txt(file_content)
-    else:
-        logger.warning(f"Unsupported file type: {file_type}")
-        return "", None
-
-
-def parse_file(file_path: str) -> Tuple[str, Optional[Dict[str, Any]]]:
-    """
-    Parse a file from disk
-    
-    Args:
-        file_path: Path to the file
-        
-    Returns:
-        Tuple of (extracted text, metadata dictionary or None)
-    """
-    try:
-        # Get file extension
-        _, file_extension = os.path.splitext(file_path)
-        file_type = file_extension[1:].lower()  # Remove the dot
-        
-        # Read file content
-        with open(file_path, 'rb') as f:
-            file_content = f.read()
+        Returns:
+            Dict containing extracted content
+        """
+        try:
+            # Try to decode the text file with different encodings
+            encodings = ['utf-8', 'latin-1', 'ascii', 'utf-16']
+            content = None
+            used_encoding = None
             
-        return parse_file_content(file_content, file_type)
-        
-    except Exception as e:
-        logger.error(f"Error parsing file {file_path}: {str(e)}", exc_info=True)
-        return "", None
-
-
-def parse_base64_file(base64_content: str, file_type: str) -> Tuple[str, Optional[Dict[str, Any]]]:
-    """
-    Parse a file from base64 encoded content
+            for encoding in encodings:
+                try:
+                    content = file_data.decode(encoding)
+                    used_encoding = encoding
+                    break
+                except UnicodeDecodeError:
+                    continue
+            
+            if content is None:
+                return {
+                    "success": False,
+                    "error": "Could not decode text file with any supported encoding."
+                }
+            
+            # Split into lines
+            lines = content.splitlines()
+            
+            result = {
+                "success": True,
+                "content": content,
+                "encoding": used_encoding,
+                "lines": lines,
+                "line_count": len(lines)
+            }
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error parsing TXT: {str(e)}")
+            return {
+                "success": False,
+                "error": f"Failed to parse TXT: {str(e)}"
+            }
     
-    Args:
-        base64_content: Base64 encoded file content
-        file_type: File type/extension (pdf, docx, txt, etc.)
+    @staticmethod
+    def parse_file(file_data: bytes, file_type: str) -> Dict[str, Any]:
+        """
+        Parse a file based on its type
         
-    Returns:
-        Tuple of (extracted text, metadata dictionary or None)
-    """
-    try:
-        # Decode base64 content
-        file_content = base64.b64decode(base64_content)
+        Args:
+            file_data: Raw file data
+            file_type: Type of file (pdf, docx, txt)
+            
+        Returns:
+            Dict containing extracted content and metadata
+        """
+        file_type = file_type.lower()
         
-        return parse_file_content(file_content, file_type)
-        
-    except Exception as e:
-        logger.error(f"Error parsing base64 file: {str(e)}", exc_info=True)
-        return "", None
+        if file_type == 'pdf':
+            return FileParser.parse_pdf(file_data)
+        elif file_type in ['docx', 'doc']:
+            return FileParser.parse_docx(file_data)
+        elif file_type == 'txt':
+            return FileParser.parse_txt(file_data)
+        else:
+            return {
+                "success": False,
+                "error": f"Unsupported file type: {file_type}"
+            }
