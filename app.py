@@ -109,10 +109,31 @@ def register_blueprints():
         from routes.subscription_management import subscription_mgmt_bp
         from routes.pdf_analysis import pdf_analysis_bp
         
-        # Register blueprints
+        # Import new blueprint modules
+        from routes.admin import admin_bp
+        from routes.visualization import visualization_bp
+        from routes.webhooks import webhooks_bp
+        from routes.notifications import notifications_bp
+        from routes.exports import exports_bp
+        from routes.batch import batch_bp
+        from routes.email import email_bp
+        from routes.ai_responses import ai_response_bp
+        
+        # Register existing blueprints
         app.register_blueprint(ai_test_bp)
         app.register_blueprint(subscription_mgmt_bp)
         app.register_blueprint(pdf_analysis_bp)
+        
+        # Register new blueprints
+        app.register_blueprint(admin_bp)
+        app.register_blueprint(visualization_bp)
+        app.register_blueprint(webhooks_bp)
+        app.register_blueprint(notifications_bp)
+        app.register_blueprint(exports_bp)
+        app.register_blueprint(batch_bp)
+        app.register_blueprint(email_bp)
+        app.register_blueprint(ai_response_bp)
+        
         logger.info("Route blueprints registered")
     except Exception as e:
         logger.error(f"Error registering blueprints: {e}")

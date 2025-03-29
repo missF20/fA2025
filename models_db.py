@@ -5,6 +5,7 @@ from datetime import datetime
 from enum import Enum
 from typing import List, Dict, Any, Optional
 from flask_login import UserMixin
+from sqlalchemy.dialects.postgresql import JSON as PostgresJSON
 
 from app import db
 
@@ -185,6 +186,23 @@ class SubscriptionTier(db.Model):
     def __repr__(self):
         return f'<SubscriptionTier {self.name}: ${self.price}>'
 
+class Subscription(db.Model):
+    """Subscription model for user subscriptions - compatible with older code"""
+    __tablename__ = 'subscriptions'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    plan_type = db.Column(db.String(20), nullable=False)
+    status = db.Column(db.String(20), default='active')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    expires_at = db.Column(db.DateTime)
+    subscription_id = db.Column(db.String(100))
+    payment_method_id = db.Column(db.String(100))
+    
+    def __repr__(self):
+        return f'<Subscription {self.id}: {self.plan_type} ({self.status})>'
+        
 class UserSubscription(db.Model):
     """UserSubscription model for user subscription information"""
     __tablename__ = 'user_subscriptions'
@@ -265,3 +283,167 @@ class Interaction(db.Model):
     
     def __repr__(self):
         return f'<Interaction {self.id}: {self.interaction_type}>'
+
+class Payment(db.Model):
+    """Payment model for tracking payment transactions"""
+    __tablename__ = 'payments'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    subscription_id = db.Column(db.Integer, db.ForeignKey('user_subscriptions.id'), nullable=False)
+    amount = db.Column(db.Float, nullable=False)
+    currency = db.Column(db.String(3), default='USD', nullable=False)
+    status = db.Column(db.String(20), default='pending', nullable=False)
+    payment_method = db.Column(db.String(100))
+    transaction_id = db.Column(db.String(100))
+    invoice_url = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<Payment {self.id}: ${self.amount} {self.currency} - {self.status}>'
+
+class Setting(db.Model):
+    """Setting model for storing system settings"""
+    __tablename__ = 'settings'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String(100), nullable=False, unique=True)
+    value = db.Column(db.JSON)
+    description = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<Setting {self.key}>'
+
+class KnowledgeItem(db.Model):
+    """KnowledgeItem model for user knowledge base entries"""
+    __tablename__ = 'knowledge_items'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    title = db.Column(db.String(255), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    type = db.Column(db.String(50), nullable=False)  # document, snippet, note, etc.
+    tags = db.Column(db.JSON)
+    meta_data = db.Column(db.JSON)  # Changed from 'metadata' (reserved name)
+    source_file_id = db.Column(db.Integer, db.ForeignKey('knowledge_files.id'))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    source_file = db.relationship('KnowledgeFile', backref='knowledge_items')
+    
+    def __repr__(self):
+        return f'<KnowledgeItem {self.id}: {self.title[:30]}>'
+
+class APIUsage(db.Model):
+    """APIUsage model for tracking API usage for rate limiting and quotas"""
+    __tablename__ = 'api_usage'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    endpoint = db.Column(db.String(255), nullable=False)
+    method = db.Column(db.String(10), nullable=False)  # GET, POST, PUT, DELETE
+    request_count = db.Column(db.Integer, default=0)
+    last_request_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'endpoint', 'method', name='unique_user_endpoint_method'),
+    )
+    
+    def __repr__(self):
+        return f'<APIUsage {self.user_id}: {self.endpoint} ({self.request_count})>'
+
+class Notification(db.Model):
+    """Notification model for user notifications"""
+    __tablename__ = 'notifications'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    title = db.Column(db.String(255), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    type = db.Column(db.String(50), nullable=False)  # info, warning, error, success
+    is_read = db.Column(db.Boolean, default=False)
+    data = db.Column(db.JSON)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<Notification {self.id}: {self.title[:30]}>'
+
+class Webhook(db.Model):
+    """Webhook model for managing external webhooks"""
+    __tablename__ = 'webhooks'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    url = db.Column(db.String(255), nullable=False)
+    secret = db.Column(db.String(100))
+    event_types = db.Column(db.JSON, nullable=False)  # Array of event types to trigger webhook
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<Webhook {self.id}: {self.name}>'
+
+class WebhookDelivery(db.Model):
+    """WebhookDelivery model for tracking webhook delivery attempts"""
+    __tablename__ = 'webhook_deliveries'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    webhook_id = db.Column(db.Integer, db.ForeignKey('webhooks.id'), nullable=False)
+    event_type = db.Column(db.String(50), nullable=False)
+    payload = db.Column(db.JSON, nullable=False)
+    response_code = db.Column(db.Integer)
+    response_body = db.Column(db.Text)
+    successful = db.Column(db.Boolean)
+    attempt_count = db.Column(db.Integer, default=1)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    webhook = db.relationship('Webhook', backref='deliveries')
+    
+    def __repr__(self):
+        return f'<WebhookDelivery {self.id}: {self.event_type} - {self.successful}>'
+
+class BatchJob(db.Model):
+    """BatchJob model for tracking batch processing jobs"""
+    __tablename__ = 'batch_jobs'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    job_type = db.Column(db.String(50), nullable=False)  # document_processing, export, etc.
+    status = db.Column(db.String(20), default='pending')  # pending, processing, completed, failed
+    total_items = db.Column(db.Integer, default=0)
+    processed_items = db.Column(db.Integer, default=0)
+    failed_items = db.Column(db.Integer, default=0)
+    result_url = db.Column(db.String(255))
+    error_message = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<BatchJob {self.id}: {self.job_type} - {self.status}>'
+
+class UserActivity(db.Model):
+    """UserActivity model for tracking user activity for analytics"""
+    __tablename__ = 'user_activities'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    activity_type = db.Column(db.String(50), nullable=False)
+    resource_type = db.Column(db.String(50), nullable=False)
+    resource_id = db.Column(db.Integer)
+    ip_address = db.Column(db.String(50))
+    user_agent = db.Column(db.String(255))
+    meta_data = db.Column(db.JSON)  # Changed from 'metadata' (reserved name)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<UserActivity {self.id}: {self.user_id} - {self.activity_type}>'

@@ -1,373 +1,358 @@
 """
-AI Client Interface
+AI Client Module
 
-This module provides a unified interface for interacting with various AI providers.
-It supports fallback mechanisms between providers for better reliability.
+This module provides a unified interface for interacting with various AI providers,
+including OpenAI and Anthropic.
 """
 
 import os
 import logging
-import time
 import json
-from typing import Dict, Any, Optional, Union
-
-# Import client implementations
-from utils.openai_client import OpenAIClient
-from utils.anthropic_client import AnthropicClient
+import time
+from typing import Dict, List, Any, Optional, Tuple, Union
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
 class AIClient:
-    """Unified interface for AI services with fallback capability"""
+    """Unified client for AI services"""
     
-    def __init__(self, primary_provider="openai", fallback_provider="anthropic"):
-        """
-        Initialize the AI client with primary and fallback providers
+    def __init__(self):
+        """Initialize AI client with available providers"""
+        self.providers = {}
+        self.default_provider = None
         
-        Args:
-            primary_provider: Name of the primary AI provider (default: openai)
-            fallback_provider: Name of the fallback AI provider (default: anthropic)
-        """
-        self.clients = {}
-        self.primary_provider = primary_provider
-        self.fallback_provider = fallback_provider
-        
-        # Try to initialize clients
-        try:
-            # Initialize OpenAI client if API key is available
-            openai_api_key = os.environ.get("OPENAI_API_KEY")
-            if openai_api_key:
-                try:
-                    self.clients["openai"] = OpenAIClient(api_key=openai_api_key)
-                    logger.info("OpenAI client initialized")
-                except (ImportError, Exception) as e:
-                    logger.warning(f"Failed to initialize OpenAI client: {str(e)}")
-            else:
-                logger.warning("OpenAI API key not found in environment")
-                
-            # Initialize Anthropic client if API key is available
-            anthropic_api_key = os.environ.get("ANTHROPIC_API_KEY")
-            if anthropic_api_key:
-                try:
-                    self.clients["anthropic"] = AnthropicClient(api_key=anthropic_api_key)
-                    logger.info("Anthropic client initialized")
-                except (ImportError, Exception) as e:
-                    logger.warning(f"Failed to initialize Anthropic client: {str(e)}")
-            else:
-                logger.warning("Anthropic API key not found in environment")
-                
-        except Exception as e:
-            logger.error(f"Error initializing AI clients: {str(e)}")
-        
-        # Validate that at least one client is available
-        if not self.clients:
+        # Try to initialize OpenAI
+        openai_api_key = os.environ.get('OPENAI_API_KEY')
+        if openai_api_key:
+            try:
+                from openai import OpenAI
+                self.openai_client = OpenAI(api_key=openai_api_key)
+                self.providers['openai'] = True
+                self.default_provider = 'openai'
+                logger.info("OpenAI client initialized")
+            except Exception as e:
+                logger.warning(f"OpenAI API key found but client initialization failed: {str(e)}")
+                self.providers['openai'] = False
+        else:
+            logger.warning("OpenAI API key not found in environment")
+            self.providers['openai'] = False
+            
+        # Try to initialize Anthropic
+        anthropic_api_key = os.environ.get('ANTHROPIC_API_KEY')
+        if anthropic_api_key:
+            try:
+                from anthropic import Anthropic
+                self.anthropic_client = Anthropic(api_key=anthropic_api_key)
+                self.providers['anthropic'] = True
+                if not self.default_provider:
+                    self.default_provider = 'anthropic'
+                logger.info("Anthropic client initialized")
+            except Exception as e:
+                logger.warning(f"Anthropic API key found but client initialization failed: {str(e)}")
+                self.providers['anthropic'] = False
+        else:
+            logger.warning("Anthropic API key not found in environment")
+            self.providers['anthropic'] = False
+            
+        # Check if any providers are available
+        if not any(self.providers.values()):
             logger.warning("No AI clients were successfully initialized")
     
-    def generate_response(self, message: str, system_prompt: Optional[str] = None, 
-                          provider: Optional[str] = None, model: Optional[str] = None, 
-                          temperature: float = 0.7, max_tokens: int = 1000) -> Dict[str, Any]:
+    def send_chat_request(self, 
+                         system_message: str,
+                         user_message: str,
+                         conversation_history: Optional[List[Dict[str, str]]] = None,
+                         max_tokens: int = 1000,
+                         temperature: float = 0.7,
+                         json_format: bool = False,
+                         provider: Optional[str] = None) -> Dict[str, Any]:
         """
-        Generate a response to a message, with fallback support
+        Send chat request to AI provider
         
         Args:
-            message: User message to respond to
-            system_prompt: Optional system prompt to set context
-            provider: Specific provider to use (if None, uses primary provider with fallback)
-            model: Model to use (defaults to provider's default model)
-            temperature: Sampling temperature (higher = more random)
-            max_tokens: Maximum number of tokens to generate
+            system_message: System message/instructions
+            user_message: User message/query
+            conversation_history: Previous conversation messages
+            max_tokens: Maximum tokens in response
+            temperature: Creativity parameter (0.0-1.0)
+            json_format: Whether to request JSON format response
+            provider: Specific provider to use ('openai' or 'anthropic')
             
         Returns:
-            Response object with content and metadata
+            Dictionary with response details
         """
-        # Start timing
-        start_time = time.time()
-        
         # Determine which provider to use
-        provider_to_use = provider or self.primary_provider
-        
-        # Check if requested provider is available
-        if provider_to_use not in self.clients:
-            logger.warning(f"Requested provider '{provider_to_use}' not available")
-            
-            # If specific provider was requested but not available, try fallback
-            if provider:
-                if self.fallback_provider in self.clients:
-                    provider_to_use = self.fallback_provider
-                    logger.info(f"Falling back to {provider_to_use}")
-                else:
-                    # Try any available provider
-                    if self.clients:
-                        provider_to_use = next(iter(self.clients.keys()))
-                        logger.info(f"Falling back to available provider: {provider_to_use}")
-                    else:
-                        error_msg = "No AI providers available"
-                        logger.error(error_msg)
-                        return {
-                            "error": error_msg,
-                            "content": "Sorry, AI services are currently unavailable. Please try again later.",
-                            "provider": "none",
-                            "processing_time": time.time() - start_time
-                        }
-        
-        # Try to generate response with selected provider
-        try:
-            client = self.clients[provider_to_use]
-            response = client.generate_response(
-                message=message,
-                system_prompt=system_prompt,
-                model=model,
-                temperature=temperature,
-                max_tokens=max_tokens
-            )
-            
-            # Add total processing time including provider selection
-            response["total_processing_time"] = time.time() - start_time
-            
-            return response
-            
-        except Exception as e:
-            logger.error(f"Error generating response with {provider_to_use}: {str(e)}")
-            
-            # Try fallback provider if different from the one that failed
-            if provider_to_use != self.fallback_provider and self.fallback_provider in self.clients:
-                logger.info(f"Attempting fallback to {self.fallback_provider}")
-                try:
-                    client = self.clients[self.fallback_provider]
-                    response = client.generate_response(
-                        message=message,
-                        system_prompt=system_prompt,
-                        model=model,
-                        temperature=temperature,
-                        max_tokens=max_tokens
-                    )
-                    
-                    # Add total processing time including failed attempt and fallback
-                    response["total_processing_time"] = time.time() - start_time
-                    response["fallback_used"] = True
-                    
-                    return response
-                    
-                except Exception as fallback_error:
-                    logger.error(f"Fallback also failed: {str(fallback_error)}")
-            
-            # If we get here, all attempts failed
-            return {
-                "error": str(e),
-                "content": "Sorry, there was an error generating a response. Please try again later.",
-                "provider": provider_to_use,
-                "processing_time": time.time() - start_time
-            }
-    
-    def analyze_sentiment(self, text: str, provider: Optional[str] = None, 
-                         model: Optional[str] = None) -> Dict[str, Any]:
-        """
-        Analyze the sentiment of a text, with fallback support
-        
-        Args:
-            text: Text to analyze
-            provider: Specific provider to use (if None, uses primary provider with fallback)
-            model: Model to use (defaults to provider's default model)
-            
-        Returns:
-            Sentiment analysis results
-        """
-        # Start timing
-        start_time = time.time()
-        
-        # Determine which provider to use
-        provider_to_use = provider or self.primary_provider
-        
-        # Check if requested provider is available
-        if provider_to_use not in self.clients:
-            logger.warning(f"Requested provider '{provider_to_use}' not available")
-            
-            # If specific provider was requested but not available, try fallback
-            if provider:
-                if self.fallback_provider in self.clients:
-                    provider_to_use = self.fallback_provider
-                    logger.info(f"Falling back to {provider_to_use}")
-                else:
-                    # Try any available provider
-                    if self.clients:
-                        provider_to_use = next(iter(self.clients.keys()))
-                        logger.info(f"Falling back to available provider: {provider_to_use}")
-                    else:
-                        error_msg = "No AI providers available"
-                        logger.error(error_msg)
-                        return {
-                            "error": error_msg,
-                            "sentiment": "neutral",
-                            "rating": 3,
-                            "confidence": 0,
-                            "provider": "none",
-                            "processing_time": time.time() - start_time
-                        }
-        
-        # Try to analyze sentiment with selected provider
-        try:
-            client = self.clients[provider_to_use]
-            result = client.analyze_sentiment(
-                text=text,
-                model=model
-            )
-            
-            # Add total processing time including provider selection
-            result["total_processing_time"] = time.time() - start_time
-            
-            return result
-            
-        except Exception as e:
-            logger.error(f"Error analyzing sentiment with {provider_to_use}: {str(e)}")
-            
-            # Try fallback provider if different from the one that failed
-            if provider_to_use != self.fallback_provider and self.fallback_provider in self.clients:
-                logger.info(f"Attempting fallback to {self.fallback_provider}")
-                try:
-                    client = self.clients[self.fallback_provider]
-                    result = client.analyze_sentiment(
-                        text=text,
-                        model=model
-                    )
-                    
-                    # Add total processing time including failed attempt and fallback
-                    result["total_processing_time"] = time.time() - start_time
-                    result["fallback_used"] = True
-                    
-                    return result
-                    
-                except Exception as fallback_error:
-                    logger.error(f"Fallback also failed: {str(fallback_error)}")
-            
-            # If we get here, all attempts failed
-            return {
-                "error": str(e),
-                "sentiment": "neutral",
-                "rating": 3,
-                "confidence": 0,
-                "provider": provider_to_use,
-                "processing_time": time.time() - start_time
-            }
-    
-    def available_providers(self) -> Dict[str, bool]:
-        """
-        Get a dictionary of available providers
-        
-        Returns:
-            Dictionary with provider names as keys and availability as boolean values
-        """
-        providers = {
-            "openai": "openai" in self.clients,
-            "anthropic": "anthropic" in self.clients
-        }
-        return providers
-        
-    def generate_text(self, prompt: str, provider: Optional[str] = None, 
-                     model: Optional[str] = None, temperature: float = 0.7, 
-                     max_tokens: int = 1000, response_format: Optional[str] = None) -> str:
-        """
-        Generate text completion for a prompt, with fallback support
-        
-        Args:
-            prompt: The prompt to generate text from
-            provider: Specific provider to use (if None, uses primary provider with fallback)
-            model: Model to use (defaults to provider's default model)
-            temperature: Sampling temperature (higher = more random)
-            max_tokens: Maximum number of tokens to generate
-            response_format: Optional format requirement ("json_object", "text", etc.)
-            
-        Returns:
-            Generated text string or empty string on failure
-        """
-        # Start timing
-        start_time = time.time()
-        
-        # Determine which provider to use
-        provider_to_use = provider or self.primary_provider
-        
-        # For simplicity, we'll create a system prompt + user message for this
-        if response_format == "json_object":
-            system_prompt = "You are a helpful assistant that generates JSON responses. Always respond in valid JSON format."
-        else:
-            system_prompt = "You are a helpful assistant. Please provide a detailed, accurate response."
-        
-        # Check if requested provider is available
-        if provider_to_use not in self.clients:
-            logger.warning(f"Requested provider '{provider_to_use}' not available")
-            
-            # If specific provider was requested but not available, try fallback
-            if provider:
-                if self.fallback_provider in self.clients:
-                    provider_to_use = self.fallback_provider
-                    logger.info(f"Falling back to {provider_to_use}")
-                else:
-                    # Try any available provider
-                    if self.clients:
-                        provider_to_use = next(iter(self.clients.keys()))
-                        logger.info(f"Falling back to available provider: {provider_to_use}")
-                    else:
-                        logger.error("No AI providers available")
-                        return ""
-        
-        # Try to generate text with selected provider
-        try:
-            client = self.clients[provider_to_use]
-            
-            # Use the right method based on provider
-            if provider_to_use == "openai":
-                # For OpenAI we can request JSON directly
-                kwargs = {"message": prompt, "system_prompt": system_prompt, 
-                          "temperature": temperature, "max_tokens": max_tokens}
-                
-                if response_format == "json_object" and hasattr(client, 'generate_json'):
-                    response = client.generate_json(**kwargs)
-                    return json.dumps(response.get('content', {}))
-                else:
-                    response = client.generate_response(**kwargs)
-                    return response.get('content', '')
-            
-            elif provider_to_use == "anthropic":
-                # For Anthropic we use their standard message API
-                response = client.generate_response(
-                    message=prompt,
-                    system_prompt=system_prompt,
-                    model=model,
-                    temperature=temperature,
-                    max_tokens=max_tokens
-                )
-                return response.get('content', '')
-                
+        if provider:
+            if provider in self.providers and self.providers[provider]:
+                selected_provider = provider
             else:
-                # Generic fallback
-                response = client.generate_response(
-                    message=prompt,
-                    system_prompt=system_prompt,
-                    model=model,
-                    temperature=temperature,
-                    max_tokens=max_tokens
-                )
-                return response.get('content', '')
+                if self.default_provider:
+                    selected_provider = self.default_provider
+                    logger.warning(f"Requested provider '{provider}' not available, using '{selected_provider}'")
+                else:
+                    return {
+                        'content': "No AI providers are currently available.",
+                        'model': "none",
+                        'error': "No AI providers available"
+                    }
+        else:
+            if self.default_provider:
+                selected_provider = self.default_provider
+            else:
+                return {
+                    'content': "No AI providers are currently available.",
+                    'model': "none",
+                    'error': "No AI providers available"
+                }
+        
+        # Call the appropriate provider
+        if selected_provider == 'openai':
+            return self._openai_chat_request(
+                system_message=system_message,
+                user_message=user_message,
+                conversation_history=conversation_history,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                json_format=json_format
+            )
+        elif selected_provider == 'anthropic':
+            return self._anthropic_chat_request(
+                system_message=system_message,
+                user_message=user_message,
+                conversation_history=conversation_history,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                json_format=json_format
+            )
+        else:
+            return {
+                'content': "Selected provider is not available.",
+                'model': "none",
+                'error': f"Provider '{selected_provider}' not available"
+            }
+    
+    def analyze_image(self, image_base64: str, prompt: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Analyze image using multimodal capabilities
+        
+        Args:
+            image_base64: Base64-encoded image data
+            prompt: Optional prompt to guide the analysis
+            
+        Returns:
+            Dictionary with analysis results
+        """
+        # Default prompt if not provided
+        if not prompt:
+            prompt = """
+            Analyze this image in detail. Describe what you see, including objects, people, 
+            scenes, colors, text, and any other noteworthy elements. Provide a clear and 
+            comprehensive description.
+            """
+            
+        # Check if OpenAI is available (required for image analysis)
+        if not self.providers.get('openai', False):
+            return {
+                'description': "Image analysis is currently unavailable.",
+                'error': "OpenAI provider required for image analysis is not available"
+            }
+            
+        try:
+            # Prepare the image URL with base64 data
+            image_url = f"data:image/jpeg;base64,{image_base64}"
+            
+            # Call OpenAI with multimodal request
+            response = self.openai_client.chat.completions.create(
+                model="gpt-4o",  # Using the newest model supporting vision
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": prompt},
+                            {
+                                "type": "image_url",
+                                "image_url": {"url": image_url}
+                            }
+                        ]
+                    }
+                ],
+                max_tokens=800
+            )
+            
+            # Extract the response content
+            description = response.choices[0].message.content
+            
+            # Structure the response
+            return {
+                'description': description,
+                'objects': [],  # For future image object detection capabilities
+                'text': "",  # For future OCR capabilities
+                'model': "gpt-4o"
+            }
             
         except Exception as e:
-            logger.error(f"Error generating text with {provider_to_use}: {str(e)}")
+            logger.error(f"Error analyzing image: {str(e)}")
+            return {
+                'description': "Error analyzing image.",
+                'objects': [],
+                'text': "",
+                'error': str(e)
+            }
+    
+    def _openai_chat_request(self,
+                            system_message: str,
+                            user_message: str,
+                            conversation_history: Optional[List[Dict[str, str]]] = None,
+                            max_tokens: int = 1000,
+                            temperature: float = 0.7,
+                            json_format: bool = False) -> Dict[str, Any]:
+        """
+        Send chat request to OpenAI
+        
+        Args:
+            system_message: System message/instructions
+            user_message: User message/query
+            conversation_history: Previous conversation messages
+            max_tokens: Maximum tokens in response
+            temperature: Creativity parameter (0.0-1.0)
+            json_format: Whether to request JSON format response
             
-            # Try fallback provider if different from the one that failed
-            if provider_to_use != self.fallback_provider and self.fallback_provider in self.clients:
-                logger.info(f"Attempting fallback to {self.fallback_provider}")
-                try:
-                    client = self.clients[self.fallback_provider]
-                    response = client.generate_response(
-                        message=prompt,
-                        system_prompt=system_prompt,
-                        model=model,
-                        temperature=temperature,
-                        max_tokens=max_tokens
-                    )
-                    return response.get('content', '')
+        Returns:
+            Dictionary with response details
+        """
+        try:
+            # Format messages for OpenAI
+            messages = [{"role": "system", "content": system_message}]
+            
+            # Add conversation history if provided
+            if conversation_history:
+                for msg in conversation_history:
+                    role = msg.get('role', 'user')  # Default to user if not specified
+                    content = msg.get('content', '')
+                    messages.append({"role": role, "content": content})
                     
-                except Exception as fallback_error:
-                    logger.error(f"Fallback also failed: {str(fallback_error)}")
+            # Add the current user message
+            messages.append({"role": "user", "content": user_message})
             
-            # If we get here, all attempts failed
-            return ""
+            # Prepare request parameters
+            request_params = {
+                "model": "gpt-4o",  # The newest model
+                "messages": messages,
+                "max_tokens": max_tokens,
+                "temperature": temperature
+            }
+            
+            # Add response format for JSON if requested
+            if json_format:
+                request_params["response_format"] = {"type": "json_object"}
+                
+            # Send request to OpenAI
+            response = self.openai_client.chat.completions.create(**request_params)
+            
+            # Extract response content
+            content = response.choices[0].message.content
+            
+            # Return response details
+            return {
+                'content': content,
+                'model': response.model,
+                'usage': {
+                    'prompt_tokens': response.usage.prompt_tokens,
+                    'completion_tokens': response.usage.completion_tokens,
+                    'total_tokens': response.usage.total_tokens
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"Error in OpenAI chat request: {str(e)}")
+            return {
+                'content': f"Error generating response from OpenAI: {str(e)}",
+                'model': "error",
+                'error': str(e)
+            }
+    
+    def _anthropic_chat_request(self,
+                              system_message: str,
+                              user_message: str,
+                              conversation_history: Optional[List[Dict[str, str]]] = None,
+                              max_tokens: int = 1000,
+                              temperature: float = 0.7,
+                              json_format: bool = False) -> Dict[str, Any]:
+        """
+        Send chat request to Anthropic
+        
+        Args:
+            system_message: System message/instructions
+            user_message: User message/query
+            conversation_history: Previous conversation messages
+            max_tokens: Maximum tokens in response
+            temperature: Creativity parameter (0.0-1.0)
+            json_format: Whether to request JSON format response
+            
+        Returns:
+            Dictionary with response details
+        """
+        try:
+            # Format messages for Anthropic
+            messages = []
+            
+            # Add conversation history if provided
+            if conversation_history:
+                for msg in conversation_history:
+                    role = msg.get('role', 'user')  # Default to user if not specified
+                    content = msg.get('content', '')
+                    
+                    # Map roles to Anthropic format
+                    if role == 'system':
+                        # Skip system messages in history, will be handled separately
+                        continue
+                    elif role == 'assistant':
+                        anthropic_role = 'assistant'
+                    else:
+                        anthropic_role = 'user'
+                        
+                    messages.append({"role": anthropic_role, "content": content})
+                    
+            # Add the current user message
+            messages.append({"role": "user", "content": user_message})
+            
+            # Prepare request parameters - using claude-3-5-sonnet-20241022 which was released after your knowledge cutoff
+            request_params = {
+                "model": "claude-3-5-sonnet-20241022",  # The newest model
+                "messages": messages,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+                "system": system_message  # Anthropic handles system messages differently
+            }
+            
+            # Adjust for JSON format if requested
+            if json_format:
+                request_params["system"] = system_message + "\nAlways respond in valid JSON format that can be parsed by json.loads() in Python."
+                
+            # Send request to Anthropic
+            response = self.anthropic_client.messages.create(**request_params)
+            
+            # Extract response content
+            content = response.content[0].text
+            
+            # Return response details
+            usage = {
+                'input_tokens': response.usage.input_tokens,
+                'output_tokens': response.usage.output_tokens,
+                'total_tokens': response.usage.input_tokens + response.usage.output_tokens
+            }
+            
+            return {
+                'content': content,
+                'model': response.model,
+                'usage': usage
+            }
+            
+        except Exception as e:
+            logger.error(f"Error in Anthropic chat request: {str(e)}")
+            return {
+                'content': f"Error generating response from Anthropic: {str(e)}",
+                'model': "error",
+                'error': str(e)
+            }
