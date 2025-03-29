@@ -1,172 +1,160 @@
 # Slack Integration Setup Guide
 
-This guide provides step-by-step instructions for setting up the Slack integration with the Dana AI platform. By following these steps, you'll be able to connect your Slack workspace to Dana AI, enabling real-time messaging and notifications.
+This guide will help you set up and configure the Slack integration for the Dana AI Platform.
+
+## Overview
+
+The Dana AI Platform's Slack integration allows you to:
+
+- Send notifications to Slack about important system events
+- Monitor user signups and logins
+- Track subscription changes
+- Report system errors and status updates
+- Interact with Slack channels programmatically
 
 ## Prerequisites
 
-- Administrative access to a Slack workspace
-- Dana AI account with appropriate permissions
-- Basic understanding of Slack app concepts
+Before you begin, you'll need:
+
+1. A Slack workspace where you have admin permissions
+2. Access to your Dana AI Platform instance
+3. Ability to set environment variables
 
 ## Step 1: Create a Slack App
 
-1. Go to [Slack API: Applications](https://api.slack.com/apps) and sign in with your Slack account
-2. Click the "Create New App" button
-3. Choose "From scratch" when prompted
-4. Enter a name for your app (e.g., "Dana AI Integration")
-5. Select the Slack workspace where you want to install the app
+1. Go to [https://api.slack.com/apps](https://api.slack.com/apps)
+2. Click "Create New App"
+3. Choose "From scratch"
+4. Enter a name for your app (e.g., "Dana AI Platform")
+5. Select the workspace where you want to install the app
 6. Click "Create App"
 
 ## Step 2: Configure Bot Permissions
 
-1. In the left sidebar, select "OAuth & Permissions"
-2. Scroll down to the "Scopes" section
-3. Under "Bot Token Scopes", click "Add an OAuth Scope"
-4. Add the following scopes:
-   - `chat:write` - To send messages to channels
-   - `channels:history` - To read message history in public channels
-   - `groups:history` - To read message history in private channels
-   - `im:history` - To read direct message history
-   - `reactions:read` - To view reactions on messages
+1. In the left sidebar, click on "OAuth & Permissions"
+2. Scroll down to "Scopes" section
+3. Under "Bot Token Scopes", add the following scopes:
+   - `channels:history` - View messages and other content in public channels
+   - `channels:read` - View basic information about public channels
+   - `chat:write` - Send messages as the app
+   - `chat:write.public` - Send messages to channels the app isn't in
+   - `reactions:read` - View emoji reactions and their associated content
 
-## Step 3: Install App to Workspace
+## Step 3: Install the App to Your Workspace
 
-1. Scroll to the top of the "OAuth & Permissions" page
-2. Click the "Install to Workspace" button
-3. Review the requested permissions and click "Allow"
-4. After installation, you'll see a "Bot User OAuth Token" that starts with `xoxb-`
-5. Copy this token as you'll need it later for configuration
+1. Scroll back to the top of the "OAuth & Permissions" page
+2. Click "Install to Workspace"
+3. Review the permissions and click "Allow"
+4. After installation, you'll be redirected back to the "OAuth & Permissions" page
+5. Copy the "Bot User OAuth Token" (it starts with `xoxb-`) - you'll need this later
 
-## Step 4: Invite Bot to Channel
+## Step 4: Create a Slack Channel for Notifications
 
-1. Open Slack and navigate to the channel where you want to receive Dana AI messages
-2. Type `/invite @YourAppName` (replace "YourAppName" with the name of your app)
-3. Press Enter to invite the bot to the channel
+1. In your Slack workspace, create a new channel for Dana AI notifications
+   - We recommend naming it something like `#dana-ai-notifications` or `#dana-ai-alerts`
+2. Invite your newly created Slack app to the channel
+   - Type `/invite @YourAppName` in the channel
 
-## Step 5: Get Channel ID
+## Step 5: Get the Channel ID
 
-1. Open Slack in a web browser
-2. Navigate to the channel where you invited the bot
-3. Look at the URL in your browser. It will look like:
-   `https://app.slack.com/client/T01A2B3C4D5/C01A2B3C4D5`
-4. The last part of the URL (`C01A2B3C4D5`) is your channel ID
-5. Copy this channel ID as you'll need it for configuration
+1. Right-click on the channel name in the sidebar and select "Copy Link"
+2. The link will look something like `https://yourworkspace.slack.com/archives/C04XXXXXXXXX`
+3. The part after the last `/` is your Channel ID (e.g., `C04XXXXXXXXX`)
 
-## Step 6: Configure Dana AI with Slack Credentials
+## Step 6: Configure Environment Variables
 
-1. In your Dana AI application, set the following environment variables:
-   - `SLACK_BOT_TOKEN`: The Bot User OAuth Token you copied in Step 3 (starts with `xoxb-`)
-   - `SLACK_CHANNEL_ID`: The channel ID you copied in Step 5 (starts with `C`)
+Add the following environment variables to your Dana AI Platform instance:
 
-   You can set these environment variables by:
+1. `SLACK_BOT_TOKEN`: The Bot User OAuth Token you copied in Step 3
+2. `SLACK_CHANNEL_ID`: The Channel ID you obtained in Step 5
+
+### Setting Environment Variables
+
+#### On a Hosted Platform
+
+If your Dana AI Platform is hosted on a platform like Heroku, AWS, or similar:
+
+1. Navigate to your platform's environment variables or config vars section
+2. Add the variables mentioned above
+3. Restart your application if necessary
+
+#### Local Development
+
+For local development, you can:
+
+1. Add these to your `.env` file:
    ```
+   SLACK_BOT_TOKEN=xoxb-your-token
+   SLACK_CHANNEL_ID=C04XXXXXXXXX
+   ```
+2. Or export them in your terminal:
+   ```bash
    export SLACK_BOT_TOKEN=xoxb-your-token
-   export SLACK_CHANNEL_ID=C01A2B3C4D5
+   export SLACK_CHANNEL_ID=C04XXXXXXXXX
    ```
-
-2. Restart your Dana AI application to apply the changes
 
 ## Step 7: Verify the Integration
 
-1. Test the integration using the provided command-line utility:
-   ```bash
-   python slack_demo.py verify
-   ```
-   
-2. If successful, you should see output similar to:
-   ```json
-   {
-     "valid": true,
-     "message": "Slack credentials are valid",
-     "team": "Your Team Name",
-     "bot_id": "B01A2B3C4D5",
-     "channel_name": "your-channel"
-   }
-   ```
+1. Start or restart your Dana AI Platform instance
+2. Navigate to the Slack integration dashboard at `/api/slack/dashboard`
+3. Click "Check Connection" to verify that your Slack integration is properly configured
+4. If the connection is successful, you'll see a green "Connected" status
+5. Try sending a test message to confirm that the integration is working properly
 
-3. Test sending a message to Slack:
-   ```bash
-   python slack_demo.py send "Hello from Dana AI!"
-   ```
+## Testing the Integration
 
-4. Check your Slack channel to confirm the message was received
+You can use the Slack integration dashboard to test different notification types:
 
-## Advanced Configuration Options
-
-### Custom Message Formatting
-
-When sending messages to Slack, you can use Slack's message formatting syntax:
-
-- *Bold*: `*text*`
-- _Italic_: `_text_`
-- ~Strikethrough~: `~text~`
-- `Code`: `` `code` ``
-- ```Code blocks```: ` ```code blocks``` `
-- Links: `<https://example.com|Link Text>`
-
-### Working with Threads
-
-To reply to a message thread, you need the timestamp of the parent message:
-
-1. Send an initial message:
-   ```bash
-   python slack_demo.py send "Initial message"
-   ```
-
-2. From the response, note the `timestamp` value
-
-3. Use this timestamp to get thread replies:
-   ```bash
-   python slack_demo.py thread 1615982330.000200
-   ```
-
-### Rate Limiting Considerations
-
-The Slack API has rate limits that vary by endpoint. For production environments, consider implementing:
-
-- Exponential backoff for retries
-- Request queuing to avoid rate limit errors
-- Monitoring of API usage
+1. **User Notifications**: Test signup and login notifications
+2. **Subscription Notifications**: Test new subscription, subscription change, and cancellation notifications
+3. **System Notifications**: Test status updates and warnings
 
 ## Troubleshooting
 
-### Common Issues
+### Connection Failed
 
-| Issue | Possible Solutions |
-|-------|-------------------|
-| "Invalid authentication" error | Check that your SLACK_BOT_TOKEN is correct and hasn't expired |
-| "Channel not found" error | Verify the SLACK_CHANNEL_ID is correct and that the bot has been invited to the channel |
-| "Not in channel" error | Type `/invite @YourAppName` in the channel to invite the bot |
-| "Missing scope" error | Review the OAuth scopes for your app and ensure all required permissions are added |
-| Rate limiting errors | Implement backoff strategies, or reduce the frequency of API calls |
+If the connection check fails:
 
-### Debugging Tools
+1. Verify that your environment variables are set correctly
+2. Ensure that the Bot Token is valid and not expired
+3. Check that your Slack app has the required permissions
+4. Confirm that the app is invited to the channel specified by the Channel ID
 
-Use the following commands to help diagnose integration issues:
+### Messages Not Appearing
 
-```bash
-# Verify credentials and connections
-python slack_demo.py verify
+If messages aren't appearing in your Slack channel:
 
-# View recent messages to check if API access is working
-python slack_demo.py messages --limit 5
-```
+1. Verify that the Channel ID is correct
+2. Ensure the Slack app is still a member of the channel
+3. Check your application logs for any Slack API errors
+4. Verify that your network allows outbound connections to Slack's API servers
 
-## Security Best Practices
+### Permission Errors
 
-- Never hardcode the Slack Bot Token in your source code
-- Use environment variables or a secure secrets management system
-- Regularly rotate your Slack API tokens
-- Apply the principle of least privilege when assigning OAuth scopes
-- Monitor and audit access to the Slack integration
+If you're seeing permission errors:
 
-## Additional Resources
+1. Review the Bot Token Scopes you've granted to your app
+2. Make sure you're using the Bot Token (starts with `xoxb-`) and not another type of token
+3. Reinstall the app to your workspace to refresh permissions
 
-- [Slack API Documentation](https://api.slack.com/docs)
-- [Slack SDK for Python](https://slack.dev/python-slack-sdk/)
-- [Message Formatting Guide](https://api.slack.com/reference/surfaces/formatting)
-- [Slack App Security Guidelines](https://api.slack.com/authentication/best-practices)
+## Advanced Configuration
 
----
+### Customizing Notifications
 
-If you encounter any issues or need additional assistance, please contact Dana AI support.
+You can customize the Slack notifications by modifying the templates in `utils/slack_notifications.py`. Each notification type has its own method that defines the message format.
+
+### Adding New Notification Types
+
+To add a new notification type:
+
+1. Add a new handler method in `utils/slack_notifications.py`
+2. Update the relevant notification dispatcher method to call your new handler
+
+### Using Slack Blocks
+
+The Slack integration supports [Block Kit](https://api.slack.com/block-kit) for rich message formatting. You can customize the block layouts in the notification handlers to create more interactive and informative messages.
+
+## Next Steps
+
+- Explore the [Slack Integration API Reference](API_REFERENCE_SLACK.md) for more details on available endpoints
+- Review the sample code in `slack_demo.py` and `subscription_slack_demo.py` for examples of using the Slack integration programmatically

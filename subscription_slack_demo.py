@@ -1,199 +1,104 @@
 """
 Subscription Slack Notification Demo
 
-A script to demonstrate the enhanced Slack notification system for subscription events.
+This script demonstrates sending subscription-related notifications to Slack.
 """
 
-import sys
-import time
-import io
-import contextlib
+import json
+import logging
 from datetime import datetime, timedelta
+import uuid
 
-# Import the notification system
-from utils.subscription_notifications import send_subscription_notification
-from slack import verify_slack_credentials
+from utils.slack_notifications import (
+    send_subscription_notification, 
+    send_user_notification,
+    send_system_notification
+)
 
-# Create a buffer to capture output messages
-log_buffer = []
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
-def test_subscription_notifications():
+def generate_demo_user():
+    """Generate a demo user for testing"""
+    user_id = str(uuid.uuid4())
+    email = f"test.user.{user_id[:8]}@example.com"
+    company = "Demo Company Inc."
+    
+    logger.info(f"Generated demo user: {email}")
+    
+    return {
+        "user_id": user_id,
+        "email": email,
+        "company": company
+    }
+
+def demonstrate_subscription_flow():
     """
-    Test the enhanced subscription notification system with various event types
+    Demonstrate the complete subscription flow with Slack notifications
     """
-    global log_buffer
-    # Create a string buffer to capture all output
-    stdout_buffer = io.StringIO()
+    logger.info("Starting subscription notification demonstration")
     
-    # Redirect stdout to our buffer and capture all output
-    with contextlib.redirect_stdout(stdout_buffer):
-        # Verify Slack credentials first
-        slack_status = verify_slack_credentials()
-        if not slack_status.get("valid", False):
-            print(f"Slack credentials are not properly configured: {slack_status.get('message', 'Unknown error')}")
-            if slack_status.get("missing", []):
-                print(f"Missing environment variables: {', '.join(slack_status.get('missing'))}")
-            return False
-        
-        print("Slack credentials are configured. Starting notification tests...\n")
+    # Generate a demo user
+    user = generate_demo_user()
+    logger.info(f"Demo user: {json.dumps(user, indent=2)}")
     
-        # Generate test data
-        current_time = datetime.now()
-        tomorrow = current_time + timedelta(days=1)
-        next_month = current_time + timedelta(days=30)
-        
-        # 1. Test subscription_created event
-        print("Testing subscription_created notification...")
-        subscription_created_data = {
-            "user_id": "user123",
-            "tier_name": "Professional",
-            "price": 49.99,
-            "billing_cycle": "monthly",
-            "created_at": current_time.strftime("%Y-%m-%d %H:%M:%S")
+    # Step 1: User signup notification
+    logger.info("Step 1: Sending user signup notification")
+    signup_result = send_user_notification("signup", {
+        "email": user["email"],
+        "company": user["company"]
+    })
+    logger.info(f"Signup notification result: {json.dumps(signup_result, indent=2)}")
+    
+    # Step 2: User login notification
+    logger.info("Step 2: Sending user login notification")
+    login_result = send_user_notification("login", {
+        "email": user["email"]
+    })
+    logger.info(f"Login notification result: {json.dumps(login_result, indent=2)}")
+    
+    # Step 3: New subscription notification
+    logger.info("Step 3: Sending new subscription notification")
+    new_sub_result = send_subscription_notification("new_subscription", {
+        "user_id": user["user_id"],
+        "tier_name": "Professional",
+        "payment_method": "Credit Card"
+    })
+    logger.info(f"New subscription notification result: {json.dumps(new_sub_result, indent=2)}")
+    
+    # Step 4: Subscription change notification
+    logger.info("Step 4: Sending subscription change notification")
+    change_sub_result = send_subscription_notification("subscription_changed", {
+        "user_id": user["user_id"],
+        "old_tier": "Professional",
+        "new_tier": "Enterprise"
+    })
+    logger.info(f"Subscription change notification result: {json.dumps(change_sub_result, indent=2)}")
+    
+    # Step 5: Subscription cancellation notification
+    logger.info("Step 5: Sending subscription cancellation notification")
+    cancel_sub_result = send_subscription_notification("subscription_cancelled", {
+        "user_id": user["user_id"],
+        "tier_name": "Enterprise",
+        "reason": "Moving to different solution"
+    })
+    logger.info(f"Subscription cancellation notification result: {json.dumps(cancel_sub_result, indent=2)}")
+    
+    # Step 6: System status notification for demo completion
+    logger.info("Step 6: Sending system status notification about demo completion")
+    completion_result = send_system_notification("status", {
+        "message": "Subscription notification flow demonstration completed",
+        "status_type": "success",
+        "details": {
+            "User": user["email"],
+            "Notifications Sent": "5",
+            "Completed At": datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')
         }
-        
-        result = send_subscription_notification(
-            event_type="subscription_created",
-            data=subscription_created_data
-        )
-        
-        print(f"Subscription created notification result: {result.get('success')}")
-        time.sleep(1)  # Pause to avoid rate limiting
-        
-        # 2. Test subscription_updated event
-        print("Testing subscription_updated notification...")
-        subscription_updated_data = {
-            "user_id": "user123",
-            "old_tier_name": "Professional",
-            "new_tier_name": "Enterprise",
-            "price_change": 50.0,
-            "updated_at": current_time.strftime("%Y-%m-%d %H:%M:%S")
-        }
-        
-        result = send_subscription_notification(
-            event_type="subscription_updated",
-            data=subscription_updated_data
-        )
-        
-        print(f"Subscription updated notification result: {result.get('success')}")
-        time.sleep(1)  # Pause to avoid rate limiting
-        
-        # 3. Test invoice_created event
-        print("Testing invoice_created notification...")
-        invoice_created_data = {
-            "user_id": "user123",
-            "invoice_number": "INV-2025-001",
-            "amount": 49.99,
-            "currency": "USD",
-            "status": "pending",
-            "billing_date": current_time.strftime("%Y-%m-%d %H:%M:%S")
-        }
-        
-        result = send_subscription_notification(
-            event_type="invoice_created",
-            data=invoice_created_data
-        )
-        
-        print(f"Invoice created notification result: {result.get('success')}")
-        time.sleep(1)  # Pause to avoid rate limiting
-        
-        # 4. Test invoice_paid event
-        print("Testing invoice_paid notification...")
-        invoice_paid_data = {
-            "user_id": "user123",
-            "invoice_number": "INV-2025-001",
-            "amount": 49.99,
-            "currency": "USD",
-            "payment_date": current_time.strftime("%Y-%m-%d %H:%M:%S")
-        }
-        
-        result = send_subscription_notification(
-            event_type="invoice_paid",
-            data=invoice_paid_data
-        )
-        
-        print(f"Invoice paid notification result: {result.get('success')}")
-        time.sleep(1)  # Pause to avoid rate limiting
-        
-        # 5. Test subscription_cancelled event
-        print("Testing subscription_cancelled notification...")
-        subscription_cancelled_data = {
-            "user_id": "user123",
-            "tier_name": "Enterprise",
-            "reason": "Switching to a different plan",
-            "cancelled_at": current_time.strftime("%Y-%m-%d %H:%M:%S")
-        }
-        
-        result = send_subscription_notification(
-            event_type="subscription_cancelled",
-            data=subscription_cancelled_data
-        )
-        
-        print(f"Subscription cancelled notification result: {result.get('success')}")
-        time.sleep(1)  # Pause to avoid rate limiting
-        
-        # 6. Test invoice_deleted event
-        print("Testing invoice_deleted notification...")
-        invoice_deleted_data = {
-            "user_id": "user123",
-            "invoice_number": "INV-2025-001",
-            "amount": 49.99,
-            "currency": "USD",
-            "deleted_at": current_time.strftime("%Y-%m-%d %H:%M:%S")
-        }
-        
-        result = send_subscription_notification(
-            event_type="invoice_deleted",
-            data=invoice_deleted_data
-        )
-        
-        print(f"Invoice deleted notification result: {result.get('success')}")
-        
-        print("\nAll notification tests completed.")
+    })
+    logger.info(f"Completion notification result: {json.dumps(completion_result, indent=2)}")
     
-    # Get the output and store it in our global buffer
-    log_content = stdout_buffer.getvalue()
-    log_buffer.append(log_content)
-    
-    # Also print the output to the console for real-time feedback
-    print(log_content)
-    
-    # Check for API errors
-    has_api_errors = "not_allowed_token_type" in log_content
-    
-    return True, has_api_errors
-
-def main():
-    """Main function"""
-    print("Dana AI - Subscription Slack Notification Demo")
-    print("---------------------------------------------")
-    
-    result = test_subscription_notifications()
-    
-    # Check if we got a tuple return (success, has_api_errors)
-    if isinstance(result, tuple) and len(result) == 2:
-        success, has_api_errors = result
-    else:
-        # Handle old return type for backward compatibility
-        success = result
-        has_api_errors = False
-    
-    if success:
-        # We're seeing API errors in every test
-        print("\nDemo completed, but there were issues sending notifications to Slack.")
-        print("This is likely due to token permission issues ('not_allowed_token_type').")
-        print("In a production environment, you would need to:")
-        print("1. Ensure your Slack Bot Token has the correct scopes (chat:write)")
-        print("2. Ensure your bot is invited to the channel specified by SLACK_CHANNEL_ID")
-        print("3. Consider using a different notification channel if Slack is not available")
-        print("\nDespite the token issues, this demo has demonstrated the integration's functionality:")
-        print("✓ Enhanced message formatting with rich Slack blocks")
-        print("✓ Support for new event types (subscription events, invoice events)")
-        print("✓ Proper error handling and logging")
-        return 0
-    else:
-        print("\nDemo failed. Please check your Slack configuration.")
-        return 1
+    logger.info("Subscription notification demonstration completed")
 
 if __name__ == "__main__":
-    sys.exit(main())
+    demonstrate_subscription_flow()

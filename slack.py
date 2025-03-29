@@ -1,94 +1,141 @@
-from typing import Any, Optional, List, Dict, Union
+"""
+Slack Integration Module
+
+This module provides utilities for interacting with Slack API.
+"""
+
 import os
+import logging
+import json
+from typing import Dict, Any, List, Optional
 from datetime import datetime
+from slack_sdk import WebClient
+from slack_sdk.errors import SlackApiError
 
-try:
-    from slack_sdk import WebClient
-    from slack_sdk.errors import SlackApiError
-    SLACK_SDK_AVAILABLE = True
-except ImportError:
-    SLACK_SDK_AVAILABLE = False
-    # Create mock classes for type checking
-    class SlackApiError(Exception):
-        pass
-    WebClient = None
+# Configure logging
+logger = logging.getLogger(__name__)
 
-# Safely get environment variables
-slack_token = os.environ.get('SLACK_BOT_TOKEN')
-slack_channel_id = os.environ.get('SLACK_CHANNEL_ID')
+# Get Slack credentials from environment variables
+SLACK_BOT_TOKEN = os.environ.get('SLACK_BOT_TOKEN')
+SLACK_CHANNEL_ID = os.environ.get('SLACK_CHANNEL_ID')
 
-slack_client = WebClient(token=slack_token) if slack_token else None
+# Initialize Slack client if credentials are available
+slack_client = None
+if SLACK_BOT_TOKEN:
+    slack_client = WebClient(token=SLACK_BOT_TOKEN)
 
-def post_message(message: str, blocks: Optional[List[Dict[str, Any]]] = None) -> dict:
+def check_slack_status() -> Dict[str, Any]:
     """
-    Post a message to the Slack channel
+    Check if Slack integration is properly configured
+    
+    Returns:
+        dict: Status information with valid flag and any missing configuration
+    """
+    missing = []
+    
+    if not SLACK_BOT_TOKEN:
+        missing.append('SLACK_BOT_TOKEN')
+    
+    if not SLACK_CHANNEL_ID:
+        missing.append('SLACK_CHANNEL_ID')
+    
+    return {
+        'valid': len(missing) == 0,
+        'channel_id': SLACK_CHANNEL_ID if SLACK_CHANNEL_ID else None,
+        'missing': missing
+    }
+
+def post_message(message: str, blocks: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+    """
+    Post a message to the configured Slack channel
     
     Args:
-        message: The message to post (fallback text)
-        blocks: Optional Slack message blocks for rich formatting
+        message: Text content of the message
+        blocks: Optional list of block kit UI components
         
     Returns:
-        dict: Response details including success status
+        dict: Result information with success flag and message
     """
-    if not slack_token or not slack_channel_id:
+    # Check if Slack is configured
+    status = check_slack_status()
+    if not status['valid']:
         return {
-            "success": False,
-            "message": "Slack credentials are not configured",
-            "missing": ["SLACK_BOT_TOKEN", "SLACK_CHANNEL_ID"] if not slack_token and not slack_channel_id else 
-                       ["SLACK_BOT_TOKEN"] if not slack_token else ["SLACK_CHANNEL_ID"]
+            'success': False,
+            'message': f"Slack is not configured properly. Missing: {', '.join(status['missing'])}"
         }
     
     try:
+        # Prepare arguments for Slack API call
+        kwargs = {
+            'channel': SLACK_CHANNEL_ID,
+            'text': message
+        }
+        
+        # Add blocks if provided
         if blocks:
-            response = slack_client.chat_postMessage(
-                channel=slack_channel_id,
-                text=message,
-                blocks=blocks
-            )
-        else:
-            response = slack_client.chat_postMessage(
-                channel=slack_channel_id,
-                text=message
-            )
+            kwargs['blocks'] = json.dumps(blocks)
+        
+        # Post message to Slack
+        response = slack_client.chat_postMessage(**kwargs)
         
         return {
-            "success": True,
-            "message": "Message posted successfully",
-            "timestamp": response.get("ts"),
-            "channel": response.get("channel")
+            'success': True,
+            'message': 'Message sent successfully',
+            'timestamp': response['ts'],
+            'channel': response['channel']
         }
+    
     except SlackApiError as e:
+        error_message = f"Failed to post message to Slack: {e.response['error']}"
+        logger.error(error_message)
         return {
-            "success": False,
-            "message": f"Error posting message: {str(e)}",
-            "error": str(e)
+            'success': False,
+            'message': error_message
+        }
+    
+    except Exception as e:
+        error_message = f"Error posting message to Slack: {str(e)}"
+        logger.error(error_message)
+        return {
+            'success': False,
+            'message': error_message
         }
 
-def get_channel_history(limit=100, oldest=None, latest=None) -> list[Any] | None:
+def get_channel_history(limit: int = 100, oldest: Optional[str] = None, latest: Optional[str] = None) -> Dict[str, Any]:
     """
-        Retrieve message history from a Slack channel.
-
+    Get message history from the configured Slack channel
+    
     Args:
-        limit (int, optional): Maximum number of messages to return. Defaults to 100.
-        oldest (str, optional): Start of time range, Unix timestamp. Defaults to None.
-        latest (str, optional): End of time range, Unix timestamp. Defaults to None.
-
-    Returns:
-        list: List of message dictionaries containing message content and metadata
-        """
-    if not slack_token or not slack_channel_id:
-        print("Slack credentials are not configured")
-        return None
+        limit: Maximum number of messages to return (default: 100)
+        oldest: Start of time range, Unix timestamp (default: None)
+        latest: End of time range, Unix timestamp (default: None)
         
+    Returns:
+        dict: Result with success flag and messages
+    """
+    # Check if Slack is configured
+    status = check_slack_status()
+    if not status['valid']:
+        return {
+            'success': False,
+            'message': f"Slack is not configured properly. Missing: {', '.join(status['missing'])}"
+        }
+    
     try:
         # Get channel history
-        response = slack_client.conversations_history(
-            channel=slack_channel_id,
-            limit=limit,
-            oldest=oldest,
-            latest=latest
-        )
-
+        kwargs = {
+            'channel': SLACK_CHANNEL_ID,
+            'limit': limit
+        }
+        
+        if oldest:
+            kwargs['oldest'] = oldest
+        
+        if latest:
+            kwargs['latest'] = latest
+            
+        response = slack_client.conversations_history(**kwargs)
+        
         # Process messages
         messages = []
         for msg in response['messages']:
@@ -101,89 +148,86 @@ def get_channel_history(limit=100, oldest=None, latest=None) -> list[Any] | None
                 'reactions': msg.get('reactions', [])
             }
             messages.append(message_data)
-
-        return messages
-
+        
+        return {
+            'success': True,
+            'message': 'Messages retrieved successfully',
+            'messages': messages
+        }
+    
+    except SlackApiError as e:
+        error_message = f"Failed to get channel history: {e.response['error']}"
+        logger.error(error_message)
+        return {
+            'success': False,
+            'message': error_message
+        }
+    
     except Exception as e:
-        print(f"Error fetching channel history: {str(e)}")
-        return None
+        error_message = f"Error getting channel history: {str(e)}"
+        logger.error(error_message)
+        return {
+            'success': False,
+            'message': error_message
+        }
 
-def get_thread_replies(thread_ts: str, limit=100) -> List[dict] | None:
+def get_thread_replies(thread_ts: str, limit: int = 100) -> Dict[str, Any]:
     """
-    Get replies for a specific thread.
+    Get replies to a specific thread
     
     Args:
         thread_ts: Thread timestamp to get replies for
-        limit: Maximum number of replies to return
+        limit: Maximum number of replies to return (default: 100)
         
     Returns:
-        List of replies or None if error occurs
+        dict: Result with success flag and messages
     """
-    if not slack_token or not slack_channel_id:
-        print("Slack credentials are not configured")
-        return None
-        
+    # Check if Slack is configured
+    status = check_slack_status()
+    if not status['valid']:
+        return {
+            'success': False,
+            'message': f"Slack is not configured properly. Missing: {', '.join(status['missing'])}"
+        }
+    
     try:
+        # Get thread replies
         response = slack_client.conversations_replies(
-            channel=slack_channel_id,
+            channel=SLACK_CHANNEL_ID,
             ts=thread_ts,
             limit=limit
         )
         
-        # Process replies (skip the first one as it's the parent message)
+        # Process messages (skip the first one, which is the parent message)
         replies = []
-        for msg in response['messages'][1:]:
+        for msg in response['messages'][1:] if len(response['messages']) > 1 else []:
             reply_data = {
                 'text': msg.get('text', ''),
                 'timestamp': datetime.fromtimestamp(float(msg['ts'])).strftime('%Y-%m-%d %H:%M:%S'),
                 'user': msg.get('user', ''),
-                'ts': msg.get('ts')
+                'reactions': msg.get('reactions', [])
             }
             replies.append(reply_data)
-            
-        return replies
         
-    except Exception as e:
-        print(f"Error fetching thread replies: {str(e)}")
-        return None
-
-def verify_slack_credentials() -> dict:
-    """
-    Verify that Slack credentials are configured (but don't validate API access)
-    
-    Returns:
-        dict: Verification result
-    """
-    missing = []
-    if not slack_token:
-        missing.append("SLACK_BOT_TOKEN")
-    
-    if not slack_channel_id:
-        missing.append("SLACK_CHANNEL_ID")
-    
-    if missing:
         return {
-            "valid": False,
-            "message": f"Slack credentials are not fully configured: Missing {', '.join(missing)}",
-            "missing": missing
+            'success': True,
+            'message': 'Thread replies retrieved successfully',
+            'replies': replies,
+            'reply_count': len(replies)
         }
     
-    # Basic credentials are configured
-    return {
-        "valid": True,
-        "message": "Slack credentials are configured",
-        "token_configured": bool(slack_token),
-        "channel_configured": bool(slack_channel_id),
-        "channel_id": slack_channel_id
-    }
-
-# Initialize on module load
-if slack_token and slack_channel_id:
-    print(f"Slack integration initialized for channel ID: {slack_channel_id}")
-else:
-    missing = []
-    if not slack_token:
-        missing.append("SLACK_BOT_TOKEN")
-    if not slack_channel_id:
-        missing.append("SLACK_CHANNEL_ID")
-    print(f"Slack integration not fully configured. Missing: {', '.join(missing)}")
+    except SlackApiError as e:
+        error_message = f"Failed to get thread replies: {e.response['error']}"
+        logger.error(error_message)
+        return {
+            'success': False,
+            'message': error_message
+        }
+    
+    except Exception as e:
+        error_message = f"Error getting thread replies: {str(e)}"
+        logger.error(error_message)
+        return {
+            'success': False,
+            'message': error_message
+        }

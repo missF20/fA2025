@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 # Initialize AI client
 ai_client = None
 try:
-    ai_client = AIClient(primary_provider="openai", fallback_provider="anthropic")
+    ai_client = AIClient()
     if ai_client.available_providers():
         logger.info(f"AI client initialized with providers: {ai_client.available_providers()}")
     else:

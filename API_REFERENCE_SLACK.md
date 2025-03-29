@@ -1,252 +1,313 @@
 # Slack Integration API Reference
 
-## Overview
+This document provides a reference for the Slack integration API endpoints available in the Dana AI Platform.
 
-The Dana AI platform provides seamless integration with Slack, allowing users to send messages to Slack channels, retrieve message history, and manage threaded conversations. This integration enables real-time notifications and collaborative workflows between Dana AI and your team's Slack workspace.
+## Authentication
 
-## Prerequisites
+All API requests require authentication. Use the standard authentication methods as described in the main API Reference document.
 
-Before using the Slack integration, you must:
+## Base URL
 
-1. Create a Slack App in your workspace
-2. Add the required Bot Token Scopes:
-   - `chat:write` - To send messages to channels
-   - `channels:history` - To read message history
-   - `groups:history` - To read message history in private channels
-   - `im:history` - To read direct message history
-   - `reactions:read` - To view reactions on messages
-3. Install the app to your workspace
-4. Invite the bot to the channel you want to use
-5. Configure the Dana AI platform with the following environment variables:
-   - `SLACK_BOT_TOKEN` - The Bot User OAuth Token starting with `xoxb-`
-   - `SLACK_CHANNEL_ID` - The ID of the channel where messages will be sent
+All URLs referenced in this document have the following base:
 
-## API Endpoints
+```
+/api/slack
+```
 
-### Verify Slack Health
+## Endpoints
 
-Verifies if the Slack API token and channel ID are valid and properly configured.
+### Check Slack Status
 
-**Endpoint:** `/api/slack/health`
+Retrieve information about the Slack integration configuration status.
 
-**Method:** GET
+```
+GET /status
+```
 
-**Authentication Required:** Yes
+#### Response
 
-**Response Example (Success):**
 ```json
 {
-    "success": true,
-    "message": "Slack integration is active",
-    "status": "connected",
-    "details": {
-        "team": "Your Team Name",
-        "channel_name": "your-channel",
-        "bot_id": "B01A2B3C4D5"
+  "valid": true,
+  "channel_id": "C04XXXXXXXXX",
+  "missing": []
+}
+```
+
+If the integration is not properly configured, the response will include the missing configuration items:
+
+```json
+{
+  "valid": false,
+  "channel_id": null,
+  "missing": ["SLACK_BOT_TOKEN", "SLACK_CHANNEL_ID"]
+}
+```
+
+### Send Message
+
+Send a message to the configured Slack channel.
+
+```
+POST /send
+```
+
+#### Request Body
+
+```json
+{
+  "message": "Hello from Dana AI!",
+  "blocks": [
+    {
+      "type": "header",
+      "text": {
+        "type": "plain_text",
+        "text": "Message Title",
+        "emoji": true
+      }
+    },
+    {
+      "type": "section",
+      "text": {
+        "type": "mrkdwn",
+        "text": "This is a *formatted message* with _styling_."
+      }
     }
+  ]
 }
 ```
 
-**Response Example (Failure):**
+The `blocks` parameter is optional and follows the [Slack Block Kit](https://api.slack.com/block-kit) format for rich message formatting.
+
+#### Response
+
 ```json
 {
-    "success": false,
-    "message": "Slack integration is not configured properly",
-    "status": "disconnected",
-    "details": "API token or channel ID is invalid",
-    "missing": ["SLACK_BOT_TOKEN"]
-}
-```
-
-### Send Message to Slack
-
-Sends a message to the configured Slack channel.
-
-**Endpoint:** `/api/slack/messages`
-
-**Method:** POST
-
-**Authentication Required:** Yes
-
-**Request Body:**
-```json
-{
-    "message": "Hello from Dana AI!",
-    "thread_ts": "optional thread timestamp to reply in a thread",
-    "blocks": [] // Optional blocks for rich formatting
-}
-```
-
-**Response Example (Success):**
-```json
-{
-    "success": true,
-    "message": "Message posted successfully",
-    "timestamp": "1615982567.000100",
-    "channel": "C01A2B3C4D5"
-}
-```
-
-**Response Example (Failure):**
-```json
-{
-    "success": false,
-    "message": "Error posting message: invalid_auth",
-    "error": "invalid_auth"
+  "success": true,
+  "message": "Message sent successfully",
+  "timestamp": "1616012345.001200",
+  "channel": "C04XXXXXXXXX"
 }
 ```
 
 ### Get Channel History
 
-Retrieves the message history from the configured Slack channel.
+Retrieve recent messages from the configured Slack channel.
 
-**Endpoint:** `/api/slack/messages`
-
-**Method:** GET
-
-**Authentication Required:** Yes
-
-**Query Parameters:**
-- `limit` (optional) - Maximum number of messages to return (default: 100)
-- `oldest` (optional) - Start of time range in Unix timestamp format
-- `latest` (optional) - End of time range in Unix timestamp format
-
-**Response Example (Success):**
-```json
-{
-    "success": true,
-    "message": "Successfully retrieved Slack messages",
-    "count": 2,
-    "messages": [
-        {
-            "text": "Hello from Dana AI!",
-            "timestamp": "2023-05-01 14:30:45",
-            "user": "U01A2B3C4D5",
-            "thread_ts": null,
-            "reply_count": 0,
-            "reactions": []
-        },
-        {
-            "text": "This is a test message",
-            "timestamp": "2023-05-01 14:25:30",
-            "user": "U01A2B3C4D5",
-            "thread_ts": "1615982330.000200",
-            "reply_count": 2,
-            "reactions": [
-                {
-                    "name": "thumbsup",
-                    "count": 1,
-                    "users": ["U01A2B3C4D5"]
-                }
-            ]
-        }
-    ]
-}
+```
+GET /history
 ```
 
-**Response Example (Failure):**
+#### Query Parameters
+
+| Parameter | Type | Description | Default |
+|-----------|------|-------------|---------|
+| limit | integer | Maximum number of messages to return | 100 |
+| oldest | string | Start of time range (Unix timestamp) | null |
+| latest | string | End of time range (Unix timestamp) | null |
+
+#### Response
+
 ```json
 {
-    "success": false,
-    "message": "Failed to get Slack messages",
-    "status": "error",
-    "details": "channel_not_found"
+  "success": true,
+  "message": "Messages retrieved successfully",
+  "messages": [
+    {
+      "text": "Hello from Dana AI!",
+      "timestamp": "2023-04-01 12:34:56",
+      "user": "U04XXXXXXXXX",
+      "thread_ts": null,
+      "reply_count": 0,
+      "reactions": []
+    },
+    {
+      "text": "Another message",
+      "timestamp": "2023-04-01 12:30:45",
+      "user": "U04XXXXXXXXX",
+      "thread_ts": null,
+      "reply_count": 2,
+      "reactions": [
+        {
+          "name": "thumbsup",
+          "count": 3,
+          "users": ["U04XXXXXXXXX", "U04YYYYYYYYY", "U04ZZZZZZZZZ"]
+        }
+      ]
+    }
+  ]
 }
 ```
 
 ### Get Thread Replies
 
-Retrieves the replies in a specific message thread.
+Retrieve replies to a specific message thread.
 
-**Endpoint:** `/api/slack/threads/{thread_ts}`
+```
+GET /thread/:thread_ts
+```
 
-**Method:** GET
+#### URL Parameters
 
-**Authentication Required:** Yes
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| thread_ts | string | Thread timestamp to get replies for |
 
-**Path Parameters:**
-- `thread_ts` - Timestamp of the parent message
+#### Query Parameters
 
-**Query Parameters:**
-- `limit` (optional) - Maximum number of replies to return (default: 100)
+| Parameter | Type | Description | Default |
+|-----------|------|-------------|---------|
+| limit | integer | Maximum number of replies to return | 100 |
 
-**Response Example (Success):**
+#### Response
+
 ```json
 {
-    "success": true,
-    "message": "Successfully retrieved thread replies",
-    "count": 2,
-    "thread_ts": "1615982330.000200",
-    "replies": [
-        {
-            "text": "This is a reply",
-            "timestamp": "2023-05-01 14:26:30",
-            "user": "U01A2B3C4D5",
-            "ts": "1615982390.000300"
-        },
-        {
-            "text": "Another reply",
-            "timestamp": "2023-05-01 14:27:45",
-            "user": "U02B3C4D5E6",
-            "ts": "1615982465.000400"
-        }
-    ]
+  "success": true,
+  "message": "Thread replies retrieved successfully",
+  "replies": [
+    {
+      "text": "This is a reply",
+      "timestamp": "2023-04-01 12:35:10",
+      "user": "U04XXXXXXXXX",
+      "reactions": []
+    },
+    {
+      "text": "Another reply",
+      "timestamp": "2023-04-01 12:36:22",
+      "user": "U04YYYYYYYYY",
+      "reactions": []
+    }
+  ],
+  "reply_count": 2
 }
 ```
 
-**Response Example (Failure):**
+## Dashboard
+
+A web-based dashboard for the Slack integration is available at:
+
+```
+/api/slack/dashboard
+```
+
+This dashboard provides a user interface for:
+
+- Checking the Slack integration status
+- Sending messages to Slack
+- Viewing recent channel messages
+- Testing notification functionality
+
+## Notification Test Endpoints
+
+The following endpoints are available for testing notification functionality:
+
+### Test User Notification
+
+```
+POST /test/user-notification
+```
+
+#### Request Body
+
 ```json
 {
-    "success": false,
-    "message": "Failed to get thread replies",
-    "status": "error",
-    "details": "thread_not_found"
+  "notification_type": "signup",
+  "data": {
+    "email": "test@example.com",
+    "company": "Test Company"
+  }
 }
 ```
 
-## Error Codes and Troubleshooting
+Valid notification types:
+- `signup` - New user signup
+- `login` - User login
+- `profile_update` - User profile update
 
-Common error codes returned by the Slack API:
+### Test Subscription Notification
 
-| Error Code | Description | Troubleshooting |
-|------------|-------------|-----------------|
-| `invalid_auth` | Authentication token is invalid | Check your SLACK_BOT_TOKEN environment variable |
-| `channel_not_found` | Specified channel doesn't exist or bot is not a member | Invite the bot to the channel |
-| `not_in_channel` | Bot is not a member of the channel | Invite the bot to the channel |
-| `missing_scope` | Token doesn't have the required scope | Add necessary OAuth scopes to your Slack App |
-| `rate_limited` | Too many requests to Slack API | Implement rate limiting or retry logic |
+```
+POST /test/subscription-notification
+```
 
-## Implementation Notes
+#### Request Body
 
-- The Slack integration is implemented using the official `slack_sdk` Python package.
-- All API requests to Slack are authenticated using the configured Bot User OAuth Token.
-- Messages sent to Slack can include basic formatting (bold, italic, links, etc.) using Slack's message formatting syntax.
-- For security reasons, all API endpoints require authentication with a valid Dana AI user token.
-- By default, messages are sent to the channel specified by the `SLACK_CHANNEL_ID` environment variable.
-- The integration automatically handles rate limiting by implementing exponential backoff when needed.
+```json
+{
+  "notification_type": "new_subscription",
+  "data": {
+    "user_id": "12345",
+    "tier_name": "Professional",
+    "payment_method": "Credit Card"
+  }
+}
+```
 
-## Command-Line Utilities
+Valid notification types:
+- `new_subscription` - New subscription
+- `subscription_cancelled` - Subscription cancellation
+- `subscription_changed` - Subscription tier change
 
-The Dana AI platform includes a command-line utility for testing Slack integration:
+### Test System Notification
+
+```
+POST /test/system-notification
+```
+
+#### Request Body
+
+```json
+{
+  "notification_type": "status",
+  "data": {
+    "message": "System update completed successfully",
+    "status_type": "success",
+    "details": {
+      "Duration": "5 minutes",
+      "Components Updated": "Database, API Server",
+      "Version": "1.2.3"
+    }
+  }
+}
+```
+
+Valid notification types:
+- `error` - System error
+- `warning` - System warning
+- `status` - System status update
+
+## Error Handling
+
+All endpoints follow the standard Dana AI Platform error handling practices. Requests with missing or invalid parameters will receive a 400 Bad Request response with an appropriate error message.
+
+## Environment Variables
+
+The Slack integration requires the following environment variables to be set:
+
+| Variable | Description |
+|----------|-------------|
+| SLACK_BOT_TOKEN | Slack Bot User OAuth Token for API access |
+| SLACK_CHANNEL_ID | The ID of the Slack channel to interact with |
+
+## Usage Examples
+
+### Sending a Message with cURL
 
 ```bash
-# Verify Slack credentials
-python slack_demo.py verify
-
-# Send a message to Slack
-python slack_demo.py send "Hello from Dana AI!"
-
-# Get recent messages (default: 10)
-python slack_demo.py messages --limit 5
-
-# Get thread replies
-python slack_demo.py thread 1615982330.000200 --limit 20
+curl -X POST \
+  https://your-dana-ai-instance.com/api/slack/send \
+  -H 'Content-Type: application/json' \
+  -H 'Authorization: Bearer YOUR_API_TOKEN' \
+  -d '{
+    "message": "Hello from Dana AI Platform!"
+  }'
 ```
 
-## Security Considerations
+### Retrieving Channel History with cURL
 
-- Always store your `SLACK_BOT_TOKEN` as a secure environment variable, never hardcode it in your application.
-- The Slack API token has access to all channels the bot is invited to, so make sure to control bot access appropriately.
-- Consider implementing additional authentication layers for sensitive operations.
-- Monitor API usage to detect and prevent potential abuse or unauthorized access.
-- Regularly review and rotate your Slack API tokens as part of your security best practices.
+```bash
+curl -X GET \
+  'https://your-dana-ai-instance.com/api/slack/history?limit=5' \
+  -H 'Authorization: Bearer YOUR_API_TOKEN'
+```

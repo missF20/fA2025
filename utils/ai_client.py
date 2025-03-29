@@ -21,6 +21,8 @@ class AIClient:
         """Initialize AI client with available providers"""
         self.providers = {}
         self.default_provider = None
+        self.primary_provider = None
+        self.fallback_provider = None
         
         # Try to initialize OpenAI
         openai_api_key = os.environ.get('OPENAI_API_KEY')
@@ -30,6 +32,7 @@ class AIClient:
                 self.openai_client = OpenAI(api_key=openai_api_key)
                 self.providers['openai'] = True
                 self.default_provider = 'openai'
+                self.primary_provider = 'openai'
                 logger.info("OpenAI client initialized")
             except Exception as e:
                 logger.warning(f"OpenAI API key found but client initialization failed: {str(e)}")
@@ -47,6 +50,9 @@ class AIClient:
                 self.providers['anthropic'] = True
                 if not self.default_provider:
                     self.default_provider = 'anthropic'
+                    self.primary_provider = 'anthropic'
+                else:
+                    self.fallback_provider = 'anthropic'
                 logger.info("Anthropic client initialized")
             except Exception as e:
                 logger.warning(f"Anthropic API key found but client initialization failed: {str(e)}")
@@ -58,6 +64,126 @@ class AIClient:
         # Check if any providers are available
         if not any(self.providers.values()):
             logger.warning("No AI clients were successfully initialized")
+            
+    def available_providers(self) -> Dict[str, bool]:
+        """
+        Get a dictionary of available AI providers
+        
+        Returns:
+            Dictionary with provider names as keys and availability as boolean values
+        """
+        return self.providers
+        
+    def generate_response(self, 
+                        message: str, 
+                        system_prompt: Optional[str] = None,
+                        conversation_history: Optional[List[Dict[str, str]]] = None,
+                        provider: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Generate an AI response to a message
+        
+        Args:
+            message: User message to respond to
+            system_prompt: System prompt to set context
+            conversation_history: Previous conversation messages
+            provider: Specific provider to use
+            
+        Returns:
+            Dictionary with response content and metadata
+        """
+        # Default system prompt if not provided
+        if not system_prompt:
+            system_prompt = """
+            You are a helpful AI assistant. Answer the user's question 
+            accurately, concisely, and with a friendly tone.
+            """
+            
+        # Send request via unified client
+        response = self.send_chat_request(
+            system_message=system_prompt,
+            user_message=message,
+            conversation_history=conversation_history,
+            provider=provider
+        )
+        
+        return response
+        
+    def analyze_sentiment(self, 
+                        text: str,
+                        provider: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Analyze the sentiment of text
+        
+        Args:
+            text: The text to analyze
+            provider: Specific provider to use
+            
+        Returns:
+            Dictionary with sentiment analysis results
+        """
+        # System prompt for sentiment analysis
+        system_prompt = """
+        Analyze the sentiment of the following text. Provide a rating from 1 to 5 stars 
+        (1 being very negative, 5 being very positive), a confidence score between 0 and 1, 
+        and a brief explanation. Respond with JSON in this format:
+        {
+            "sentiment": "[positive/negative/neutral/mixed]",
+            "rating": [1-5],
+            "confidence": [0-1],
+            "explanation": "Brief explanation of the sentiment"
+        }
+        """
+        
+        # Send request via unified client
+        response = self.send_chat_request(
+            system_message=system_prompt,
+            user_message=text,
+            json_format=True,
+            provider=provider
+        )
+        
+        try:
+            # Try to parse the response as JSON
+            if 'content' in response:
+                content = response['content']
+                # Parse JSON response
+                if isinstance(content, str):
+                    # Clean the response if needed
+                    content = content.strip()
+                    result = json.loads(content)
+                else:
+                    result = content
+                    
+                # Ensure expected fields are present
+                result.setdefault('sentiment', 'neutral')
+                result.setdefault('rating', 3)
+                result.setdefault('confidence', 0.5)
+                result.setdefault('explanation', 'No explanation provided')
+                
+                # Add provider information
+                result['provider'] = response.get('model', 'unknown')
+                
+                return result
+            else:
+                return {
+                    'sentiment': 'neutral',
+                    'rating': 3,
+                    'confidence': 0,
+                    'explanation': 'Error analyzing sentiment',
+                    'provider': 'error',
+                    'error': response.get('error', 'Unknown error')
+                }
+                
+        except Exception as e:
+            logger.error(f"Error parsing sentiment analysis result: {str(e)}")
+            return {
+                'sentiment': 'neutral',
+                'rating': 3,
+                'confidence': 0,
+                'explanation': f"Error parsing result: {str(e)}",
+                'provider': response.get('model', 'error'),
+                'content': response.get('content', '')
+            }
     
     def send_chat_request(self, 
                          system_message: str,
