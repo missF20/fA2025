@@ -34,7 +34,7 @@ async def initialize():
     
     # Initialize business integrations
     from automation.integrations.business import (
-        email, hubspot, salesforce, slack, google_analytics, zendesk
+        email, hubspot, salesforce, slack, google_analytics, zendesk, shopify
     )
     
     await email.initialize()
@@ -43,6 +43,7 @@ async def initialize():
     await slack.initialize()
     await google_analytics.initialize()
     await zendesk.initialize()
+    await shopify.initialize()
     
     # Initialize database integrations
     from automation.integrations.database import (
@@ -70,7 +71,7 @@ async def shutdown():
     
     # Close business integrations
     from automation.integrations.business import (
-        email, hubspot, salesforce, slack, google_analytics, zendesk
+        email, hubspot, salesforce, slack, google_analytics, zendesk, shopify
     )
     
     await email.shutdown()
@@ -79,6 +80,7 @@ async def shutdown():
     await slack.shutdown()
     await google_analytics.shutdown()
     await zendesk.shutdown()
+    await shopify.shutdown()
     
     # Close database integrations
     from automation.integrations.database import (

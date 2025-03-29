@@ -13,5 +13,6 @@ from . import salesforce
 from . import slack
 from . import google_analytics
 from . import zendesk
+from . import shopify
 
 logger = logging.getLogger(__name__)

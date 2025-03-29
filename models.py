@@ -56,6 +56,7 @@ class IntegrationType(str, Enum):
     SLACK = "slack"
     GOOGLE_ANALYTICS = "google_analytics"
     ZENDESK = "zendesk"
+    SHOPIFY = "shopify"
     
     # Database connectors
     DATABASE_MYSQL = "mysql"
