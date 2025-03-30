@@ -22,7 +22,15 @@ SLACK_CHANNEL_ID = os.environ.get('SLACK_CHANNEL_ID')
 # Initialize Slack client if credentials are available
 slack_client = None
 if SLACK_BOT_TOKEN:
-    slack_client = WebClient(token=SLACK_BOT_TOKEN)
+    try:
+        slack_client = WebClient(token=SLACK_BOT_TOKEN)
+        # Perform a simple API test to verify the token
+        auth_test = slack_client.auth_test()
+        logger.info(f"Slack client initialized successfully: {auth_test.get('team')}")
+    except Exception as e:
+        logger.error(f"Failed to initialize Slack client: {str(e)}")
+        # Still create the client so functions can check status properly
+        slack_client = WebClient(token=SLACK_BOT_TOKEN)
 
 def check_slack_status() -> Dict[str, Any]:
     """
@@ -38,6 +46,24 @@ def check_slack_status() -> Dict[str, Any]:
     
     if not SLACK_CHANNEL_ID:
         missing.append('SLACK_CHANNEL_ID')
+    
+    # Try to validate token if it exists
+    if SLACK_BOT_TOKEN and slack_client:
+        try:
+            auth_test = slack_client.auth_test()
+            if auth_test.get('ok', False):
+                # Token is valid, return more details
+                return {
+                    'valid': True,
+                    'channel_id': SLACK_CHANNEL_ID if SLACK_CHANNEL_ID else None,
+                    'team': auth_test.get('team', ''),
+                    'user': auth_test.get('user', ''),
+                    'bot_id': auth_test.get('bot_id', ''),
+                    'missing': []
+                }
+        except Exception as e:
+            logger.error(f"Error validating Slack token: {str(e)}")
+            missing.append(f"Invalid token: {str(e)}")
     
     return {
         'valid': len(missing) == 0,
