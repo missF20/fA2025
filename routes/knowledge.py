@@ -6,7 +6,7 @@ import os
 from utils.validation import validate_request_json
 from utils.supabase import get_supabase_client
 from utils.auth import get_user_from_token, require_auth
-from utils.file_parser import parse_file_content, parse_base64_file
+from utils.file_parser import FileParser
 from models import KnowledgeFileCreate, KnowledgeFileUpdate
 from app import socketio
 from datetime import datetime
@@ -256,7 +256,7 @@ def create_knowledge_file():
             if is_base64 and file_type:
                 try:
                     # Parse file to extract content and metadata
-                    extracted_text, metadata = parse_base64_file(file_content, file_type)
+                    extracted_text, metadata = FileParser.parse_base64_file(file_content, file_type)
                     
                     # Update data with parsed content if extraction was successful
                     if extracted_text:
@@ -625,3 +625,145 @@ def get_knowledge_tags():
     except Exception as e:
         logger.error(f"Error getting knowledge tags: {str(e)}", exc_info=True)
         return jsonify({'error': 'Error getting knowledge tags'}), 500
+
+@knowledge_bp.route('/files/binary', methods=['POST'])
+@require_auth
+def upload_binary_file():
+    """
+    Upload a binary file to the knowledge base (compatible with KnowledgeBase.tsx)
+    ---
+    parameters:
+      - name: Authorization
+        in: header
+        type: string
+        required: true
+        description: Bearer token
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          properties:
+            user_id:
+              type: string
+            file_name:
+              type: string
+            file_size:
+              type: integer
+            file_type:
+              type: string
+            content:
+              type: string
+              format: binary
+    responses:
+      201:
+        description: File uploaded
+      400:
+        description: Invalid request data
+      401:
+        description: Unauthorized
+      500:
+        description: Server error
+    """
+    user = get_user_from_token(request)
+    data = request.json
+    
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+    
+    # Basic validation
+    required_fields = ['file_name', 'file_size', 'file_type', 'content']
+    for field in required_fields:
+        if field not in data:
+            return jsonify({'error': f'Missing required field: {field}'}), 400
+    
+    # Ensure user_id is set to authenticated user
+    data['user_id'] = user['id']
+    
+    # Process file content based on file type
+    try:
+        file_name = data.get('file_name', '')
+        file_type = data.get('file_type', '')
+        file_content = data.get('content', '')
+        
+        # For PDF files (from ArrayBuffer to base64)
+        if file_type == 'application/pdf':
+            try:
+                # If content is already base64 encoded, use it directly
+                if isinstance(file_content, str) and file_content.startswith('data:application/pdf;base64,'):
+                    # Parse file to extract content and metadata
+                    extracted_text, metadata = FileParser.parse_base64_file(file_content, 'pdf')
+                    
+                    # Update data with parsed content if extraction was successful
+                    if extracted_text:
+                        data['content'] = extracted_text
+                    
+                    # Extract metadata if available
+                    if metadata:
+                        data['metadata'] = json.dumps(metadata)
+                    
+                    # Set proper file_type for database
+                    data['file_type'] = 'pdf'
+                
+                # If content is an array buffer or binary data
+                elif isinstance(file_content, (bytes, bytearray)) or (isinstance(file_content, str) and not file_content.startswith('data:')):
+                    # Convert content to bytes if it's not already
+                    if isinstance(file_content, str):
+                        try:
+                            # Try to convert from JSON-encoded binary array
+                            import numpy as np
+                            file_bytes = np.array(json.loads(file_content), dtype=np.uint8).tobytes()
+                        except:
+                            # Fallback: try to decode base64 directly
+                            file_bytes = base64.b64decode(file_content)
+                    else:
+                        file_bytes = file_content
+                    
+                    # Now parse the binary content
+                    result = FileParser.parse_file(file_bytes, 'pdf')
+                    
+                    if result.get('success', False):
+                        data['content'] = result.get('content', '')
+                        
+                        # Extract metadata if available
+                        if result.get('metadata'):
+                            data['metadata'] = json.dumps(result.get('metadata'))
+                    
+                    # Set proper file_type for database
+                    data['file_type'] = 'pdf'
+                
+                logger.info(f"Successfully parsed PDF file: {file_name}")
+                
+            except Exception as e:
+                logger.error(f"Error parsing PDF file {file_name}: {str(e)}", exc_info=True)
+                # Keep original content if parsing fails
+        
+        # Add timestamps
+        now = datetime.now().isoformat()
+        data['created_at'] = now
+        data['updated_at'] = now
+        
+        # Create file entry
+        file_result = supabase.table('knowledge_files').insert(data).execute()
+        
+        if not file_result.data:
+            return jsonify({'error': 'Failed to upload file'}), 500
+        
+        new_file = file_result.data[0]
+        
+        # Don't include content in the response
+        new_file.pop('content', None)
+        
+        # Emit socket event
+        socketio.emit('new_knowledge_file', {
+            'file': new_file
+        }, room=user['id'])
+        
+        return jsonify({
+            'message': 'File uploaded successfully',
+            'file': new_file
+        }), 201
+        
+    except Exception as e:
+        logger.error(f"Error uploading binary file: {str(e)}", exc_info=True)
+        return jsonify({'error': 'Error uploading binary file'}), 500

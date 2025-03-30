@@ -22,25 +22,6 @@ export function KnowledgeBase() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      // First try to get files from the backend API
-      try {
-        const response = await fetch('/api/knowledge/files', {
-          headers: {
-            'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
-          }
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          setFiles(data.files || []);
-          setIsLoading(false);
-          return;
-        }
-      } catch (apiError) {
-        console.warn('Could not fetch files from API, falling back to direct Supabase', apiError);
-      }
-
-      // Fallback to direct Supabase query
       const { data, error } = await supabase
         .from('knowledge_files')
         .select('*')
@@ -100,39 +81,7 @@ export function KnowledgeBase() {
             });
           }, 300);
 
-          // First try to upload via API
-          try {
-            const token = (await supabase.auth.getSession()).data.session?.access_token;
-            const response = await fetch('/api/knowledge/files/binary', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-              },
-              body: JSON.stringify({
-                user_id: user.id,
-                file_name: selectedFile.name,
-                file_size: selectedFile.size,
-                file_type: selectedFile.type,
-                content: fileContent
-              })
-            });
-
-            clearInterval(progressInterval);
-            
-            if (response.ok) {
-              setUploadProgress(100);
-              setSuccess('File uploaded successfully');
-              fetchKnowledgeFiles();
-              return;
-            } else {
-              console.warn('API upload failed, falling back to direct Supabase');
-            }
-          } catch (apiError) {
-            console.warn('Could not upload file via API, falling back to direct Supabase', apiError);
-          }
-
-          // Fallback to direct Supabase upload
+          // Upload to Supabase
           const { error } = await supabase
             .from('knowledge_files')
             .insert({
@@ -173,26 +122,6 @@ export function KnowledgeBase() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      // Try to delete via API first
-      try {
-        const token = (await supabase.auth.getSession()).data.session?.access_token;
-        const response = await fetch(`/api/knowledge/files/${fileId}`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        
-        if (response.ok) {
-          setSuccess('File deleted successfully');
-          setFiles(files.filter(file => file.id !== fileId));
-          return;
-        }
-      } catch (apiError) {
-        console.warn('Could not delete file via API, falling back to direct Supabase', apiError);
-      }
-
-      // Fallback to direct Supabase deletion
       const { error } = await supabase
         .from('knowledge_files')
         .delete()

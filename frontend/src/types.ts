@@ -1,141 +1,81 @@
-export interface MetricCard {
-  title: string;
-  value: number;
-  icon: React.ReactNode;
-  description: string;
-  trend?: {
-    value: number;
-    isPositive: boolean;
-  };
-  breakdown?: {
-    facebook: number;
-    instagram: number;
-    whatsapp: number;
-  };
-}
+// Types for Dana AI Platform
 
-export interface TopIssue {
-  issue: string;
-  count: number;
-  percentage: number;
-}
-
-export interface PendingTask {
+// Base types for various entities
+export interface Profile {
   id: string;
-  task: string;
-  client: {
-    name: string;
-    company: string;
-  };
-  timestamp: string;
-}
-
-export interface EscalatedTask {
-  id: string;
-  task: string;
-  client: {
-    name: string;
-    company: string;
-  };
-  priority: 'high' | 'medium' | 'low';
-  timestamp: string;
-}
-
-export interface Interaction {
-  id: string;
-  name: string;
-  company: string;
-  timestamp: string;
-  type: string;
+  user_id: string;
+  email: string;
+  company: string | null;
+  account_setup_complete: boolean;
+  welcome_email_sent: boolean;
+  created_at: string;
+  subscription_tier_id?: string | null;
 }
 
 export interface Message {
   id: string;
+  conversation_id: string;
   content: string;
-  sender_type: 'ai' | 'client';
+  sender_type: 'user' | 'client' | 'ai';
   created_at: string;
+  metadata?: Record<string, any>;
 }
 
 export interface Conversation {
   id: string;
-  platform: 'facebook' | 'instagram' | 'whatsapp';
+  user_id: string;
+  platform: string;
   client_name: string;
-  client_company: string;
+  client_company?: string;
+  status: 'active' | 'closed' | 'pending';
   created_at: string;
   updated_at: string;
-  messages: Message[];
+  last_message?: string;
+  last_message_time?: string;
 }
 
-export interface Integration {
+export interface Task {
   id: string;
-  name: string;
+  user_id: string;
   description: string;
-  icon: string;
-  status: 'connected' | 'disconnected';
-  category: 'crm' | 'communication' | 'analytics' | 'ecommerce' | 'helpdesk';
-}
-
-export interface ChatMetrics {
-  totalResponses: number;
-  responsesBreakdown: {
-    facebook: number;
-    instagram: number;
-    whatsapp: number;
-  };
-  completedTasks: number;
-  completedTasksBreakdown: {
-    facebook: number;
-    instagram: number;
-    whatsapp: number;
-  };
-  pendingTasks: PendingTask[];
-  escalatedTasks: EscalatedTask[];
-  totalChats: number;
-  chatsBreakdown: {
-    facebook: number;
-    instagram: number;
-    whatsapp: number;
-  };
-  peopleInteracted: Interaction[];
-  responseTime: string;
-  topIssues: TopIssue[];
-  interactionsByType: {
-    type: string;
-    count: number;
-  }[];
-  conversations: Conversation[];
-  integrations: Integration[];
-}
-
-export interface AuthFormData {
-  email: string;
-  password: string;
-  company?: string;
-  rememberMe?: boolean;
-}
-
-export interface SupportTicket {
-  id?: string;
-  subject: string;
-  message: string;
-  status?: 'open' | 'in-progress' | 'resolved';
-  created_at?: string;
-}
-
-export interface Rating {
-  id?: string;
-  score: number;
-  feedback?: string;
-  created_at?: string;
+  status: 'todo' | 'in_progress' | 'done';
+  priority: 'low' | 'medium' | 'high';
+  platform: string;
+  client_name: string;
+  created_at: string;
+  updated_at: string;
+  due_date?: string;
+  assigned_to?: string;
 }
 
 export interface KnowledgeFile {
   id: string;
+  user_id: string;
   file_name: string;
   file_size: number;
   file_type: string;
+  content?: string;
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
+  category?: string;
+  tags?: string[] | string;
+  metadata?: Record<string, any> | string;
+}
+
+export interface Integration {
+  id: string;
+  user_id: string;
+  integration_type: string;
+  status: 'active' | 'inactive' | 'pending' | 'error';
+  config?: Record<string, any>;
+  created_at: string;
+  updated_at?: string;
+  last_sync?: string;
+  name: string;
+  description: string;
+  icon: string;
+  category: string;
+  type: string;
 }
 
 export interface SubscriptionTier {
@@ -143,48 +83,102 @@ export interface SubscriptionTier {
   name: string;
   description: string;
   price: number;
+  monthly_price?: number;
+  annual_price?: number;
   features: string[];
   platforms: string[];
-  created_at?: string;
-  updated_at?: string;
+  is_popular: boolean;
+  trial_days: number;
+  max_users?: number;
+  is_active: boolean;
+  feature_limits?: Record<string, number>;
 }
 
 export interface UserSubscription {
   id: string;
   user_id: string;
   subscription_tier_id: string;
-  status: 'active' | 'inactive' | 'pending' | 'cancelled';
+  status: 'active' | 'canceled' | 'expired' | 'pending';
   start_date: string;
   end_date?: string;
-  payment_status: 'paid' | 'unpaid' | 'overdue';
-  last_payment_date?: string;
-  next_payment_date?: string;
-  created_at?: string;
-  updated_at?: string;
+  payment_method_id?: string;
+  billing_cycle?: string;
+  auto_renew: boolean;
+  trial_end_date?: string;
+  last_billing_date?: string;
+  next_billing_date?: string;
+  cancellation_date?: string;
+  cancellation_reason?: string;
 }
 
-export interface AdminClient {
+// Utility types
+export type Platform = 'facebook' | 'instagram' | 'whatsapp' | 'email' | 'website';
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface SearchResult<T> {
+  query: string;
+  filters?: Record<string, any>;
+  results: T[];
+  count: number;
+  limit: number;
+}
+
+// Analytics and Dashboard Types
+export interface Interaction {
   id: string;
-  company: string;
-  email: string;
-  status: 'active' | 'inactive' | 'pending';
-  subscription: string;
-  platforms: string[];
-  setupComplete: boolean;
-  paymentStatus: 'paid' | 'unpaid' | 'overdue';
-  nextPaymentDate: string | null;
-  createdAt: string;
+  client_name: string;
+  platform: Platform;
+  content: string;
+  timestamp: string;
 }
 
-export interface AdminStats {
-  totalClients: number;
-  activeClients: number;
-  pendingSetup: number;
-  revenueThisMonth: number;
-  overdueBilling: number;
-  platformBreakdown: {
-    facebook: number;
-    instagram: number;
-    whatsapp: number;
-  };
+export interface PendingTask {
+  id: string;
+  description: string;
+  client_name: string;
+  priority: 'low' | 'medium' | 'high';
+  due_date: string;
+}
+
+export interface EscalatedTask {
+  id: string;
+  description: string;
+  client_name: string;
+  reason: string;
+  timestamp: string;
+}
+
+// Auth and User Management
+export interface SignUpData {
+  email: string;
+  password: string;
+  company?: string;
+}
+
+export interface LoginData {
+  email: string;
+  password: string;
+  remember_me?: boolean;
+}
+
+export interface PasswordResetData {
+  email: string;
+}
+
+export interface PasswordChangeData {
+  token: string;
+  new_password: string;
+}
+
+export interface AuthFormData {
+  email: string;
+  password: string;
+  company?: string;
+  rememberMe?: boolean;
 }

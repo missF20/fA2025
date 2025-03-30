@@ -12,7 +12,7 @@ import { RateUs } from './components/RateUs';
 import { Support } from './components/Support';
 import Integrations from './components/Integrations';
 import { NewUserSetupPrompt } from './components/NewUserSetupPrompt';
-import KnowledgeBase from './components/KnowledgeBase';
+import { KnowledgeBase } from './components/KnowledgeBase';
 // SlackDashboard is now accessed through the Integrations component
 import { SubscriptionTierSelector } from './components/SubscriptionTierSelector';
 import { ProfileMenu } from './components/ProfileMenu';
