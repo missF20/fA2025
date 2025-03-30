@@ -7,6 +7,8 @@ This is the main entry point for running the Dana AI Platform.
 from app import app
 import threading
 import logging
+import subprocess
+import os
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, 
@@ -32,6 +34,40 @@ except Exception as e:
     logger.error(f"Failed to start Knowledge Base Demo: {str(e)}")
 """
 logger.info("Knowledge Base Demo disabled to free up port 5173 for React frontend")
+
+# Start React frontend
+try:
+    def run_react_frontend():
+        """Run the React frontend on port 5173"""
+        logger.info("Starting React Frontend on port 5173...")
+        # Use subprocess to run npm in the frontend directory
+        frontend_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'frontend')
+        process = subprocess.Popen(
+            "cd {} && npm run dev -- --host 0.0.0.0 --port 5173".format(frontend_dir),
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        # Log any stdout/stderr in a non-blocking way
+        def log_output():
+            for line in iter(process.stdout.readline, ''):
+                if line:
+                    logger.info(f"React Frontend: {line.strip()}")
+            for line in iter(process.stderr.readline, ''):
+                if line:
+                    logger.error(f"React Frontend Error: {line.strip()}")
+        
+        threading.Thread(target=log_output, daemon=True).start()
+        logger.info("React Frontend process started")
+        
+    # Start React frontend in a thread
+    react_thread = threading.Thread(target=run_react_frontend)
+    react_thread.daemon = True
+    react_thread.start()
+    logger.info("React Frontend thread started")
+except Exception as e:
+    logger.error(f"Failed to start React Frontend: {str(e)}")
 
 # Import simple API app
 try:
