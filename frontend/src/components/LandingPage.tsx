@@ -124,17 +124,17 @@ const LandingPage: React.FC = () => {
         <div className="container">
           <div className="row align-items-center">
             <div className="col-lg-6 col-md-12 text-light">
-              <h1 className="display-4 fw-bold mb-4">Meet Dana AI</h1>
+              <h1 className="display-4 fw-bold mb-4">Transform Customer Experiences with Dana AI</h1>
               <p className="fs-5 mb-4">
-                The intelligent platform that transforms how businesses communicate with customers.
-                Powered by advanced AI to enhance customer support, knowledge management, and team collaboration.
+                The intelligent platform that revolutionizes how businesses interact with customers.
+                Harness the power of AI to deliver exceptional support, manage knowledge efficiently, and boost team collaboration.
               </p>
-              <div className="d-flex flex-wrap gap-3">
+              <div className="d-flex flex-wrap gap-3 hero-buttons">
                 <button 
-                  className="btn btn-primary btn-lg" 
+                  className="btn btn-primary btn-lg cta-button" 
                   onClick={handleGetStarted}
                 >
-                  Get Started
+                  Start Free Trial
                 </button>
                 <button 
                   className="btn btn-outline-light btn-lg"
@@ -143,20 +143,29 @@ const LandingPage: React.FC = () => {
                   Watch Demo
                 </button>
               </div>
+              <div className="mt-4 d-flex align-items-center opacity-75">
+                <span className="me-2">Trusted by 500+ businesses</span>
+                <div className="d-flex align-items-center">
+                  <span className="badge bg-light text-dark me-2">⭐⭐⭐⭐⭐</span>
+                  <span>4.9/5 rating</span>
+                </div>
+              </div>
             </div>
             <div className="col-lg-6 col-md-12">
-              <div ref={animationRef} className="animation-container" style={{ height: '400px' }}></div>
+              <div ref={animationRef} className="animation-container"></div>
             </div>
           </div>
         </div>
       </section>
 
       {/* Features Section */}
-      <section className="features py-5">
+      <section className="features">
         <div className="container">
-          <div className="text-center mb-5">
+          <div className="text-center mb-5 section-heading">
             <h2 className="display-5 fw-bold">Supercharge Your Customer Interactions</h2>
-            <p className="fs-5">Dana AI combines powerful tools to help you deliver exceptional service</p>
+            <p className="fs-5 text-muted mx-auto" style={{ maxWidth: "700px" }}>
+              Dana AI combines powerful tools that help businesses deliver exceptional service and build lasting customer relationships
+            </p>
           </div>
           
           <div className="row g-4">
@@ -164,36 +173,36 @@ const LandingPage: React.FC = () => {
               {
                 icon: <div className="feature-icon">AI</div>,
                 title: "Intelligent Responses",
-                description: "Generate contextual and personalized responses to customer inquiries in seconds."
+                description: "Generate contextual and personalized responses to customer inquiries in seconds, ensuring accuracy and consistency."
               },
               {
                 icon: <div className="feature-icon">CM</div>,
                 title: "Omnichannel Support",
-                description: "Connect with customers across Slack, email, social media, and more from a single interface."
+                description: "Connect with customers across Slack, email, social media, and more from a single unified interface."
               },
               {
                 icon: <div className="feature-icon">DB</div>,
                 title: "Knowledge Management",
-                description: "Organize and retrieve information from documents, PDFs, and other sources with ease."
+                description: "Organize and retrieve information from documents, PDFs, and various sources with powerful search capabilities."
               },
               {
                 icon: <div className="feature-icon">AT</div>,
                 title: "Workflow Automation",
-                description: "Automate repetitive tasks and create custom workflows tailored to your business needs."
+                description: "Automate repetitive tasks and create custom workflows tailored to your specific business needs."
               },
               {
                 icon: <div className="feature-icon">CH</div>,
                 title: "Advanced Analytics",
-                description: "Gain insights into customer interactions and team performance with detailed metrics."
+                description: "Gain actionable insights into customer interactions and team performance with detailed metrics and reports."
               },
               {
                 icon: <div className="feature-icon">LK</div>,
                 title: "Enterprise-Grade Security",
-                description: "Keep your data secure with advanced encryption and role-based access controls."
+                description: "Keep your data secure with advanced encryption, role-based access controls, and compliance tools."
               }
             ].map((feature, index) => (
-              <div key={index} className="col-md-6 col-lg-4">
-                <div className="card h-100 border-0 shadow-sm">
+              <div key={index} className="col-md-6 col-lg-4 mb-4">
+                <div className="feature-card card h-100 border-0 shadow-sm">
                   <div className="card-body d-flex flex-column align-items-center text-center p-4">
                     <div className="feature-icon-wrapper mb-3">
                       {feature.icon}
@@ -209,11 +218,13 @@ const LandingPage: React.FC = () => {
       </section>
 
       {/* Use Cases Section */}
-      <section className="use-cases py-5">
+      <section className="use-cases">
         <div className="container">
-          <div className="text-center mb-5">
+          <div className="text-center mb-5 section-heading">
             <h2 className="display-5 fw-bold">Real-World Applications</h2>
-            <p className="fs-5">See how Dana AI is transforming businesses across industries</p>
+            <p className="fs-5 text-muted mx-auto" style={{ maxWidth: "700px" }}>
+              See how Dana AI is transforming businesses across industries
+            </p>
           </div>
           
           <div className="row g-4">
@@ -221,24 +232,129 @@ const LandingPage: React.FC = () => {
               {
                 title: "Customer Support",
                 description: "Reduce response times by 73% while increasing customer satisfaction scores. Dana AI helps your team provide faster, more accurate support.",
+                stats: { metric: "73%", label: "Faster Response Time" },
+                icon: "🎧",
                 gradient: "bg-gradient-primary"
               },
               {
                 title: "Sales Enablement",
                 description: "Equip your sales team with instant access to product information, competitive insights, and personalized messaging that converts leads.",
+                stats: { metric: "41%", label: "Increased Conversions" },
+                icon: "💼",
                 gradient: "bg-gradient-info"
               },
               {
                 title: "Internal Knowledge Base",
                 description: "Centralize company knowledge and make it accessible to your team. Dana AI helps employees find the information they need, when they need it.",
+                stats: { metric: "85%", label: "Faster Information Retrieval" },
+                icon: "📚",
                 gradient: "bg-gradient-success"
               }
             ].map((useCase, index) => (
               <div key={index} className="col-md-4">
-                <div className={`card h-100 border-0 ${useCase.gradient} text-white`}>
+                <div className={`use-case-card card h-100 border-0 ${useCase.gradient} text-white`}>
                   <div className="card-body p-4">
-                    <h3 className="card-title h4 fw-bold">{useCase.title}</h3>
-                    <p className="card-text">{useCase.description}</p>
+                    <div className="d-flex align-items-center mb-3">
+                      <span className="display-6 me-2">{useCase.icon}</span>
+                      <h3 className="card-title h4 fw-bold mb-0">{useCase.title}</h3>
+                    </div>
+                    <p className="card-text mb-4">{useCase.description}</p>
+                    <div className="d-flex align-items-center mt-auto">
+                      <div className="display-5 fw-bold me-3">{useCase.stats.metric}</div>
+                      <div className="fs-6 opacity-75">{useCase.stats.label}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          <div className="text-center mt-5">
+            <button className="btn btn-outline-primary btn-lg" onClick={handleGetStarted}>
+              Explore All Use Cases
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* Integration Section */}
+      <section className="integrations">
+        <div className="container">
+          <div className="text-center mb-5 section-heading">
+            <h2 className="display-5 fw-bold">Seamless Integrations</h2>
+            <p className="fs-5 text-muted mx-auto" style={{ maxWidth: "700px" }}>
+              Connect Dana AI with your favorite tools and platforms to create a unified workflow
+            </p>
+          </div>
+          
+          <div className="row justify-content-center">
+            <div className="col-lg-10">
+              <div className="integration-container">
+                <div className="d-flex flex-wrap justify-content-center gap-4">
+                  {[
+                    { name: 'Slack', icon: '💬' },
+                    { name: 'Gmail', icon: '📧' },
+                    { name: 'Outlook', icon: '✉️' },
+                    { name: 'Zendesk', icon: '🎯' },
+                    { name: 'Salesforce', icon: '☁️' },
+                    { name: 'Shopify', icon: '🛒' },
+                    { name: 'HubSpot', icon: '📊' },
+                    { name: 'Google Analytics', icon: '📈' }
+                  ].map((integration, index) => (
+                    <div key={index} className="integration-pill">
+                      <span className="me-2">{integration.icon}</span> {integration.name}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials Section */}
+      <section className="testimonials">
+        <div className="container">
+          <div className="text-center mb-5 section-heading">
+            <h2 className="display-5 fw-bold">What Our Customers Say</h2>
+            <p className="fs-5 text-muted mx-auto" style={{ maxWidth: "700px" }}>
+              Hear from businesses that have transformed their customer experience with Dana AI
+            </p>
+          </div>
+
+          <div className="row g-4">
+            {[
+              {
+                quote: "Dana AI has revolutionized how we handle customer inquiries. Response times are down 65% and customer satisfaction is up 40%.",
+                author: "Sarah Johnson",
+                position: "Customer Support Director",
+                company: "TechNova Solutions"
+              },
+              {
+                quote: "The knowledge management system is a game-changer. Our team can instantly access critical information, making onboarding new staff so much easier.",
+                author: "Michael Chen",
+                position: "Operations Manager",
+                company: "GrowthForce Marketing"
+              },
+              {
+                quote: "Integrating Dana AI with our existing tools was seamless. The Slack integration alone has saved our team countless hours every week.",
+                author: "Jessica Rodriguez",
+                position: "Chief Technology Officer",
+                company: "Elevate Retail"
+              }
+            ].map((testimonial, index) => (
+              <div key={index} className="col-md-4">
+                <div className="testimonial-card h-100">
+                  <div className="testimonial-quote">"</div>
+                  <p className="mb-4 fs-5">{testimonial.quote}</p>
+                  <div className="d-flex align-items-center mt-auto">
+                    <div className="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center" style={{ width: "50px", height: "50px", fontSize: "1.25rem" }}>
+                      {testimonial.author.charAt(0)}
+                    </div>
+                    <div className="ms-3">
+                      <h5 className="mb-0">{testimonial.author}</h5>
+                      <p className="text-muted mb-0">{testimonial.position}, {testimonial.company}</p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -247,44 +363,22 @@ const LandingPage: React.FC = () => {
         </div>
       </section>
 
-      {/* Integration Section */}
-      <section className="integrations py-5">
-        <div className="container">
-          <div className="text-center mb-5">
-            <h2 className="display-5 fw-bold">Seamless Integrations</h2>
-            <p className="fs-5">Connect Dana AI with your favorite tools and platforms</p>
-          </div>
-          
-          <div className="row justify-content-center">
-            <div className="col-lg-8">
-              <div className="d-flex flex-wrap justify-content-center gap-4">
-                {['Slack', 'Gmail', 'Outlook', 'Zendesk', 'Salesforce', 'Shopify', 'HubSpot', 'Google Analytics'].map((integration, index) => (
-                  <div key={index} className="integration-pill">
-                    {integration}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* CTA Section */}
-      <section className="cta py-5">
+      <section className="cta">
         <div className="container">
           <div className="row justify-content-center">
             <div className="col-lg-8 text-center">
               <h2 className="display-5 fw-bold mb-4">Ready to Transform Your Customer Experience?</h2>
-              <p className="fs-5 mb-4">
-                Join businesses that are using Dana AI to deliver exceptional service and grow their customer relationships.
+              <p className="fs-5 mb-5">
+                Join hundreds of businesses that are using Dana AI to deliver exceptional service and grow their customer relationships.
               </p>
               <button 
-                className="btn btn-primary btn-lg px-5 py-3"
+                className="btn btn-primary btn-lg px-5 py-3 cta-button"
                 onClick={handleGetStarted}
               >
                 Start Your Free Trial
               </button>
-              <p className="mt-3 text-muted">No credit card required. 14-day free trial.</p>
+              <p className="mt-4 text-light opacity-75">No credit card required. 14-day free trial.</p>
             </div>
           </div>
         </div>
