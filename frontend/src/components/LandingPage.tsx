@@ -1,13 +1,14 @@
 import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
-import { FaRobot, FaComments, FaDatabase, FaChartLine, FaLock } from 'react-icons/fa';
-import { BiSolidBrain } from 'react-icons/bi';
+import { useNavigate } from 'react-router-dom';
 import '../styles/LandingPage.css';
 
 const LandingPage: React.FC = () => {
+  const navigate = useNavigate();
+  
   const handleGetStarted = () => {
-    // For the landing page demo, we'll just change the window location
-    window.location.href = '/login';
+    // Navigate to login page
+    navigate('/login');
   };
   
   const handleWatchDemo = () => {
@@ -161,32 +162,32 @@ const LandingPage: React.FC = () => {
           <div className="row g-4">
             {[
               {
-                icon: <div className="feature-icon"><BiSolidBrain size={30} /></div>,
+                icon: <div className="feature-icon">AI</div>,
                 title: "Intelligent Responses",
                 description: "Generate contextual and personalized responses to customer inquiries in seconds."
               },
               {
-                icon: <div className="feature-icon"><FaComments size={30} /></div>,
+                icon: <div className="feature-icon">CM</div>,
                 title: "Omnichannel Support",
                 description: "Connect with customers across Slack, email, social media, and more from a single interface."
               },
               {
-                icon: <div className="feature-icon"><FaDatabase size={30} /></div>,
+                icon: <div className="feature-icon">DB</div>,
                 title: "Knowledge Management",
                 description: "Organize and retrieve information from documents, PDFs, and other sources with ease."
               },
               {
-                icon: <div className="feature-icon"><FaRobot size={30} /></div>,
+                icon: <div className="feature-icon">AT</div>,
                 title: "Workflow Automation",
                 description: "Automate repetitive tasks and create custom workflows tailored to your business needs."
               },
               {
-                icon: <div className="feature-icon"><FaChartLine size={30} /></div>,
+                icon: <div className="feature-icon">CH</div>,
                 title: "Advanced Analytics",
                 description: "Gain insights into customer interactions and team performance with detailed metrics."
               },
               {
-                icon: <div className="feature-icon"><FaLock size={30} /></div>,
+                icon: <div className="feature-icon">LK</div>,
                 title: "Enterprise-Grade Security",
                 description: "Keep your data secure with advanced encryption and role-based access controls."
               }

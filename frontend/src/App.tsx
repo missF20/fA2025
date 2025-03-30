@@ -436,18 +436,9 @@ function App() {
     );
   }
 
-  // State for landing page
-  const [showLanding, setShowLanding] = useState(true);
-  const [showAuthForms, setShowAuthForms] = useState(false);
-
-  // If no session and showLanding is true, show landing page
-  if (!session && showLanding) {
+  // If no session, show landing page
+  if (!session) {
     return <LandingPage />;
-  }
-  
-  // If no session and showLanding is false, show auth forms
-  if (!session && !showLanding) {
-    return renderAuthForms();
   }
 
   // If session exists, show dashboard
