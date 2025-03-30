@@ -8,7 +8,8 @@ import {
   LogOut,
   FileText,
   BrainCircuit,
-  CreditCard
+  CreditCard,
+  MessageCircle
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { supabase } from '../lib/supabase';
@@ -26,6 +27,7 @@ export function Sidebar({ currentSection, onSectionChange }: SidebarProps) {
   ];
 
   const bottomMenuItems = [
+    { id: 'slack', icon: <MessageCircle size={20} />, label: 'Slack' },
     { id: 'rate', icon: <Star size={20} />, label: 'Rate Us' },
     { id: 'support', icon: <HelpCircle size={20} />, label: 'Support' },
     { id: 'subscriptions', icon: <CreditCard size={20} />, label: 'Subscriptions' },

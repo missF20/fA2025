@@ -14,11 +14,6 @@ from slack import (
     get_channel_history,
     get_thread_replies
 )
-from utils.slack_notifications import (
-    send_user_notification,
-    send_subscription_notification,
-    send_system_notification
-)
 
 # Create blueprint
 slack_bp = Blueprint('slack', __name__, url_prefix='/api/slack')
@@ -72,7 +67,7 @@ def get_slack_history():
     - latest: End of time range (timestamp)
     
     Returns:
-        JSON array of messages
+        JSON response with messages
     """
     limit = request.args.get('limit', default=100, type=int)
     oldest = request.args.get('oldest', default=None)
@@ -93,7 +88,7 @@ def get_slack_thread(thread_ts):
     - limit: Maximum number of replies to return (default: 100)
     
     Returns:
-        JSON array of thread replies
+        JSON response with thread replies
     """
     limit = request.args.get('limit', default=100, type=int)
     
@@ -109,79 +104,3 @@ def slack_dashboard():
         HTML page for Slack integration dashboard
     """
     return render_template('slack/dashboard.html')
-
-# Test notification routes
-@slack_bp.route('/test/user-notification', methods=['POST'])
-def test_user_notification():
-    """
-    Test user notification
-    
-    Body:
-    {
-        "notification_type": "signup|login|profile_update",
-        "data": {...}
-    }
-    
-    Returns:
-        JSON response with result status
-    """
-    data = request.get_json()
-    
-    if not data or 'notification_type' not in data or 'data' not in data:
-        raise BadRequest('Notification type and data are required')
-    
-    notification_type = data.get('notification_type')
-    notification_data = data.get('data')
-    
-    result = send_user_notification(notification_type, notification_data)
-    return jsonify(result)
-
-@slack_bp.route('/test/subscription-notification', methods=['POST'])
-def test_subscription_notification():
-    """
-    Test subscription notification
-    
-    Body:
-    {
-        "notification_type": "new_subscription|subscription_cancelled|subscription_changed",
-        "data": {...}
-    }
-    
-    Returns:
-        JSON response with result status
-    """
-    data = request.get_json()
-    
-    if not data or 'notification_type' not in data or 'data' not in data:
-        raise BadRequest('Notification type and data are required')
-    
-    notification_type = data.get('notification_type')
-    notification_data = data.get('data')
-    
-    result = send_subscription_notification(notification_type, notification_data)
-    return jsonify(result)
-
-@slack_bp.route('/test/system-notification', methods=['POST'])
-def test_system_notification():
-    """
-    Test system notification
-    
-    Body:
-    {
-        "notification_type": "error|warning|status",
-        "data": {...}
-    }
-    
-    Returns:
-        JSON response with result status
-    """
-    data = request.get_json()
-    
-    if not data or 'notification_type' not in data or 'data' not in data:
-        raise BadRequest('Notification type and data are required')
-    
-    notification_type = data.get('notification_type')
-    notification_data = data.get('data')
-    
-    result = send_system_notification(notification_type, notification_data)
-    return jsonify(result)
