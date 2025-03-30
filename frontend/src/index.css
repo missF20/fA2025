@@ -2,11 +2,174 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  /* Dana AI Platform Colors */
+  --dana-primary: #5e4cff;
+  --dana-secondary: #00e2b5;
+  --dana-accent: #ff6b6b;
+  --dana-accent-secondary: #ffbe0b;
+  --dana-dark: #140f38;
+  --dana-light: #f8f9fa;
+  
+  /* Gradients */
+  --dana-gradient-primary: linear-gradient(135deg, #6242ff, #8667ff);
+  --dana-gradient-info: linear-gradient(135deg, #3db9fc, #5868f4);
+  --dana-gradient-success: linear-gradient(135deg, #00e2b5, #00c4bd);
+  --dana-gradient-accent: linear-gradient(135deg, #ff6b6b, #ff9e7d);
+  --dana-gradient-yellow: linear-gradient(135deg, #ffbe0b, #ffda7a);
+  --dana-gradient-hero: linear-gradient(135deg, #140f38, #2a1a6c);
+  
+  /* Shadows */
+  --dana-shadow-sm: 0 2px 4px rgba(94, 76, 255, 0.08);
+  --dana-shadow-md: 0 4px 8px rgba(94, 76, 255, 0.12);
+  --dana-shadow-lg: 0 8px 16px rgba(94, 76, 255, 0.15);
+  --dana-shadow-xl: 0 12px 24px rgba(94, 76, 255, 0.18);
+  
+  /* Border Radius */
+  --dana-radius-sm: 0.25rem;
+  --dana-radius-md: 0.5rem;
+  --dana-radius-lg: 1rem;
+  --dana-radius-xl: 1.5rem;
+  --dana-radius-full: 9999px;
+}
+
+body {
+  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', sans-serif;
+  color: var(--dana-dark);
+  background-color: #ffffff;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Animation Keyframes */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
-.animate-fade-in {
-  animation: fadeIn 0.3s ease-out forwards;
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
 }
+
+@keyframes pulse {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.05); opacity: 0.8; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Animation Classes */
+.animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
+.animate-float { animation: float 3s ease-in-out infinite; }
+.animate-pulse { animation: pulse 2s ease-in-out infinite; }
+.animate-gradient { animation: gradientShift 3s ease infinite; }
+
+/* Button Styles */
+.btn-dana-primary {
+  background: var(--dana-gradient-primary);
+  color: white;
+  border-radius: var(--dana-radius-full);
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  border: none;
+  box-shadow: var(--dana-shadow-md);
+}
+
+.btn-dana-primary:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--dana-shadow-lg);
+}
+
+.btn-dana-secondary {
+  background: var(--dana-gradient-success);
+  color: white;
+  border-radius: var(--dana-radius-full);
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  border: none;
+  box-shadow: var(--dana-shadow-md);
+}
+
+.btn-dana-secondary:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--dana-shadow-lg);
+}
+
+.btn-dana-accent {
+  background: var(--dana-gradient-accent);
+  color: white;
+  border-radius: var(--dana-radius-full);
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  border: none;
+  box-shadow: var(--dana-shadow-md);
+}
+
+.btn-dana-accent:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--dana-shadow-lg);
+}
+
+/* Card Styles */
+.card-dana {
+  background: white;
+  border-radius: var(--dana-radius-lg);
+  padding: 1.5rem;
+  box-shadow: var(--dana-shadow-md);
+  transition: all 0.3s ease;
+  border: 1px solid rgba(94, 76, 255, 0.05);
+}
+
+.card-dana:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--dana-shadow-lg);
+}
+
+/* Text Styles */
+.text-gradient {
+  background: var(--dana-gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Helper Classes */
+.bg-dana-primary { background: var(--dana-primary); }
+.bg-dana-secondary { background: var(--dana-secondary); }
+.bg-dana-accent { background: var(--dana-accent); }
+.bg-dana-dark { background: var(--dana-dark); }
+.bg-dana-light { background: var(--dana-light); }
+
+.text-dana-primary { color: var(--dana-primary); }
+.text-dana-secondary { color: var(--dana-secondary); }
+.text-dana-accent { color: var(--dana-accent); }
+.text-dana-dark { color: var(--dana-dark); }
+.text-dana-light { color: var(--dana-light); }
+
+.bg-gradient-primary { background: var(--dana-gradient-primary); }
+.bg-gradient-success { background: var(--dana-gradient-success); }
+.bg-gradient-accent { background: var(--dana-gradient-accent); }
+.bg-gradient-info { background: var(--dana-gradient-info); }
+.bg-gradient-yellow { background: var(--dana-gradient-yellow); }
+
+.rounded-dana-sm { border-radius: var(--dana-radius-sm); }
+.rounded-dana-md { border-radius: var(--dana-radius-md); }
+.rounded-dana-lg { border-radius: var(--dana-radius-lg); }
+.rounded-dana-xl { border-radius: var(--dana-radius-xl); }
+.rounded-dana-full { border-radius: var(--dana-radius-full); }
+
+.shadow-dana-sm { box-shadow: var(--dana-shadow-sm); }
+.shadow-dana-md { box-shadow: var(--dana-shadow-md); }
+.shadow-dana-lg { box-shadow: var(--dana-shadow-lg); }
+.shadow-dana-xl { box-shadow: var(--dana-shadow-xl); }
