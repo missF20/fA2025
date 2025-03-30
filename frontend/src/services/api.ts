@@ -89,4 +89,83 @@ export const api = {
       return data;
     },
   },
+
+  integrations: {
+    async getStatus() {
+      const { data: session } = await supabase.auth.getSession();
+      const token = session.session?.access_token;
+
+      const response = await fetch('/api/integrations/status', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch integrations: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data.integrations;
+    },
+
+    async connect(integrationType: string, config: any) {
+      const { data: session } = await supabase.auth.getSession();
+      const token = session.session?.access_token;
+
+      const response = await fetch(`/api/integrations/connect/${integrationType}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ config })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to connect ${integrationType}: ${response.statusText}`);
+      }
+
+      return await response.json();
+    },
+
+    async disconnect(integrationId: string) {
+      const { data: session } = await supabase.auth.getSession();
+      const token = session.session?.access_token;
+
+      const response = await fetch(`/api/integrations/disconnect/${integrationId}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to disconnect ${integrationId}: ${response.statusText}`);
+      }
+
+      return await response.json();
+    },
+
+    async sync(integrationId: string) {
+      const { data: session } = await supabase.auth.getSession();
+      const token = session.session?.access_token;
+
+      const response = await fetch(`/api/integrations/sync/${integrationId}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to sync ${integrationId}: ${response.statusText}`);
+      }
+
+      return await response.json();
+    }
+  }
 };

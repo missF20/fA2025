@@ -398,7 +398,7 @@ function App() {
           {currentSection === 'rate' && <RateUs />}
           {currentSection === 'support' && <Support />}
           {currentSection === 'subscriptions' && <Subscriptions />}
-          {currentSection === 'integrations' && <Integrations integrations={metrics.integrations} />}
+          {currentSection === 'integrations' && <Integrations />}
           {currentSection === 'slack' && <SlackDashboard />}
         </motion.div>
       </AnimatePresence>
