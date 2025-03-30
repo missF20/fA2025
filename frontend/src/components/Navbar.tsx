@@ -28,10 +28,10 @@ const Navbar: React.FC<NavbarProps> = ({ transparent = true }) => {
 
   const navbarClasses = `fixed top-0 left-0 right-0 z-50 py-3 transition-all duration-300 ${
     transparent && !scrolled 
-      ? 'bg-transparent' 
+      ? 'bg-transparent backdrop-blur-0' 
       : scrolled 
-        ? 'bg-white shadow-md py-2' 
-        : 'bg-white'
+        ? 'bg-white/90 backdrop-blur-md shadow-sm py-2' 
+        : 'bg-white/90 backdrop-blur-md'
   }`;
 
   const navLinkClasses = `nav-link ${
@@ -103,7 +103,7 @@ const Navbar: React.FC<NavbarProps> = ({ transparent = true }) => {
 
         {/* Mobile Navigation */}
         {isMenuOpen && (
-          <div className="md:hidden mt-4 py-4 bg-white shadow-lg rounded-lg">
+          <div className="md:hidden mt-4 py-4 bg-white/95 backdrop-blur-md shadow-lg rounded-lg">
             <ul className="flex flex-col space-y-4 px-4">
               <li>
                 <a 

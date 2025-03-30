@@ -22,6 +22,12 @@
   width: 100%;
 }
 
+/* Apply glass effect to the navbar when scrolled */
+.backdrop-blur-md {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
 /* Buttons */
 .btn-sm {
   padding: 0.5rem 1rem;
@@ -35,24 +41,37 @@
   background: var(--dana-gradient-primary);
   color: white;
   border: none;
-  box-shadow: var(--dana-shadow-sm);
+  box-shadow: 0 4px 14px rgba(106, 85, 250, 0.25);
 }
 
 .btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: var(--dana-shadow-md);
+  box-shadow: 0 6px 20px rgba(106, 85, 250, 0.35);
 }
 
 .btn-outline-primary {
-  background: transparent;
+  background: rgba(255, 255, 255, 0.1);
   color: var(--dana-primary);
   border: 1px solid var(--dana-primary);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
 
 .btn-outline-primary:hover {
-  background: var(--dana-primary);
-  color: white;
+  background: rgba(106, 85, 250, 0.1);
+  color: var(--dana-primary-dark);
+  border-color: var(--dana-primary-dark);
   transform: translateY(-2px);
+}
+
+/* Mobile menu with glassmorphism */
+.mobile-menu {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: var(--dana-radius-lg);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 /* Mobile menu adjustments */

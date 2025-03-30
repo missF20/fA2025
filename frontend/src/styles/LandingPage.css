@@ -6,7 +6,7 @@
   overflow-x: hidden;
   scroll-behavior: smooth;
   font-family: 'Inter', 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
-  background-color: #f8f9fa;
+  background-color: white;
 }
 
 /* Floating Features */
@@ -170,14 +170,17 @@
   transition: all 0.3s ease;
   border-radius: 8px;
   overflow: hidden;
-  background: white;
-  border: 1px solid #e9ecef;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(26, 115, 232, 0.1);
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
 .feature-card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+  box-shadow: 0 10px 20px rgba(26, 115, 232, 0.15);
+  border: 1px solid rgba(26, 115, 232, 0.2);
 }
 
 .feature-icon-wrapper {
@@ -187,7 +190,9 @@
   width: 70px;
   height: 70px;
   border-radius: 10px;
-  background: #f1f7ff;
+  background: rgba(26, 115, 232, 0.1);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   color: #1a73e8;
   margin-bottom: 1.25rem;
   transition: all 0.3s ease;
