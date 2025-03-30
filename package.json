@@ -1,0 +1,18 @@
+{
+  "name": "workspace",
+  "version": "1.0.0",
+  "description": "Dana AI is a comprehensive social media management platform that uses artificial intelligence to automate responses, manage customer interactions, and streamline social media workflows. The platform integrates with multiple social media platforms and business tools to provide a unified interface for managing all social media communications.",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "react-icons": "^5.5.0"
+  }
+}

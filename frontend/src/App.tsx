@@ -17,7 +17,7 @@ import { SubscriptionTierSelector } from './components/SubscriptionTierSelector'
 import { ProfileMenu } from './components/ProfileMenu';
 import { Subscriptions } from './components/Subscriptions';
 import { useMetrics } from './hooks/useMetrics';
-import { MessageSquare, CheckCircle, Clock, Users, AlertTriangle, BrainCircuit } from 'lucide-react';
+import { MessageSquare, CheckCircle, Clock, Users, AlertTriangle, Activity } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { AuthFormData } from './types';
 
@@ -40,7 +40,7 @@ function App() {
       try {
         const { data: sessionData } = await supabase.auth.getSession();
         setSession(sessionData.session);
-        
+
         if (sessionData.session) {
           // Check if profile exists
           const { data: profileData, error: profileError } = await supabase
@@ -83,7 +83,7 @@ function App() {
         setIsLoading(false);
       }
     }
-    
+
     checkSession();
 
     const {
@@ -100,7 +100,7 @@ function App() {
     if (session && isNewUser) {
       setShowSubscriptionSelector(true);
       setAccountSetupComplete(false);
-      
+
       // For now, we'll just mark it as sent in the database
       const markWelcomeEmailSent = async () => {
         await supabase
@@ -108,9 +108,9 @@ function App() {
           .update({ welcome_email_sent: true })
           .eq('id', session.user.id);
       };
-      
+
       markWelcomeEmailSent();
-      
+
       // Reset the new user flag
       setIsNewUser(false);
     }
@@ -126,7 +126,7 @@ function App() {
         });
         if (error) throw error;
         setSession(data.session);
-        
+
         // Check if account setup is complete
         if (data.session) {
           const { data: profileData, error: profileError } = await supabase
@@ -134,7 +134,7 @@ function App() {
             .select('account_setup_complete, subscription_tier_id')
             .eq('id', data.session.user.id)
             .single();
-          
+
           if (profileError) {
             if (profileError.code === 'PGRST116') {
               // Profile doesn't exist, create it
@@ -199,14 +199,14 @@ function App() {
 
   const handleSubscriptionSelect = async (tierId: string) => {
     if (!session) return;
-    
+
     try {
       // Update the user's profile with the selected subscription tier
       await supabase
         .from('profiles')
         .update({ subscription_tier_id: tierId })
         .eq('id', session.user.id);
-      
+
       // Create a subscription record
       await supabase
         .from('user_subscriptions')
@@ -217,7 +217,7 @@ function App() {
           start_date: new Date().toISOString(),
           payment_status: 'unpaid'
         });
-      
+
       setShowSubscriptionSelector(false);
       setShowSetupPrompt(true);
     } catch (error) {
@@ -321,7 +321,7 @@ function App() {
               >
                 Dashboard Overview
               </motion.h1>
-            
+
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                 <MetricCard
                   title="Total Responses"
@@ -331,7 +331,7 @@ function App() {
                   trend={{ value: 12, isPositive: true }}
                   breakdown={metrics.responsesBreakdown}
                 />
-                
+
                 <MetricCard
                   title="Completed Tasks"
                   value={metrics.completedTasks}
@@ -340,7 +340,7 @@ function App() {
                   trend={{ value: 8, isPositive: true }}
                   breakdown={metrics.completedTasksBreakdown}
                 />
-                
+
                 <MetricCard
                   title="Pending Tasks"
                   value={metrics.pendingTasks.length}
@@ -349,7 +349,7 @@ function App() {
                   trend={{ value: 3, isPositive: false }}
                   pendingTasks={metrics.pendingTasks}
                 />
-                
+
                 <MetricCard
                   title="Escalated Tasks"
                   value={metrics.escalatedTasks.length}
@@ -359,7 +359,7 @@ function App() {
                   escalatedTasks={metrics.escalatedTasks}
                 />
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
                 <MetricCard
                   title="People Interacted"
@@ -370,16 +370,16 @@ function App() {
                   breakdown={metrics.chatsBreakdown}
                   interactions={metrics.peopleInteracted.slice(0, 3)}
                 />
-                
+
                 <TopIssuesChart issues={metrics.topIssues} />
-                
+
                 <InteractionChart data={metrics.interactionsByType} />
               </div>
-              
+
               <ConversationsList conversations={metrics.conversations} />
             </div>
           )}
-          
+
           {currentSection === 'conversations' && (
             <div className="p-8">
               <motion.h1 
@@ -392,7 +392,7 @@ function App() {
               <ConversationsList conversations={metrics.conversations} />
             </div>
           )}
-          
+
           {currentSection === 'knowledge' && <KnowledgeBase />}
           {currentSection === 'rate' && <RateUs />}
           {currentSection === 'support' && <Support />}
@@ -436,7 +436,7 @@ function App() {
               whileHover={{ scale: 1.1, rotate: 360 }}
               transition={{ duration: 0.5 }}
             >
-              <BrainCircuit className="text-blue-600 h-6 w-6 mr-2" />
+              <Activity className="text-blue-600 h-6 w-6 mr-2" />
             </motion.div>
             <h1 className="text-xl font-bold text-gray-900">DANA AI by Hartford Tech</h1>
           </div>
