@@ -121,8 +121,6 @@ export default function SlackDashboard() {
   
   return (
     <div className="p-6">
-      <h2 className="text-2xl font-bold mb-6">Slack Integration</h2>
-      
       <div className="bg-white p-4 rounded-xl shadow-sm mb-6">
         <div className="flex justify-between items-center">
           <div>

@@ -13,7 +13,7 @@ import { Support } from './components/Support';
 import Integrations from './components/Integrations';
 import { NewUserSetupPrompt } from './components/NewUserSetupPrompt';
 import KnowledgeBase from './components/KnowledgeBase';
-import SlackDashboard from './components/SlackDashboard';
+// SlackDashboard is now accessed through the Integrations component
 import { SubscriptionTierSelector } from './components/SubscriptionTierSelector';
 import { ProfileMenu } from './components/ProfileMenu';
 import { Subscriptions } from './components/Subscriptions';
@@ -399,7 +399,6 @@ function App() {
           {currentSection === 'support' && <Support />}
           {currentSection === 'subscriptions' && <Subscriptions />}
           {currentSection === 'integrations' && <Integrations />}
-          {currentSection === 'slack' && <SlackDashboard />}
         </motion.div>
       </AnimatePresence>
     );

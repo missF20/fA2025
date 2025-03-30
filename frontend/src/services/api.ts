@@ -95,19 +95,33 @@ export const api = {
       const { data: session } = await supabase.auth.getSession();
       const token = session.session?.access_token;
 
-      const response = await fetch('/api/integrations/status', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+      try {
+        const response = await fetch('/api/integrations/status', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!response.ok) {
+          const text = await response.text();
+          try {
+            // Try to parse as JSON
+            const errorData = JSON.parse(text);
+            throw new Error(errorData.message || `Failed to fetch integrations: ${response.statusText}`);
+          } catch (e) {
+            // If it's not valid JSON, return the text
+            throw new Error(`Failed to fetch integrations: ${text.substring(0, 100)}`);
+          }
         }
-      });
 
-      if (!response.ok) {
-        throw new Error(`Failed to fetch integrations: ${response.statusText}`);
+        const data = await response.json();
+        return data.integrations;
+      } catch (error) {
+        console.error("Error fetching integrations:", error);
+        // Return empty array instead of throwing to avoid breaking the UI
+        return [];
       }
-
-      const data = await response.json();
-      return data.integrations;
     },
 
     async connect(integrationType: string, config: any) {

@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { RotateCw, Link, X, RefreshCw } from 'lucide-react';
 import { motion } from 'framer-motion';
+import SlackDashboard from './SlackDashboard';
 
 interface Integration {
   id: string;
@@ -32,6 +33,7 @@ export default function Integrations() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [showConnectionForm, setShowConnectionForm] = useState<string | null>(null);
   const [formData, setFormData] = useState<IntegrationFormData>({});
+  const [selectedIntegration, setSelectedIntegration] = useState<string | null>(null);
 
   useEffect(() => {
     fetchIntegrations();
@@ -214,6 +216,36 @@ export default function Integrations() {
     );
   };
 
+  // Function to handle clicking on an integration card
+  const handleIntegrationClick = (integration: Integration) => {
+    if (integration.status === 'active' && integration.id === 'slack') {
+      setSelectedIntegration('slack');
+    }
+  };
+
+  // Function to go back to the main integrations view
+  const handleBackToIntegrations = () => {
+    setSelectedIntegration(null);
+  };
+
+  // If Slack dashboard is selected, show it
+  if (selectedIntegration === 'slack') {
+    return (
+      <div className="p-6">
+        <div className="flex items-center mb-6">
+          <button 
+            onClick={handleBackToIntegrations}
+            className="mr-4 text-blue-600 hover:text-blue-800 text-sm"
+          >
+            ← Back to Integrations
+          </button>
+          <h2 className="text-2xl font-bold">Slack Integration</h2>
+        </div>
+        <SlackDashboard />
+      </div>
+    );
+  }
+
   return (
     <div className="p-6">
       <h2 className="text-2xl font-bold mb-6">Integrations</h2>
@@ -251,7 +283,12 @@ export default function Integrations() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
-              className="bg-white rounded-lg shadow p-6"
+              className={`bg-white rounded-lg shadow p-6 ${
+                integration.status === 'active' && integration.id === 'slack' 
+                  ? 'cursor-pointer hover:bg-gray-50' 
+                  : ''
+              }`}
+              onClick={() => handleIntegrationClick(integration)}
             >
               <div className="flex justify-between items-start mb-4">
                 <h3 className="text-lg font-semibold">{integration.type.charAt(0).toUpperCase() + integration.type.slice(1)}</h3>
@@ -301,7 +338,10 @@ export default function Integrations() {
                 {integration.status === 'active' ? (
                   <>
                     <button
-                      onClick={() => handleSync(integration.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSync(integration.id);
+                      }}
                       disabled={syncing === integration.id}
                       className="text-blue-600 hover:text-blue-800 text-sm flex items-center"
                     >
@@ -318,7 +358,10 @@ export default function Integrations() {
                       )}
                     </button>
                     <button
-                      onClick={() => handleDisconnect(integration.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDisconnect(integration.id);
+                      }}
                       disabled={disconnecting === integration.id}
                       className="text-red-600 hover:text-red-800 text-sm flex items-center"
                     >
@@ -337,7 +380,10 @@ export default function Integrations() {
                   </>
                 ) : (
                   <button
-                    onClick={() => setShowConnectionForm(integration.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowConnectionForm(integration.id);
+                    }}
                     className="text-blue-600 hover:text-blue-800 text-sm flex items-center"
                   >
                     <Link size={14} className="mr-1" />
@@ -346,7 +392,17 @@ export default function Integrations() {
                 )}
               </div>
 
-              {showConnectionForm === integration.id && renderConfigForm(integration.id)}
+              {showConnectionForm === integration.id && (
+                <div onClick={(e) => e.stopPropagation()}>
+                  {renderConfigForm(integration.id)}
+                </div>
+              )}
+
+              {integration.status === 'active' && integration.id === 'slack' && (
+                <div className="mt-4 text-sm text-center text-blue-600">
+                  Click to access Slack dashboard
+                </div>
+              )}
             </motion.div>
           ))
         )}
