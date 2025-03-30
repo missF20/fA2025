@@ -239,3 +239,53 @@ def sync_integration(integration_id):
             'success': False,
             'message': f'Error syncing {integration_id}: {str(e)}'
         }), 500
+
+@integrations_bp.route('/slack/message', methods=['POST'])
+def send_slack_message():
+    """
+    Send a message to Slack
+    
+    Body:
+    {
+        "message": "Message content",
+        "conversation_id": "optional_conversation_id",
+        "blocks": [] (optional Slack blocks)
+    }
+    
+    Returns:
+        JSON response with send status
+    """
+    data = request.get_json()
+    
+    if not data or 'message' not in data:
+        return jsonify({
+            'success': False,
+            'message': 'Message content is required'
+        }), 400
+    
+    message = data.get('message')
+    blocks = data.get('blocks')
+    conversation_id = data.get('conversation_id')
+    
+    # Optional: If conversation_id is provided, we can log this message in our database
+    # or perform additional processing based on the conversation
+    
+    try:
+        # Send the message to Slack
+        result = post_message(message, {}, blocks)
+        
+        if result.get('success'):
+            # In a real implementation, we might want to:
+            # 1. Update the conversation with this message
+            # 2. Store the Slack message timestamp for future reference
+            
+            return jsonify(result)
+        else:
+            return jsonify(result), 400
+    
+    except Exception as e:
+        logger.exception(f"Error sending message to Slack: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Error sending message to Slack: {str(e)}'
+        }), 500

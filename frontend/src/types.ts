@@ -32,6 +32,7 @@ export interface Conversation {
   updated_at: string;
   last_message?: string;
   last_message_time?: string;
+  messages?: Message[];
 }
 
 export interface Task {
@@ -112,7 +113,7 @@ export interface UserSubscription {
 }
 
 // Utility types
-export type Platform = 'facebook' | 'instagram' | 'whatsapp' | 'email' | 'website';
+export type Platform = 'facebook' | 'instagram' | 'whatsapp' | 'email' | 'website' | 'slack';
 
 export interface PaginatedResponse<T> {
   data: T[];
@@ -202,4 +203,54 @@ export interface AuthFormData {
   password: string;
   company?: string;
   rememberMe?: boolean;
+}
+
+// Dashboard metrics types
+export interface ChatMetrics {
+  totalResponses: number;
+  responsesBreakdown: {
+    facebook: number;
+    instagram: number;
+    whatsapp: number;
+    slack?: number;
+  };
+  completedTasks: number;
+  completedTasksBreakdown: {
+    facebook: number;
+    instagram: number;
+    whatsapp: number;
+    slack?: number;
+  };
+  pendingTasks: Array<{
+    id: string;
+    task: string;
+    client: {
+      name: string;
+      company?: string;
+    };
+    timestamp: string;
+  }>;
+  escalatedTasks: Array<any>;
+  totalChats: number;
+  chatsBreakdown: {
+    facebook: number;
+    instagram: number;
+    whatsapp: number;
+    slack?: number;
+  };
+  peopleInteracted: Array<{
+    id: string;
+    name: string;
+    company?: string;
+    timestamp: string;
+    type: string;
+  }>;
+  responseTime: string;
+  topIssues: Array<any>;
+  interactionsByType: Array<{
+    type: string;
+    count: number;
+  }>;
+  conversations: Conversation[];
+  integrations: Array<any>;
 }
