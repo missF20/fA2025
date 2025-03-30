@@ -16,7 +16,8 @@ import {
   RotateCw,
   RefreshCw,
   X,
-  Link
+  Link,
+  Mail
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import SlackDashboard from './SlackDashboard';
@@ -300,6 +301,15 @@ export default function Integrations() {
         category: 'communication',
         type: 'slack'
       },
+      {
+        id: 'email',
+        name: 'Email',
+        description: 'Connect your email accounts for customer communications',
+        icon: 'mail',
+        status: 'disconnected',
+        category: 'communication',
+        type: 'email'
+      },
       // Analytics
       {
         id: 'google_analytics',
@@ -381,6 +391,8 @@ export default function Integrations() {
         return <ShoppingBag size={20} />;
       case 'headphones':
         return <Headphones size={20} />;
+      case 'mail':
+        return <Mail size={20} />;
       default:
         return <Link2 size={20} />;
     }

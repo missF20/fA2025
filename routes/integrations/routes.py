@@ -5,9 +5,20 @@ This module provides API routes for managing external integrations.
 """
 
 import os
+import logging
 from flask import Blueprint, request, jsonify
 from slack import check_slack_status
 from models import IntegrationType, IntegrationStatus
+
+# Import integration-specific modules
+from routes.integrations.zendesk import connect_zendesk, sync_zendesk
+from routes.integrations.google_analytics import connect_google_analytics, sync_google_analytics
+from routes.integrations.shopify import connect_shopify, sync_shopify
+from routes.integrations.slack import connect_slack, sync_slack, post_message, get_channel_history
+from routes.integrations.config_schemas import validate_config
+
+# Set up logger
+logger = logging.getLogger(__name__)
 
 # Create blueprint
 integrations_bp = Blueprint('integrations', __name__, url_prefix='/api/integrations')
@@ -58,6 +69,31 @@ def get_integrations_status():
             'lastSync': None
         })
     
+    # Add new integrations
+    # Add Zendesk integration
+    integrations.append({
+        'id': 'zendesk',
+        'type': IntegrationType.ZENDESK.value,
+        'status': IntegrationStatus.INACTIVE.value,
+        'lastSync': None
+    })
+    
+    # Add Google Analytics integration
+    integrations.append({
+        'id': 'google_analytics',
+        'type': IntegrationType.GOOGLE_ANALYTICS.value,
+        'status': IntegrationStatus.INACTIVE.value,
+        'lastSync': None
+    })
+    
+    # Add Shopify integration
+    integrations.append({
+        'id': 'shopify',
+        'type': IntegrationType.SHOPIFY.value,
+        'status': IntegrationStatus.INACTIVE.value,
+        'lastSync': None
+    })
+    
     # In a real application, we would add other integrations based on the user's settings
     
     return jsonify({
@@ -89,21 +125,50 @@ def connect_integration(integration_type):
             'message': 'Configuration data is required'
         }), 400
     
-    # In a real implementation, we would:
-    # 1. Validate the configuration data
-    # 2. Attempt to connect to the integration
-    # 3. Store the successful connection details
+    # Validate configuration data
+    try:
+        config = validate_config(integration_type, data['config'])
+    except ValueError as e:
+        return jsonify({
+            'success': False,
+            'message': f'Invalid configuration: {str(e)}'
+        }), 400
+    except Exception as e:
+        logger.exception(f"Error validating {integration_type} configuration: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Error validating configuration: {str(e)}'
+        }), 500
     
-    return jsonify({
-        'success': True,
-        'message': f'Connected to {integration_type} successfully',
-        'integration': {
-            'id': integration_type,
-            'type': integration_type.upper(),
-            'status': IntegrationStatus.ACTIVE.value,
-            'lastSync': None
-        }
-    })
+    # Connect to integration based on type
+    try:
+        if integration_type == 'slack':
+            response, status_code = connect_slack(config)
+        elif integration_type == 'zendesk':
+            response, status_code = connect_zendesk(config)
+        elif integration_type == 'google_analytics':
+            response, status_code = connect_google_analytics(config)
+        elif integration_type == 'shopify':
+            response, status_code = connect_shopify(config)
+        else:
+            return jsonify({
+                'success': False,
+                'message': f'Integration type {integration_type} not supported yet'
+            }), 400
+            
+        # In a real implementation, store connection details in the database if successful
+        if response.get('success'):
+            # Here we would save the configuration, connection timestamp, etc.
+            pass
+            
+        return jsonify(response), status_code
+            
+    except Exception as e:
+        logger.exception(f"Error connecting to {integration_type}: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Error connecting to {integration_type}: {str(e)}'
+        }), 500
 
 @integrations_bp.route('/disconnect/<integration_id>', methods=['POST'])
 def disconnect_integration(integration_id):
@@ -134,16 +199,43 @@ def sync_integration(integration_id):
     URL parameters:
     - integration_id: ID of integration to sync
     
+    Body (optional):
+    {
+        "config": { integration-specific configuration }
+    }
+    
     Returns:
         JSON response with sync status
     """
-    # In a real implementation, we would:
-    # 1. Find the integration by ID
-    # 2. Trigger a sync task (possibly async)
-    # 3. Return initial status
+    data = request.get_json() or {}
+    config = data.get('config', {})
     
-    return jsonify({
-        'success': True,
-        'message': f'Sync initiated for {integration_id}',
-        'syncStatus': 'running'
-    })
+    # In a real implementation, we would:
+    # 1. Find the integration by ID in the database
+    # 2. Use stored credentials/config
+    # 3. Update sync metrics
+    
+    try:
+        # Call the appropriate sync function based on integration type
+        if integration_id == 'slack':
+            result = sync_slack(integration_id, config)
+        elif integration_id == 'zendesk':
+            result = sync_zendesk(integration_id, config)
+        elif integration_id == 'google_analytics':
+            result = sync_google_analytics(integration_id, config)
+        elif integration_id == 'shopify':
+            result = sync_shopify(integration_id, config)
+        else:
+            return jsonify({
+                'success': False,
+                'message': f'Integration type {integration_id} not supported for syncing'
+            }), 400
+            
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.exception(f"Error syncing {integration_id}: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Error syncing {integration_id}: {str(e)}'
+        }), 500

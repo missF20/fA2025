@@ -1,313 +1,214 @@
-# Slack Integration API Reference
+# Dana AI Platform - Slack Integration API Reference
 
-This document provides a reference for the Slack integration API endpoints available in the Dana AI Platform.
-
-## Authentication
-
-All API requests require authentication. Use the standard authentication methods as described in the main API Reference document.
+This document provides detailed information about the Slack integration endpoints available in the Dana AI Platform.
 
 ## Base URL
 
-All URLs referenced in this document have the following base:
+All API endpoints are relative to the base URL of your Dana AI Platform instance.
 
-```
-/api/slack
-```
+## Authentication
 
-## Endpoints
+Authentication is required for all API endpoints. Use the appropriate authentication method as described in the main API documentation.
 
-### Check Slack Status
+## Slack Integration Endpoints
 
-Retrieve information about the Slack integration configuration status.
+### Check Slack Integration Status
 
-```
-GET /status
-```
+Check the status of the Slack integration including credentials.
 
-#### Response
+**Endpoint:** `/api/integrations/status`
 
-```json
-{
-  "valid": true,
-  "channel_id": "C04XXXXXXXXX",
-  "missing": []
-}
-```
+**Method:** `GET`
 
-If the integration is not properly configured, the response will include the missing configuration items:
+**Response:**
 
 ```json
 {
-  "valid": false,
-  "channel_id": null,
-  "missing": ["SLACK_BOT_TOKEN", "SLACK_CHANNEL_ID"]
-}
-```
-
-### Send Message
-
-Send a message to the configured Slack channel.
-
-```
-POST /send
-```
-
-#### Request Body
-
-```json
-{
-  "message": "Hello from Dana AI!",
-  "blocks": [
+  "success": true,
+  "integrations": [
     {
-      "type": "header",
-      "text": {
-        "type": "plain_text",
-        "text": "Message Title",
-        "emoji": true
+      "id": "slack",
+      "type": "slack",
+      "status": "active",
+      "lastSync": "2025-03-30T18:00:00Z",
+      "config": {
+        "channel_id": "C04XXXXX",
+        "missing": []
       }
     },
-    {
-      "type": "section",
-      "text": {
-        "type": "mrkdwn",
-        "text": "This is a *formatted message* with _styling_."
-      }
-    }
+    // Other integrations...
   ]
 }
 ```
 
-The `blocks` parameter is optional and follows the [Slack Block Kit](https://api.slack.com/block-kit) format for rich message formatting.
+### Connect to Slack
 
-#### Response
+Connect to Slack by providing bot token and channel ID.
 
-```json
-{
-  "success": true,
-  "message": "Message sent successfully",
-  "timestamp": "1616012345.001200",
-  "channel": "C04XXXXXXXXX"
-}
-```
+**Endpoint:** `/api/integrations/connect/slack`
 
-### Get Channel History
+**Method:** `POST`
 
-Retrieve recent messages from the configured Slack channel.
-
-```
-GET /history
-```
-
-#### Query Parameters
-
-| Parameter | Type | Description | Default |
-|-----------|------|-------------|---------|
-| limit | integer | Maximum number of messages to return | 100 |
-| oldest | string | Start of time range (Unix timestamp) | null |
-| latest | string | End of time range (Unix timestamp) | null |
-
-#### Response
+**Request Body:**
 
 ```json
 {
-  "success": true,
-  "message": "Messages retrieved successfully",
-  "messages": [
-    {
-      "text": "Hello from Dana AI!",
-      "timestamp": "2023-04-01 12:34:56",
-      "user": "U04XXXXXXXXX",
-      "thread_ts": null,
-      "reply_count": 0,
-      "reactions": []
-    },
-    {
-      "text": "Another message",
-      "timestamp": "2023-04-01 12:30:45",
-      "user": "U04XXXXXXXXX",
-      "thread_ts": null,
-      "reply_count": 2,
-      "reactions": [
-        {
-          "name": "thumbsup",
-          "count": 3,
-          "users": ["U04XXXXXXXXX", "U04YYYYYYYYY", "U04ZZZZZZZZZ"]
-        }
-      ]
-    }
-  ]
-}
-```
-
-### Get Thread Replies
-
-Retrieve replies to a specific message thread.
-
-```
-GET /thread/:thread_ts
-```
-
-#### URL Parameters
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| thread_ts | string | Thread timestamp to get replies for |
-
-#### Query Parameters
-
-| Parameter | Type | Description | Default |
-|-----------|------|-------------|---------|
-| limit | integer | Maximum number of replies to return | 100 |
-
-#### Response
-
-```json
-{
-  "success": true,
-  "message": "Thread replies retrieved successfully",
-  "replies": [
-    {
-      "text": "This is a reply",
-      "timestamp": "2023-04-01 12:35:10",
-      "user": "U04XXXXXXXXX",
-      "reactions": []
-    },
-    {
-      "text": "Another reply",
-      "timestamp": "2023-04-01 12:36:22",
-      "user": "U04YYYYYYYYY",
-      "reactions": []
-    }
-  ],
-  "reply_count": 2
-}
-```
-
-## Dashboard
-
-A web-based dashboard for the Slack integration is available at:
-
-```
-/api/slack/dashboard
-```
-
-This dashboard provides a user interface for:
-
-- Checking the Slack integration status
-- Sending messages to Slack
-- Viewing recent channel messages
-- Testing notification functionality
-
-## Notification Test Endpoints
-
-The following endpoints are available for testing notification functionality:
-
-### Test User Notification
-
-```
-POST /test/user-notification
-```
-
-#### Request Body
-
-```json
-{
-  "notification_type": "signup",
-  "data": {
-    "email": "test@example.com",
-    "company": "Test Company"
+  "config": {
+    "bot_token": "xoxb-your-bot-token",
+    "channel_id": "C04XXXXX"
   }
 }
 ```
 
-Valid notification types:
-- `signup` - New user signup
-- `login` - User login
-- `profile_update` - User profile update
-
-### Test Subscription Notification
-
-```
-POST /test/subscription-notification
-```
-
-#### Request Body
+**Response:**
 
 ```json
 {
-  "notification_type": "new_subscription",
-  "data": {
-    "user_id": "12345",
-    "tier_name": "Professional",
-    "payment_method": "Credit Card"
+  "success": true,
+  "message": "Successfully connected to Slack",
+  "connection_data": {
+    "bot_id": "B04XXXXX",
+    "team": "Your Team",
+    "channel_id": "C04XXXXX",
+    "channel_name": "general",
+    "connected_at": "2025-03-30T18:00:00Z"
   }
 }
 ```
 
-Valid notification types:
-- `new_subscription` - New subscription
-- `subscription_cancelled` - Subscription cancellation
-- `subscription_changed` - Subscription tier change
+### Disconnect from Slack
 
-### Test System Notification
+Disconnect from the Slack integration.
 
-```
-POST /test/system-notification
-```
+**Endpoint:** `/api/integrations/disconnect/slack`
 
-#### Request Body
+**Method:** `POST`
+
+**Response:**
 
 ```json
 {
-  "notification_type": "status",
-  "data": {
-    "message": "System update completed successfully",
-    "status_type": "success",
-    "details": {
-      "Duration": "5 minutes",
-      "Components Updated": "Database, API Server",
-      "Version": "1.2.3"
-    }
+  "success": true,
+  "message": "Disconnected from slack successfully"
+}
+```
+
+### Sync Data from Slack
+
+Manually trigger a sync operation to retrieve data from Slack.
+
+**Endpoint:** `/api/integrations/sync/slack`
+
+**Method:** `POST`
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "message": "Slack sync initiated",
+  "sync_status": {
+    "started_at": "2025-03-30T18:00:00Z",
+    "status": "running",
+    "messages_synced": 10
   }
 }
 ```
 
-Valid notification types:
-- `error` - System error
-- `warning` - System warning
-- `status` - System status update
+## Slack Demo Endpoints
 
-## Error Handling
+### Send Test Message
 
-All endpoints follow the standard Dana AI Platform error handling practices. Requests with missing or invalid parameters will receive a 400 Bad Request response with an appropriate error message.
+Send a test message to the connected Slack channel.
 
-## Environment Variables
+**Endpoint:** `/api/slack-demo/send-message`
 
-The Slack integration requires the following environment variables to be set:
+**Method:** `POST`
 
-| Variable | Description |
-|----------|-------------|
-| SLACK_BOT_TOKEN | Slack Bot User OAuth Token for API access |
-| SLACK_CHANNEL_ID | The ID of the Slack channel to interact with |
+**Request Body:**
 
-## Usage Examples
-
-### Sending a Message with cURL
-
-```bash
-curl -X POST \
-  https://your-dana-ai-instance.com/api/slack/send \
-  -H 'Content-Type: application/json' \
-  -H 'Authorization: Bearer YOUR_API_TOKEN' \
-  -d '{
-    "message": "Hello from Dana AI Platform!"
-  }'
+```json
+{
+  "message": "This is a test message from Dana AI Platform",
+  "formatted": true
+}
 ```
 
-### Retrieving Channel History with cURL
+**Response:**
 
-```bash
-curl -X GET \
-  'https://your-dana-ai-instance.com/api/slack/history?limit=5' \
-  -H 'Authorization: Bearer YOUR_API_TOKEN'
+```json
+{
+  "success": true,
+  "message": "Message posted to Slack successfully",
+  "post_details": {
+    "channel": "C04XXXXX",
+    "timestamp": "1632819402.000123",
+    "message_id": "1632819402.000123"
+  }
+}
 ```
+
+### Get Channel Messages
+
+Retrieve recent messages from the connected Slack channel.
+
+**Endpoint:** `/api/slack-demo/get-messages`
+
+**Method:** `GET`
+
+**Query Parameters:**
+- `limit` (optional): Maximum number of messages to return (default: 10)
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "message": "Successfully retrieved channel history",
+  "history": {
+    "channel": "C04XXXXX",
+    "messages": [
+      {
+        "text": "This is a message from Slack",
+        "timestamp": "2025-03-30 18:00:00",
+        "user": "U04XXXXX",
+        "thread_ts": null,
+        "reply_count": 0,
+        "reactions": []
+      },
+      // More messages...
+    ],
+    "has_more": false
+  }
+}
+```
+
+## Error Responses
+
+In case of errors, the API will return appropriate HTTP status codes with JSON responses containing error details:
+
+```json
+{
+  "success": false,
+  "message": "Error message describing what went wrong"
+}
+```
+
+## Troubleshooting
+
+Common error codes and their meanings:
+
+- `400 Bad Request`: Missing or invalid parameters in the request
+- `401 Unauthorized`: Invalid Slack credentials
+- `404 Not Found`: Requested resource not found
+- `500 Internal Server Error`: Server-side error
+
+For Slack-specific errors, check these common issues:
+
+1. Bot token must start with `xoxb-`
+2. Channel ID must start with `C` and be accessible by the bot
+3. Bot must have the necessary scopes and permissions:
+   - `channels:history`
+   - `channels:read`
+   - `chat:write`
+   - `chat:write.public`

@@ -200,6 +200,13 @@ def register_blueprints():
             logger.info("Integrations blueprint registered successfully")
         except ImportError as e:
             logger.warning(f"Could not register integrations blueprint: {e}")
+            
+        try:
+            from routes.integrations.slack_demo_api import slack_demo_bp
+            app.register_blueprint(slack_demo_bp)
+            logger.info("Slack demo blueprint registered successfully")
+        except ImportError as e:
+            logger.warning(f"Could not register slack demo blueprint: {e}")
         
         logger.info("Route blueprints registration completed")
     except Exception as e:
