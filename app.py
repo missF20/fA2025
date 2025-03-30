@@ -83,14 +83,6 @@ def api_index():
         "status": "online"
     })
 
-@app.route("/api/config")
-def api_config():
-    """Provide frontend configuration"""
-    return jsonify({
-        "supabase_url": os.environ.get('SUPABASE_URL'),
-        "supabase_key": os.environ.get('SUPABASE_KEY'),
-    })
-
 @app.route("/status")
 def status():
     """API status endpoint"""
