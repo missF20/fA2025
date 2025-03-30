@@ -122,35 +122,42 @@ function App() {
     try {
       if (authMode === 'signin') {
         // Use Remember Me setting to determine if we should persist the session
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: formData.email,
-          password: formData.password,
-        });
-        
-        // Configure session persistence based on Remember Me
-        if (data.session) {
-          // Store in localStorage if rememberMe is checked
-          if (formData.rememberMe) {
-            localStorage.setItem('supabase.auth.token', JSON.stringify({
-              access_token: data.session.access_token,
-              refresh_token: data.session.refresh_token,
-              expires_at: data.session.expires_at,
-              user: data.session.user
-            }));
-          } else {
-            // Clear from localStorage if not checked, will rely on session cookies
-            localStorage.removeItem('supabase.auth.token');
+        try {
+          const { data, error } = await supabase.auth.signInWithPassword({
+            email: formData.email,
+            password: formData.password,
+          });
+          
+          // Configure session persistence based on Remember Me
+          if (data && data.session) {
+            // Store in localStorage if rememberMe is checked
+            if (formData.rememberMe) {
+              localStorage.setItem('dana_email', formData.email);
+              localStorage.setItem('supabase.auth.token', JSON.stringify({
+                access_token: data.session.access_token,
+                refresh_token: data.session.refresh_token,
+                expires_at: data.session.expires_at,
+                user: data.session.user
+              }));
+            } else {
+              // Clear from localStorage if not checked, will rely on session cookies
+              localStorage.removeItem('supabase.auth.token');
+            }
           }
+          if (error) throw error;
+          setSession(data.session);
+        } catch (e) {
+          console.error("Sign in error:", e);
+          setAuthError("Failed to sign in. Please check your credentials or try again later.");
+          return;
         }
-        if (error) throw error;
-        setSession(data.session);
 
         // Check if account setup is complete
-        if (data.session) {
+        if (session) {
           const { data: profileData, error: profileError } = await supabase
             .from('profiles')
             .select('account_setup_complete, subscription_tier_id')
-            .eq('id', data.session.user.id)
+            .eq('id', session.user.id)
             .single();
 
           if (profileError) {
@@ -159,8 +166,8 @@ function App() {
               await supabase
                 .from('profiles')
                 .insert({
-                  id: data.session.user.id,
-                  email: data.session.user.email,
+                  id: session.user.id,
+                  email: session.user.email,
                   company: formData.company,
                   account_setup_complete: false,
                   welcome_email_sent: false,
