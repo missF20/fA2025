@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrainCircuit, Loader2, Eye, EyeOff, Star, Quote } from 'lucide-react';
+import { BrainCircuit, Loader2, Eye, EyeOff, Quote } from 'lucide-react';
 import type { AuthFormData } from '../types';
 import { motion } from 'framer-motion';
 

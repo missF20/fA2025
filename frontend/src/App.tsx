@@ -121,10 +121,27 @@ function App() {
     setAuthError(null);
     try {
       if (authMode === 'signin') {
+        // Use Remember Me setting to determine if we should persist the session
         const { data, error } = await supabase.auth.signInWithPassword({
           email: formData.email,
           password: formData.password,
         });
+        
+        // Configure session persistence based on Remember Me
+        if (data.session) {
+          // Store in localStorage if rememberMe is checked
+          if (formData.rememberMe) {
+            localStorage.setItem('supabase.auth.token', JSON.stringify({
+              access_token: data.session.access_token,
+              refresh_token: data.session.refresh_token,
+              expires_at: data.session.expires_at,
+              user: data.session.user
+            }));
+          } else {
+            // Clear from localStorage if not checked, will rely on session cookies
+            localStorage.removeItem('supabase.auth.token');
+          }
+        }
         if (error) throw error;
         setSession(data.session);
 
