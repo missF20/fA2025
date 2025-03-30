@@ -30,6 +30,23 @@ try:
 except Exception as e:
     logger.error(f"Failed to start Knowledge Base Demo: {str(e)}")
 
+# Import simple API app
+try:
+    from simple_app import app as simple_app
+    
+    def run_simple_app():
+        """Run the simple API on port 5001"""
+        logger.info("Starting Simple API on port 5001...")
+        simple_app.run(host="0.0.0.0", port=5001, debug=False, use_reloader=False)
+        
+    # Start simple app in a thread
+    simple_thread = threading.Thread(target=run_simple_app)
+    simple_thread.daemon = True
+    simple_thread.start()
+    logger.info("Simple API thread started")
+except Exception as e:
+    logger.error(f"Failed to start Simple API: {str(e)}")
+
 if __name__ == "__main__":
     # Start the main application
     logger.info("Starting main Dana AI Platform on port 5000...")

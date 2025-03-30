@@ -23,19 +23,38 @@ export function RateUs() {
     setError(null);
 
     try {
-      // In a real app, this would be saved to the database
-      // For now, we'll just simulate a successful submission
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const { data: { user } } = await supabase.auth.getUser();
       
-      const newRating: Rating = {
+      if (!user) throw new Error('Not authenticated');
+
+      // Get auth token for API call
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      
+      if (!token) throw new Error('Authentication token not found');
+      
+      // Prepare rating data
+      const ratingData: Rating = {
         score: rating,
-        feedback: feedback,
+        feedback: feedback.trim(),
+        email: user.email || 'unknown@example.com',
         created_at: new Date().toISOString()
       };
+
+      // Send to API
+      const response = await fetch('/api/support/ratings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(ratingData)
+      });
       
-      // This would be the actual Supabase call in a real implementation
-      // const { error } = await supabase.from('ratings').insert(newRating);
-      // if (error) throw error;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to submit rating');
+      }
       
       setIsSubmitted(true);
     } catch (err) {

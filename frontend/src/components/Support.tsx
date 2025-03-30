@@ -26,15 +26,35 @@ export function Support() {
       
       if (!user) throw new Error('Not authenticated');
 
-      const ticket: SupportTicket = {
+      // Get auth token for API call
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      
+      if (!token) throw new Error('Authentication token not found');
+      
+      // Prepare ticket data
+      const ticketData: SupportTicket = {
         subject: subject.trim(),
         message: message.trim(),
         status: 'open',
+        email: user.email || 'unknown@example.com',
         created_at: new Date().toISOString()
       };
 
-      // In a real implementation, this would save to a support_tickets table
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Send to API
+      const response = await fetch('/api/support/tickets', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(ticketData)
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to submit support ticket');
+      }
       
       setIsSubmitted(true);
       setSubject('');

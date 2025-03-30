@@ -154,6 +154,27 @@ export interface EscalatedTask {
   timestamp: string;
 }
 
+// Support and Feedback Types
+export interface SupportTicket {
+  id?: string;
+  subject: string;
+  message: string;
+  status: 'open' | 'in_progress' | 'closed';
+  user_id?: string;
+  email?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface Rating {
+  id?: string;
+  score: number;
+  feedback: string;
+  user_id?: string;
+  email?: string;
+  created_at: string;
+}
+
 // Auth and User Management
 export interface SignUpData {
   email: string;
