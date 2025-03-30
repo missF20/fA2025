@@ -13,12 +13,13 @@ logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Import knowledge base demo app 
+# Import knowledge base demo app - DISABLED to free up port 5173 for React frontend
+"""
 try:
     from knowledge_base_demo import app as kb_app
     
     def run_knowledge_demo():
-        """Run the knowledge base demo on port 5173"""
+        Run the knowledge base demo on port 5173
         logger.info("Starting Knowledge Base Demo on port 5173...")
         kb_app.run(host="0.0.0.0", port=5173, debug=False, use_reloader=False)
         
@@ -29,6 +30,8 @@ try:
     logger.info("Knowledge Base Demo thread started")
 except Exception as e:
     logger.error(f"Failed to start Knowledge Base Demo: {str(e)}")
+"""
+logger.info("Knowledge Base Demo disabled to free up port 5173 for React frontend")
 
 # Import simple API app
 try:
