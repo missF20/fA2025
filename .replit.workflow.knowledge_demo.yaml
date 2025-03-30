@@ -1,0 +1,2 @@
+name: Knowledge Base Demo
+command: python knowledge_base_demo.py

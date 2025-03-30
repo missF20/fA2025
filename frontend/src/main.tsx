@@ -1,3 +1,6 @@
+// Import process shim first to prevent "process is not defined" errors
+import './process-shim';
+
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';

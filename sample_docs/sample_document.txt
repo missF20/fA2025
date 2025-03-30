@@ -1,0 +1,30 @@
+Dana AI Platform Sample Document
+
+This is a sample document for testing the knowledge base functionality of the Dana AI Platform.
+
+Features of Dana AI Platform:
+- Intelligent document processing
+- Multi-format support (PDF, DOCX, TXT)
+- Knowledge base management
+- AI-powered responses
+- Slack integration
+- Email integration
+- CRM integration (Salesforce, HubSpot)
+- Social media integration (Facebook, Instagram, WhatsApp)
+- Analytics and reporting
+- User management
+- Subscription management
+
+Technical Architecture:
+The Dana AI Platform is built with a modular architecture that allows for easy extension and customization. The core components include:
+
+1. Backend API (Flask)
+2. Database (Supabase)
+3. AI Services (OpenAI, Anthropic)
+4. File Processing
+5. Authentication
+6. Integration Services
+7. Automation Engine
+
+Contact Information:
+For more information about Dana AI Platform, please contact support@dana-ai.example.com or visit our website at https://dana-ai.example.com.
