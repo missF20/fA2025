@@ -65,10 +65,10 @@ export function KnowledgeBase() {
 
       // Read file as binary data
       const reader = new FileReader();
-      
+
       reader.onload = async (event) => {
         const fileContent = event.target?.result;
-        
+
         if (fileContent) {
           // Simulate upload progress
           const progressInterval = setInterval(() => {
@@ -93,9 +93,9 @@ export function KnowledgeBase() {
             });
 
           clearInterval(progressInterval);
-          
+
           if (error) throw error;
-          
+
           setUploadProgress(100);
           setSuccess('File uploaded successfully');
           fetchKnowledgeFiles();
@@ -129,7 +129,7 @@ export function KnowledgeBase() {
         .eq('user_id', user.id);
 
       if (error) throw error;
-      
+
       setSuccess('File deleted successfully');
       setFiles(files.filter(file => file.id !== fileId));
     } catch (err) {
@@ -180,7 +180,7 @@ export function KnowledgeBase() {
     // Create a new input element
     const input = document.createElement('input');
     input.type = 'file';
-    
+
     // Create a new file list
     const dataTransfer = new DataTransfer();
     dataTransfer.items.add(file);
@@ -269,7 +269,7 @@ export function KnowledgeBase() {
 
         <div className="bg-white rounded-xl">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Your Knowledge Files</h3>
-          
+
           {isLoading ? (
             <div className="flex justify-center py-8">
               <Loader2 size={24} className="animate-spin text-blue-500" />
@@ -381,7 +381,7 @@ export default function KnowledgeBase() {
         },
         body: formData
       });
-      
+
       if (response.ok) {
         fetchFiles();
         setUploadFile(null);
@@ -394,7 +394,7 @@ export default function KnowledgeBase() {
   return (
     <div className="p-6">
       <h2 className="text-2xl font-bold mb-6">Knowledge Base</h2>
-      
+
       <div className="mb-8">
         <form onSubmit={handleFileUpload} className="flex gap-4 items-center">
           <input
