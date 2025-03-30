@@ -1,7 +1,64 @@
 import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import '../styles/LandingPage.css';
+
+// FloatingFeature component with bouncing effect
+const FloatingFeature: React.FC<{ position?: string; delay?: number; size?: string }> = ({ 
+  position = 'right', 
+  delay = 0,
+  size = 'w-72 h-72'
+}) => (
+  <motion.div
+    className={`absolute ${position === 'left' ? 'left-5' : position === 'right' ? 'right-5' : 'left-1/2 -translate-x-1/2'} z-0 ${size}`}
+    initial={{ y: 0 }}
+    animate={{ y: [0, -20, 0] }}
+    transition={{
+      duration: 4,
+      delay: delay,
+      repeat: Infinity,
+      ease: "easeInOut"
+    }}
+  >
+    <div className="relative w-full h-full">
+      <motion.div
+        className="absolute inset-0 bg-gradient-to-r from-blue-500/30 to-purple-500/30 rounded-full blur-xl"
+        animate={{
+          scale: [1, 1.2, 1],
+          opacity: [0.5, 0.8, 0.5],
+        }}
+        transition={{
+          duration: 4,
+          repeat: Infinity,
+          ease: "easeInOut"
+        }}
+      />
+      <motion.div
+        className="absolute inset-0 border-2 border-blue-500/20 rounded-full"
+        animate={{
+          rotate: [0, 360],
+        }}
+        transition={{
+          duration: 20,
+          repeat: Infinity,
+          ease: "linear"
+        }}
+      />
+      <motion.div
+        className="absolute inset-0 border-2 border-purple-500/20 rounded-full"
+        animate={{
+          rotate: [360, 0],
+        }}
+        transition={{
+          duration: 15,
+          repeat: Infinity,
+          ease: "linear"
+        }}
+      />
+    </div>
+  </motion.div>
+);
 
 const LandingPage: React.FC = () => {
   const navigate = useNavigate();
@@ -18,6 +75,11 @@ const LandingPage: React.FC = () => {
   
   const animationRef = useRef<HTMLDivElement>(null);
   const animationInstanceRef = useRef<any>(null);
+  
+  // Refs for positioning floating features
+  const featuresRef = useRef<HTMLDivElement>(null);
+  const integrationsRef = useRef<HTMLDivElement>(null);
+  const testimonialsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (animationRef.current) {
@@ -159,7 +221,10 @@ const LandingPage: React.FC = () => {
       </section>
 
       {/* Features Section */}
-      <section className="features">
+      <section className="features position-relative" ref={featuresRef}>
+        {/* Animated floating feature */}
+        <FloatingFeature position="left" delay={0.5} size="w-64 h-64" />
+        
         <div className="container">
           <div className="text-center mb-5 section-heading">
             <h2 className="display-5 fw-bold">Supercharge Your Customer Interactions</h2>
@@ -278,7 +343,10 @@ const LandingPage: React.FC = () => {
       </section>
 
       {/* Integration Section */}
-      <section className="integrations">
+      <section className="integrations position-relative" ref={integrationsRef}>
+        {/* Animated floating feature */}
+        <FloatingFeature position="right" delay={1} size="w-80 h-80" />
+        
         <div className="container">
           <div className="text-center mb-5 section-heading">
             <h2 className="display-5 fw-bold">Seamless Integrations</h2>
@@ -313,7 +381,10 @@ const LandingPage: React.FC = () => {
       </section>
 
       {/* Testimonials Section */}
-      <section className="testimonials">
+      <section className="testimonials position-relative" ref={testimonialsRef}>
+        {/* Animated floating feature */}
+        <FloatingFeature position="center" delay={1.5} size="w-96 h-96" />
+        
         <div className="container">
           <div className="text-center mb-5 section-heading">
             <h2 className="display-5 fw-bold">What Our Customers Say</h2>

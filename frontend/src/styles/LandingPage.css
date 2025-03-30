@@ -8,6 +8,40 @@
   font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', sans-serif;
 }
 
+/* Floating Features */
+.features.position-relative,
+.integrations.position-relative, 
+.testimonials.position-relative {
+  z-index: 1;
+}
+
+/* Style for floating feature position */
+.features .absolute, 
+.integrations .absolute, 
+.testimonials .absolute {
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+/* Unique tweaks for floating feature locations */
+.features .absolute {
+  top: 50px;
+  mix-blend-mode: soft-light;
+}
+
+.integrations .absolute {
+  bottom: 0;
+  mix-blend-mode: multiply;
+}
+
+.testimonials .absolute {
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0.4;
+  mix-blend-mode: color-dodge;
+}
+
 /* Hero Section */
 .hero {
   background: var(--dana-gradient-hero);
