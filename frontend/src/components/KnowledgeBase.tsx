@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { Loader2 } from 'lucide-react';
@@ -10,43 +11,51 @@ interface KnowledgeFile {
   created_at: string;
 }
 
-export function KnowledgeBase() {
+export default function KnowledgeBase() {
+  const { user } = useAuth();
   const [files, setFiles] = useState<KnowledgeFile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [success, setSuccess] = useState('');
-  const [error, setError] = useState('');
-  const { user } = useAuth();
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
 
   useEffect(() => {
     fetchKnowledgeFiles();
   }, []);
 
-  async function fetchKnowledgeFiles() {
+  const fetchKnowledgeFiles = async () => {
     try {
-      const response = await fetch('/api/knowledge/files');
+      const response = await fetch('/api/knowledge/files', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
       const data = await response.json();
-      setFiles(data);
-      setIsLoading(false);
+      setFiles(data.files);
     } catch (err) {
       setError('Failed to fetch knowledge files');
+    } finally {
       setIsLoading(false);
     }
-  }
+  };
 
-  async function handleFileUpload(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const fileInput = e.currentTarget.querySelector('input[type="file"]') as HTMLInputElement;
-    const file = fileInput?.files?.[0];
+  const handleFileUpload = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const file = formData.get('file') as File;
 
-    if (!file) return;
+    if (!file) {
+      setError('Please select a file');
+      return;
+    }
 
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-
+      setUploadProgress(0);
       const response = await fetch('/api/knowledge/upload', {
         method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
         body: formData
       });
 
@@ -59,7 +68,27 @@ export function KnowledgeBase() {
     } catch (err) {
       setError('Error uploading file');
     }
-  }
+  };
+
+  const handleFileDelete = async (fileId: string) => {
+    try {
+      const response = await fetch(`/api/knowledge/files/${fileId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (response.ok) {
+        setSuccess('File deleted successfully');
+        setFiles(files.filter(file => file.id !== fileId));
+      } else {
+        setError('Failed to delete file');
+      }
+    } catch (err) {
+      setError('Error deleting file');
+    }
+  };
 
   return (
     <div className="p-6">
@@ -69,7 +98,8 @@ export function KnowledgeBase() {
         <form onSubmit={handleFileUpload} className="flex gap-4 items-center">
           <input
             type="file"
-            className="bg-white border rounded px-3 py-2"
+            name="file"
+            className="border p-2 rounded"
             accept=".pdf,.doc,.docx,.txt"
           />
           <button
@@ -81,8 +111,17 @@ export function KnowledgeBase() {
         </form>
       </div>
 
-      {error && <div className="text-red-600 mb-4">{error}</div>}
-      {success && <div className="text-green-600 mb-4">{success}</div>}
+      {error && (
+        <div className="bg-red-100 text-red-700 p-4 rounded mb-4">
+          {error}
+        </div>
+      )}
+
+      {success && (
+        <div className="bg-green-100 text-green-700 p-4 rounded mb-4">
+          {success}
+        </div>
+      )}
 
       <div className="bg-white rounded-xl">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Your Knowledge Files</h3>
@@ -93,16 +132,28 @@ export function KnowledgeBase() {
           </div>
         ) : (
           <div className="divide-y">
-            {files.map(file => (
+            {files.map((file) => (
               <div key={file.id} className="py-4 flex justify-between items-center">
                 <div>
                   <p className="font-medium">{file.name}</p>
                   <p className="text-sm text-gray-500">
-                    {new Date(file.created_at).toLocaleDateString()}
+                    Size: {(file.size / 1024).toFixed(2)} KB • 
+                    Added: {new Date(file.created_at).toLocaleDateString()}
                   </p>
                 </div>
+                <button
+                  onClick={() => handleFileDelete(file.id)}
+                  className="text-red-600 hover:text-red-800"
+                >
+                  Delete
+                </button>
               </div>
             ))}
+            {files.length === 0 && (
+              <p className="py-4 text-gray-500 text-center">
+                No files uploaded yet
+              </p>
+            )}
           </div>
         )}
       </div>
