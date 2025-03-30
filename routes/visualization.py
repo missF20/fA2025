@@ -350,3 +350,46 @@ def _generate_time_series(start_date, end_date, interval, conversations, message
     ]
     
     return time_series_list
+from flask import Blueprint, jsonify
+from utils.analytics import get_platform_statistics
+from utils.auth import require_auth
+
+visualization_bp = Blueprint('visualization', __name__)
+
+@visualization_bp.route('/api/visualization/dashboard', methods=['GET'])
+@require_auth
+def get_dashboard_stats():
+    """Get real-time dashboard statistics"""
+    try:
+        stats = get_platform_statistics('30d')
+        return jsonify({
+            "success": True,
+            "statistics": stats
+        }), 200
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        }), 500
+
+@visualization_bp.route('/api/visualization/metrics/realtime', methods=['GET'])
+@require_auth
+def get_realtime_metrics():
+    """Get real-time platform metrics"""
+    try:
+        # Implement real-time metrics collection
+        metrics = {
+            "active_users": 0,
+            "pending_tasks": 0,
+            "open_conversations": 0,
+            "response_time_avg": "0ms"
+        }
+        return jsonify({
+            "success": True,
+            "metrics": metrics
+        }), 200
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        }), 500

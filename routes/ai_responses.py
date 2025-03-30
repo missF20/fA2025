@@ -282,3 +282,50 @@ def generate_social_media_content():
             "details": str(e),
             "success": False
         }), 500
+from flask import Blueprint, request, jsonify
+from utils.ai_client import analyze_sentiment, extract_entities
+from utils.auth import require_auth
+
+ai_responses_bp = Blueprint('ai_responses', __name__)
+
+@ai_responses_bp.route('/api/ai/responses/analyze-sentiment', methods=['POST'])
+@require_auth
+def analyze_text_sentiment():
+    """Analyze text sentiment"""
+    try:
+        data = request.get_json()
+        text = data.get('text')
+        if not text:
+            return jsonify({"success": False, "message": "Text is required"}), 400
+            
+        sentiment = analyze_sentiment(text)
+        return jsonify({
+            "success": True,
+            "sentiment": sentiment
+        }), 200
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        }), 500
+
+@ai_responses_bp.route('/api/ai/responses/extract-entities', methods=['POST'])
+@require_auth
+def extract_text_entities():
+    """Extract entities from text"""
+    try:
+        data = request.get_json()
+        text = data.get('text')
+        if not text:
+            return jsonify({"success": False, "message": "Text is required"}), 400
+            
+        entities = extract_entities(text)
+        return jsonify({
+            "success": True,
+            "entities": entities
+        }), 200
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        }), 500
