@@ -38,11 +38,33 @@ function App() {
 
   useEffect(() => {
     async function checkSession() {
+      setIsLoading(true);
+      
+      // Wait for the Supabase client to be properly initialized
+      const waitForSupabase = new Promise<void>((resolve) => {
+        let attempts = 0;
+        const checkSupabase = () => {
+          attempts++;
+          if ((supabase as any)._supabaseUrl && (supabase as any)._supabaseUrl !== 'https://example.supabase.co') {
+            console.log("Supabase client properly initialized, checking session");
+            resolve();
+          } else if (attempts > 50) { // Max 5 seconds (50 * 100ms)
+            console.log("Timed out waiting for Supabase initialization");
+            resolve();
+          } else {
+            // Continue checking every 100ms
+            setTimeout(checkSupabase, 100);
+          }
+        };
+        checkSupabase();
+      });
+      
       try {
+        await waitForSupabase;
         const { data: sessionData } = await supabase.auth.getSession();
         setSession(sessionData.session);
 
-        if (sessionData.session) {
+        if (sessionData && sessionData.session) {
           // Check if profile exists
           const { data: profileData, error: profileError } = await supabase
             .from('profiles')
@@ -121,36 +143,60 @@ function App() {
     setAuthError(null);
     try {
       if (authMode === 'signin') {
-        // Use Remember Me setting to determine if we should persist the session
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: formData.email,
-          password: formData.password,
+        // Add a delay to ensure Supabase client is properly initialized
+        const waitForSupabase = new Promise<void>((resolve) => {
+          const checkSupabase = () => {
+            if ((supabase as any)._supabaseUrl !== 'https://example.supabase.co') {
+              resolve();
+            } else {
+              // Continue checking every 100ms
+              setTimeout(checkSupabase, 100);
+            }
+          };
+          checkSupabase();
         });
         
-        // Configure session persistence based on Remember Me
-        if (data.session) {
-          // Store in localStorage if rememberMe is checked
-          if (formData.rememberMe) {
-            localStorage.setItem('supabase.auth.token', JSON.stringify({
-              access_token: data.session.access_token,
-              refresh_token: data.session.refresh_token,
-              expires_at: data.session.expires_at,
-              user: data.session.user
-            }));
-          } else {
-            // Clear from localStorage if not checked, will rely on session cookies
-            localStorage.removeItem('supabase.auth.token');
+        // Wait for Supabase client to be ready
+        try {
+          await waitForSupabase;
+          console.log("Attempting to sign in with initialized Supabase client");
+          
+          // Use Remember Me setting to determine if we should persist the session
+          const { data, error } = await supabase.auth.signInWithPassword({
+            email: formData.email,
+            password: formData.password,
+          });
+          
+          // Configure session persistence based on Remember Me
+          if (data && data.session) {
+            // Store in localStorage if rememberMe is checked
+            if (formData.rememberMe) {
+              localStorage.setItem('dana_email', formData.email);
+              localStorage.setItem('supabase.auth.token', JSON.stringify({
+                access_token: data.session.access_token,
+                refresh_token: data.session.refresh_token,
+                expires_at: data.session.expires_at,
+                user: data.session.user
+              }));
+            } else {
+              // Clear from localStorage if not checked, will rely on session cookies
+              localStorage.removeItem('supabase.auth.token');
+            }
           }
+          if (error) throw error;
+          setSession(data.session);
+        } catch (e) {
+          console.error("Sign in error:", e);
+          setAuthError("Failed to sign in. Please check your credentials or try again later.");
+          return;
         }
-        if (error) throw error;
-        setSession(data.session);
 
         // Check if account setup is complete
-        if (data.session) {
+        if (session) {
           const { data: profileData, error: profileError } = await supabase
             .from('profiles')
             .select('account_setup_complete, subscription_tier_id')
-            .eq('id', data.session.user.id)
+            .eq('id', session.user.id)
             .single();
 
           if (profileError) {
@@ -159,8 +205,8 @@ function App() {
               await supabase
                 .from('profiles')
                 .insert({
-                  id: data.session.user.id,
-                  email: data.session.user.email,
+                  id: session.user.id,
+                  email: session.user.email,
                   company: formData.company,
                   account_setup_complete: false,
                   welcome_email_sent: false,
