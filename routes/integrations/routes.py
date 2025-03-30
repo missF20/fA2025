@@ -31,8 +31,8 @@ def get_integrations_status():
     slack_status = check_slack_status()
     integrations.append({
         'id': 'slack',
-        'type': IntegrationType.SLACK,
-        'status': IntegrationStatus.ACTIVE if slack_status['valid'] else IntegrationStatus.ERROR,
+        'type': IntegrationType.SLACK.value,
+        'status': IntegrationStatus.ACTIVE.value if slack_status['valid'] else IntegrationStatus.ERROR.value,
         'lastSync': None,
         'config': {
             'channel_id': slack_status['channel_id'],
@@ -44,8 +44,8 @@ def get_integrations_status():
     # Email integration
     integrations.append({
         'id': 'email',
-        'type': IntegrationType.EMAIL,
-        'status': IntegrationStatus.INACTIVE,
+        'type': IntegrationType.EMAIL.value,
+        'status': IntegrationStatus.INACTIVE.value,
         'lastSync': None
     })
     
@@ -53,8 +53,8 @@ def get_integrations_status():
     for crm in [IntegrationType.HUBSPOT, IntegrationType.SALESFORCE]:
         integrations.append({
             'id': crm.lower(),
-            'type': crm,
-            'status': IntegrationStatus.NOT_CONFIGURED.value,
+            'type': crm.value,
+            'status': IntegrationStatus.INACTIVE.value,
             'lastSync': None
         })
     
