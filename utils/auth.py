@@ -192,3 +192,31 @@ def validate_user_access(user_id):
     
     # Users have access to their own data
     return g.current_user["id"] == str(user_id)
+
+def token_required(f):
+    """
+    Decorator for endpoints that require a valid token
+    This is an alias for require_auth for backward compatibility
+    
+    Usage:
+        @app.route("/protected")
+        @token_required
+        def protected():
+            # Access current user with g.current_user
+            return jsonify({"message": f"Hello, {g.current_user['email']}!"})
+    """
+    return require_auth(f)
+
+def admin_required(f):
+    """
+    Decorator for endpoints that require admin access
+    This is an alias for require_admin for backward compatibility
+    
+    Usage:
+        @app.route("/admin/protected")
+        @admin_required
+        def admin_protected():
+            # Access current admin with g.current_user
+            return jsonify({"message": f"Hello, admin {g.current_user['email']}!"})
+    """
+    return require_admin(f)
