@@ -4,37 +4,37 @@
 
 :root {
   /* Dana AI Platform Colors */
-  --dana-primary: #5e4cff;
-  --dana-secondary: #00e2b5;
-  --dana-accent: #ff6b6b;
-  --dana-accent-secondary: #ffbe0b;
-  --dana-dark: #140f38;
+  --dana-primary: #1a73e8;
+  --dana-secondary: #34a853;
+  --dana-accent: #ea4335;
+  --dana-accent-secondary: #fbbc05;
+  --dana-dark: #212529;
   --dana-light: #f8f9fa;
   
   /* Gradients */
-  --dana-gradient-primary: linear-gradient(135deg, #6242ff, #8667ff);
-  --dana-gradient-info: linear-gradient(135deg, #3db9fc, #5868f4);
-  --dana-gradient-success: linear-gradient(135deg, #00e2b5, #00c4bd);
-  --dana-gradient-accent: linear-gradient(135deg, #ff6b6b, #ff9e7d);
-  --dana-gradient-yellow: linear-gradient(135deg, #ffbe0b, #ffda7a);
-  --dana-gradient-hero: linear-gradient(135deg, #140f38, #2a1a6c);
+  --dana-gradient-primary: linear-gradient(135deg, #1a73e8, #0d47a1);
+  --dana-gradient-info: linear-gradient(135deg, #4285f4, #1a73e8);
+  --dana-gradient-success: linear-gradient(135deg, #34a853, #1e8e3e);
+  --dana-gradient-accent: linear-gradient(135deg, #ea4335, #c5221f);
+  --dana-gradient-yellow: linear-gradient(135deg, #fbbc05, #f9ab00);
+  --dana-gradient-hero: linear-gradient(135deg, #1a73e8, #0d47a1);
   
   /* Shadows */
-  --dana-shadow-sm: 0 2px 4px rgba(94, 76, 255, 0.08);
-  --dana-shadow-md: 0 4px 8px rgba(94, 76, 255, 0.12);
-  --dana-shadow-lg: 0 8px 16px rgba(94, 76, 255, 0.15);
-  --dana-shadow-xl: 0 12px 24px rgba(94, 76, 255, 0.18);
+  --dana-shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.05);
+  --dana-shadow-md: 0 4px 8px rgba(0, 0, 0, 0.1);
+  --dana-shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
+  --dana-shadow-xl: 0 12px 24px rgba(0, 0, 0, 0.2);
   
   /* Border Radius */
   --dana-radius-sm: 0.25rem;
   --dana-radius-md: 0.5rem;
-  --dana-radius-lg: 1rem;
-  --dana-radius-xl: 1.5rem;
+  --dana-radius-lg: 0.75rem;
+  --dana-radius-xl: 1rem;
   --dana-radius-full: 9999px;
 }
 
 body {
-  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', sans-serif;
+  font-family: 'Inter', 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
   color: var(--dana-dark);
   background-color: #ffffff;
   margin: 0;
@@ -75,66 +75,69 @@ body {
 
 /* Button Styles */
 .btn-dana-primary {
-  background: var(--dana-gradient-primary);
+  background: var(--dana-primary);
   color: white;
-  border-radius: var(--dana-radius-full);
-  padding: 0.75rem 1.5rem;
-  font-weight: 600;
+  border-radius: 4px;
+  padding: 0.6rem 1.25rem;
+  font-weight: 500;
   transition: all 0.3s ease;
   border: none;
-  box-shadow: var(--dana-shadow-md);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .btn-dana-primary:hover {
-  transform: translateY(-5px);
-  box-shadow: var(--dana-shadow-lg);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  background: #1967d2;
 }
 
 .btn-dana-secondary {
-  background: var(--dana-gradient-success);
+  background: var(--dana-secondary);
   color: white;
-  border-radius: var(--dana-radius-full);
-  padding: 0.75rem 1.5rem;
-  font-weight: 600;
+  border-radius: 4px;
+  padding: 0.6rem 1.25rem;
+  font-weight: 500;
   transition: all 0.3s ease;
   border: none;
-  box-shadow: var(--dana-shadow-md);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .btn-dana-secondary:hover {
-  transform: translateY(-5px);
-  box-shadow: var(--dana-shadow-lg);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  background: #1e8e3e;
 }
 
 .btn-dana-accent {
-  background: var(--dana-gradient-accent);
+  background: var(--dana-accent);
   color: white;
-  border-radius: var(--dana-radius-full);
-  padding: 0.75rem 1.5rem;
-  font-weight: 600;
+  border-radius: 4px;
+  padding: 0.6rem 1.25rem;
+  font-weight: 500;
   transition: all 0.3s ease;
   border: none;
-  box-shadow: var(--dana-shadow-md);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .btn-dana-accent:hover {
-  transform: translateY(-5px);
-  box-shadow: var(--dana-shadow-lg);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  background: #d93025;
 }
 
 /* Card Styles */
 .card-dana {
   background: white;
-  border-radius: var(--dana-radius-lg);
+  border-radius: 8px;
   padding: 1.5rem;
-  box-shadow: var(--dana-shadow-md);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
   transition: all 0.3s ease;
-  border: 1px solid rgba(94, 76, 255, 0.05);
+  border: 1px solid #e9ecef;
 }
 
 .card-dana:hover {
-  transform: translateY(-5px);
-  box-shadow: var(--dana-shadow-lg);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
 }
 
 /* Text Styles */
