@@ -85,7 +85,7 @@ const TestimonialCard = ({ testimonial, position }: { testimonial: typeof testim
     initial={{ opacity: 0, x: position === 'left' ? -100 : 100 }}
     animate={{ opacity: 1, x: 0 }}
     transition={{ duration: 0.8, delay: 0.5 }}
-    className={`absolute bottom-8 ${position === 'left' ? 'left-8' : 'right-8'} max-w-sm bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-lg`}
+    className={`absolute bottom-8 ${position === 'left' ? 'left-8' : 'right-8'} max-w-sm bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-lg hidden md:block`}
   >
     <Quote className="text-blue-500 mb-2" size={24} />
     <p className="text-gray-700 text-sm mb-4">{testimonial.content}</p>
@@ -250,17 +250,19 @@ export function AuthForm({ mode, onSubmit, error, onToggleMode, onForgotPassword
               </div>
             )}
 
-            <div className="flex items-center">
-              <input
-                id="remember-me"
-                type="checkbox"
-                checked={formData.rememberMe}
-                onChange={(e) => setFormData({ ...formData, rememberMe: e.target.checked })}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-              />
-              <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">
-                Remember me
-              </label>
+            <div className="pt-4 mt-2">
+              <div className="flex items-center">
+                <input
+                  id="remember-me"
+                  type="checkbox"
+                  checked={formData.rememberMe}
+                  onChange={(e) => setFormData({ ...formData, rememberMe: e.target.checked })}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">
+                  Remember me
+                </label>
+              </div>
             </div>
 
             <button
