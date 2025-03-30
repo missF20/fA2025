@@ -56,7 +56,7 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container">
             <a class="navbar-brand d-flex align-items-center" href="#">
-                <i data-feather="brain" class="me-2"></i>
+                <i data-feather="cpu" class="me-2"></i>
                 <span>Dana AI</span>
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -71,7 +71,10 @@
                         <a class="nav-link" href="#features">Features</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/templates/slack/dashboard.html">Slack Dashboard</a>
+                        <a class="nav-link" href="/slack">Slack Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/frontend">Frontend</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link btn btn-primary text-white px-4" href="#try-frontend">Try Dana AI</a>
@@ -92,6 +95,23 @@
                 <a href="#features" class="btn btn-outline-light btn-lg px-4">
                     <i data-feather="info" class="me-2"></i> Learn More
                 </a>
+            </div>
+        </div>
+        
+        <!-- Highlight Banner -->
+        <div class="alert alert-info mb-5 p-4">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h4><i data-feather="alert-circle" class="me-2"></i> New Features Available</h4>
+                    <p class="mb-0">
+                        We've just released enhanced Slack integration with AI-powered message analysis. Connect your workspace today!
+                    </p>
+                </div>
+                <div class="col-md-4 text-md-end mt-3 mt-md-0">
+                    <a href="/slack" class="btn btn-primary">
+                        <i data-feather="slack" class="me-2"></i> Connect Your Slack
+                    </a>
+                </div>
             </div>
         </div>
 
@@ -156,15 +176,79 @@
         </div>
 
         <div id="try-frontend" class="pt-5 pb-5">
-            <h2 class="text-center mb-5">Try Dana AI Frontend</h2>
-            <div class="text-center mb-4">
-                <p>To experience the complete Dana AI Frontend, please use the button below:</p>
-                <div class="d-flex justify-content-center mt-4">
-                    <a href="https://dana-ai-frontend.replit.app" target="_blank" class="btn btn-primary btn-lg px-4">
-                        <i data-feather="external-link" class="me-2"></i> Launch Dana AI Frontend
-                    </a>
+            <h2 class="text-center mb-5">Try Dana AI Features</h2>
+            <div class="row mb-5">
+                <div class="col-md-6 mb-4">
+                    <div class="card h-100 border-0 shadow">
+                        <div class="card-body text-center p-5">
+                            <h3 class="mb-4">Complete Dashboard Experience</h3>
+                            <p class="mb-4">Access the full Dana AI frontend with all features including knowledge management, AI responses, and analytics.</p>
+                            <div class="d-grid">
+                                <a href="https://dana-ai-frontend.replit.app" target="_blank" class="btn btn-primary btn-lg px-4">
+                                    <i data-feather="external-link" class="me-2"></i> Launch Dana AI Frontend
+                                </a>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <p class="text-muted mt-3">Note: This will open in a new tab with the React-based frontend application.</p>
+                <div class="col-md-6 mb-4">
+                    <div class="card h-100 border-0 shadow">
+                        <div class="card-body text-center p-5">
+                            <h3 class="mb-4">Slack Integration Portal</h3>
+                            <p class="mb-4">Explore the Slack integration dashboard with message management, notification testing, and status monitoring.</p>
+                            <div class="d-grid">
+                                <a href="/slack" class="btn btn-primary btn-lg px-4">
+                                    <i data-feather="slack" class="me-2"></i> View Slack Dashboard
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-4 mb-4">
+                    <div class="card h-100 border-0">
+                        <div class="card-body text-center p-4">
+                            <div class="feature-icon mx-auto mb-3">
+                                <i data-feather="file-text" style="color: #0d6efd;"></i>
+                            </div>
+                            <h4 class="mb-3">Knowledge Management</h4>
+                            <p class="mb-3">Upload and manage documents, create categories, and search content intelligently.</p>
+                            <a href="/frontend#knowledge" class="btn btn-outline-primary">
+                                Explore
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <div class="card h-100 border-0">
+                        <div class="card-body text-center p-4">
+                            <div class="feature-icon mx-auto mb-3">
+                                <i data-feather="message-circle" style="color: #0d6efd;"></i>
+                            </div>
+                            <h4 class="mb-3">AI Response Testing</h4>
+                            <p class="mb-3">Test AI response generation with various prompt types and output formats.</p>
+                            <a href="/api" class="btn btn-outline-primary">
+                                Try It
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <div class="card h-100 border-0">
+                        <div class="card-body text-center p-4">
+                            <div class="feature-icon mx-auto mb-3">
+                                <i data-feather="layers" style="color: #0d6efd;"></i>
+                            </div>
+                            <h4 class="mb-3">Subscription Management</h4>
+                            <p class="mb-3">View subscription tiers, manage account, and update billing information.</p>
+                            <a href="/subscription" class="btn btn-outline-primary">
+                                View Plans
+                            </a>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
