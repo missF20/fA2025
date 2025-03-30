@@ -38,11 +38,33 @@ function App() {
 
   useEffect(() => {
     async function checkSession() {
+      setIsLoading(true);
+      
+      // Wait for the Supabase client to be properly initialized
+      const waitForSupabase = new Promise<void>((resolve) => {
+        let attempts = 0;
+        const checkSupabase = () => {
+          attempts++;
+          if ((supabase as any)._supabaseUrl && (supabase as any)._supabaseUrl !== 'https://example.supabase.co') {
+            console.log("Supabase client properly initialized, checking session");
+            resolve();
+          } else if (attempts > 50) { // Max 5 seconds (50 * 100ms)
+            console.log("Timed out waiting for Supabase initialization");
+            resolve();
+          } else {
+            // Continue checking every 100ms
+            setTimeout(checkSupabase, 100);
+          }
+        };
+        checkSupabase();
+      });
+      
       try {
+        await waitForSupabase;
         const { data: sessionData } = await supabase.auth.getSession();
         setSession(sessionData.session);
 
-        if (sessionData.session) {
+        if (sessionData && sessionData.session) {
           // Check if profile exists
           const { data: profileData, error: profileError } = await supabase
             .from('profiles')
@@ -121,8 +143,25 @@ function App() {
     setAuthError(null);
     try {
       if (authMode === 'signin') {
-        // Use Remember Me setting to determine if we should persist the session
+        // Add a delay to ensure Supabase client is properly initialized
+        const waitForSupabase = new Promise<void>((resolve) => {
+          const checkSupabase = () => {
+            if ((supabase as any)._supabaseUrl !== 'https://example.supabase.co') {
+              resolve();
+            } else {
+              // Continue checking every 100ms
+              setTimeout(checkSupabase, 100);
+            }
+          };
+          checkSupabase();
+        });
+        
+        // Wait for Supabase client to be ready
         try {
+          await waitForSupabase;
+          console.log("Attempting to sign in with initialized Supabase client");
+          
+          // Use Remember Me setting to determine if we should persist the session
           const { data, error } = await supabase.auth.signInWithPassword({
             email: formData.email,
             password: formData.password,
