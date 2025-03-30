@@ -332,3 +332,99 @@ export function KnowledgeBase() {
     </div>
   );
 }
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../hooks/useAuth';
+
+interface KnowledgeFile {
+  id: string;
+  file_name: string;
+  file_type: string;
+  file_size: number;
+  created_at: string;
+}
+
+export default function KnowledgeBase() {
+  const [files, setFiles] = useState<KnowledgeFile[]>([]);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const { token } = useAuth();
+
+  useEffect(() => {
+    fetchFiles();
+  }, []);
+
+  const fetchFiles = async () => {
+    try {
+      const response = await fetch('/api/knowledge/files', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await response.json();
+      setFiles(data.files);
+    } catch (error) {
+      console.error('Error fetching files:', error);
+    }
+  };
+
+  const handleFileUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!uploadFile) return;
+
+    const formData = new FormData();
+    formData.append('file', uploadFile);
+
+    try {
+      const response = await fetch('/api/knowledge/files', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+      
+      if (response.ok) {
+        fetchFiles();
+        setUploadFile(null);
+      }
+    } catch (error) {
+      console.error('Error uploading file:', error);
+    }
+  };
+
+  return (
+    <div className="p-6">
+      <h2 className="text-2xl font-bold mb-6">Knowledge Base</h2>
+      
+      <div className="mb-8">
+        <form onSubmit={handleFileUpload} className="flex gap-4 items-center">
+          <input
+            type="file"
+            onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+            className="border p-2 rounded"
+          />
+          <button 
+            type="submit"
+            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+          >
+            Upload
+          </button>
+        </form>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {files.map((file) => (
+          <div key={file.id} className="border rounded p-4">
+            <h3 className="font-semibold">{file.file_name}</h3>
+            <p className="text-sm text-gray-600">Type: {file.file_type}</p>
+            <p className="text-sm text-gray-600">
+              Size: {Math.round(file.file_size / 1024)} KB
+            </p>
+            <p className="text-sm text-gray-600">
+              Uploaded: {new Date(file.created_at).toLocaleDateString()}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
