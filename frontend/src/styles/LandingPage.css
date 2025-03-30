@@ -1,0 +1,102 @@
+/* LandingPage.css */
+
+/* General Styling */
+.landing-page {
+  --primary-color: #6a55fa;
+  --secondary-color: #65d6ad;
+  --dark-color: #1a1b26;
+  --light-color: #f8f9fa;
+  --gradient-primary: linear-gradient(135deg, var(--primary-color), #8a68f3);
+  --gradient-info: linear-gradient(135deg, #57b8ff, #2c97fa);
+  --gradient-success: linear-gradient(135deg, var(--secondary-color), #2cd3bd);
+  color: var(--dark-color);
+}
+
+/* Hero Section */
+.hero {
+  background: var(--dark-color);
+  padding: 80px 0;
+  position: relative;
+  overflow: hidden;
+  color: white;
+}
+
+.animation-container {
+  position: relative;
+  width: 100%;
+  height: 400px;
+}
+
+/* Feature Icons */
+.feature-icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: rgba(106, 85, 250, 0.1);
+  color: var(--primary-color);
+  margin-bottom: 1rem;
+}
+
+.feature-icon {
+  font-size: 2rem;
+  color: var(--primary-color);
+}
+
+/* Use Cases Section */
+.use-cases {
+  background-color: var(--light-color);
+}
+
+.bg-gradient-primary {
+  background: var(--gradient-primary);
+}
+
+.bg-gradient-info {
+  background: var(--gradient-info);
+}
+
+.bg-gradient-success {
+  background: var(--gradient-success);
+}
+
+/* Integration Section */
+.integrations {
+  background-color: white;
+}
+
+.integration-pill {
+  background-color: rgba(106, 85, 250, 0.1);
+  color: var(--primary-color);
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  border-radius: 50px;
+  margin: 0.25rem;
+  transition: all 0.3s ease;
+}
+
+.integration-pill:hover {
+  background-color: var(--primary-color);
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(106, 85, 250, 0.2);
+}
+
+/* CTA Section */
+.cta {
+  background-color: var(--light-color);
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+  .hero {
+    padding: 60px 0;
+  }
+  
+  .animation-container {
+    height: 300px;
+    margin-top: 2rem;
+  }
+}
