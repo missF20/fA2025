@@ -1,6 +1,5 @@
 
-import React from 'react';
-import { CheckCircle, XCircle, AlertCircle } from 'react-feather';
+import { CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 
 interface Props {
   status: 'active' | 'inactive' | 'pending' | 'error' | 'not_configured';

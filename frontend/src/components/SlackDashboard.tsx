@@ -16,7 +16,7 @@ interface SlackStatus {
   missing: string[];
 }
 
-export function SlackDashboard() {
+export default function SlackDashboard() {
   const [status, setStatus] = useState<SlackStatus | null>(null);
   const [messages, setMessages] = useState<SlackMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
