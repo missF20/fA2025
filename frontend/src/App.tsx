@@ -13,7 +13,6 @@ import { Support } from './components/Support';
 import Integrations from './components/Integrations';
 import { NewUserSetupPrompt } from './components/NewUserSetupPrompt';
 import { KnowledgeBase } from './components/KnowledgeBase';
-import LandingPage from './components/LandingPage';
 // SlackDashboard is now accessed through the Integrations component
 import { SubscriptionTierSelector } from './components/SubscriptionTierSelector';
 import { ProfileMenu } from './components/ProfileMenu';
@@ -22,7 +21,6 @@ import { useMetrics } from './hooks/useMetrics';
 import { MessageSquare, CheckCircle, Clock, Users, AlertTriangle, Activity } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { AuthFormData } from './types';
-import './styles/LandingPage.css';
 
 function App() {
   const [session, setSession] = useState<any>(null);
@@ -436,9 +434,9 @@ function App() {
     );
   }
 
-  // If no session, show landing page
+  // If no session, show auth forms
   if (!session) {
-    return <LandingPage />;
+    return renderAuthForms();
   }
 
   // If session exists, show dashboard
