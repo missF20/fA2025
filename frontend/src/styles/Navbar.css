@@ -1,0 +1,77 @@
+/* Navbar Styles */
+.nav-link {
+  position: relative;
+  font-weight: 500;
+  padding: 0.5rem 0;
+  transition: all 0.3s ease;
+  text-decoration: none;
+}
+
+.nav-link::after {
+  content: '';
+  position: absolute;
+  width: 0;
+  height: 2px;
+  bottom: 0;
+  left: 0;
+  background-color: var(--dana-primary);
+  transition: width 0.3s ease;
+}
+
+.nav-link:hover::after {
+  width: 100%;
+}
+
+/* Buttons */
+.btn-sm {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  border-radius: var(--dana-radius-md);
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.btn-primary {
+  background: var(--dana-gradient-primary);
+  color: white;
+  border: none;
+  box-shadow: var(--dana-shadow-sm);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--dana-shadow-md);
+}
+
+.btn-outline-primary {
+  background: transparent;
+  color: var(--dana-primary);
+  border: 1px solid var(--dana-primary);
+}
+
+.btn-outline-primary:hover {
+  background: var(--dana-primary);
+  color: white;
+  transform: translateY(-2px);
+}
+
+/* Mobile menu adjustments */
+@media (max-width: 768px) {
+  .mobile-menu {
+    top: 100%;
+    left: 0;
+    right: 0;
+    animation: fadeInDown 0.3s ease;
+  }
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

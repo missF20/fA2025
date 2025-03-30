@@ -2,7 +2,9 @@ import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import Navbar from './Navbar';
 import '../styles/LandingPage.css';
+import '../styles/Navbar.css';
 
 // FloatingFeature component with bouncing effect
 const FloatingFeature: React.FC<{ position?: string; delay?: number; size?: string }> = ({ 
@@ -181,6 +183,9 @@ const LandingPage: React.FC = () => {
 
   return (
     <div className="landing-page">
+      {/* Navigation Bar */}
+      <Navbar transparent={true} />
+      
       {/* Hero Section */}
       <section className="hero">
         <div className="container">
