@@ -124,34 +124,77 @@ def register_blueprints():
         from routes.subscription_management import subscription_mgmt_bp
         from routes.pdf_analysis import pdf_analysis_bp
         
-        # Import new blueprint modules
-        from routes.admin import admin_bp
-        from routes.visualization import visualization_bp
-        from routes.webhooks import webhooks_bp
-        from routes.notifications import notifications_bp
-        from routes.exports import exports_bp
-        from routes.batch import batch_bp
-        from routes.email import email_bp
-        from routes.ai_responses import ai_response_bp
-        from routes.slack.routes import slack_bp
-        
         # Register existing blueprints
         app.register_blueprint(ai_test_bp)
         app.register_blueprint(subscription_mgmt_bp)
         app.register_blueprint(pdf_analysis_bp)
         
-        # Register new blueprints
-        app.register_blueprint(admin_bp)
-        app.register_blueprint(visualization_bp)
-        app.register_blueprint(webhooks_bp)
-        app.register_blueprint(notifications_bp)
-        app.register_blueprint(exports_bp)
-        app.register_blueprint(batch_bp)
-        app.register_blueprint(email_bp)
-        app.register_blueprint(ai_response_bp)
-        app.register_blueprint(slack_bp)
+        # Try to import and register additional blueprints
+        try:
+            # Import requests dependent blueprints
+            from routes.admin import admin_bp
+            app.register_blueprint(admin_bp)
+            logger.info("Admin blueprint registered successfully")
+        except ImportError as e:
+            logger.warning(f"Could not register admin blueprint: {e}")
+            
+        try:
+            from routes.visualization import visualization_bp
+            app.register_blueprint(visualization_bp)
+            logger.info("Visualization blueprint registered successfully")
+        except ImportError as e:
+            logger.warning(f"Could not register visualization blueprint: {e}")
+            
+        try:
+            from routes.webhooks import webhooks_bp
+            app.register_blueprint(webhooks_bp)
+            logger.info("Webhooks blueprint registered successfully")
+        except ImportError as e:
+            logger.warning(f"Could not register webhooks blueprint: {e}")
+            
+        try:
+            from routes.notifications import notifications_bp
+            app.register_blueprint(notifications_bp)
+            logger.info("Notifications blueprint registered successfully")
+        except ImportError as e:
+            logger.warning(f"Could not register notifications blueprint: {e}")
+            
+        try:
+            from routes.exports import exports_bp
+            app.register_blueprint(exports_bp)
+            logger.info("Exports blueprint registered successfully")
+        except ImportError as e:
+            logger.warning(f"Could not register exports blueprint: {e}")
+            
+        try:
+            from routes.batch import batch_bp
+            app.register_blueprint(batch_bp)
+            logger.info("Batch blueprint registered successfully")
+        except ImportError as e:
+            logger.warning(f"Could not register batch blueprint: {e}")
+            
+        try:
+            from routes.email import email_bp
+            app.register_blueprint(email_bp)
+            logger.info("Email blueprint registered successfully")
+        except ImportError as e:
+            logger.warning(f"Could not register email blueprint: {e}")
+            
+        try:
+            from routes.ai_responses import ai_response_bp
+            app.register_blueprint(ai_response_bp)
+            logger.info("AI responses blueprint registered successfully")
+        except ImportError as e:
+            logger.warning(f"Could not register AI responses blueprint: {e}")
+            
+        try:
+            from routes.slack.routes import slack_bp
+            app.register_blueprint(slack_bp)
+            logger.info("Slack blueprint registered successfully")
+        except ImportError as e:
+            logger.warning(f"Could not register slack blueprint: {e}")
         
-        logger.info("Route blueprints registered")
+        logger.info("Route blueprints registration completed")
     except Exception as e:
         logger.error(f"Error registering blueprints: {e}")
 
