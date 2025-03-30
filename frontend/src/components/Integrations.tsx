@@ -1,9 +1,26 @@
 
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
-import { RotateCw, Link, X, RefreshCw } from 'lucide-react';
+import { 
+  Database, 
+  MessageSquare, 
+  BarChart, 
+  ShoppingBag, 
+  Headphones,
+  Link2,
+  CheckCircle,
+  XCircle,
+  Loader2,
+  AlertCircle,
+  ExternalLink,
+  RotateCw,
+  RefreshCw,
+  X,
+  Link
+} from 'lucide-react';
 import { motion } from 'framer-motion';
 import SlackDashboard from './SlackDashboard';
+import { IntegrationGuide } from './IntegrationGuide';
 
 interface Integration {
   id: string;
@@ -11,6 +28,10 @@ interface Integration {
   status: string;
   lastSync?: string;
   config?: Record<string, unknown>;
+  name?: string;
+  description?: string;
+  icon?: string;
+  category?: string;
 }
 
 interface IntegrationFormData {
@@ -24,7 +45,7 @@ interface FormField {
 }
 
 export default function Integrations() {
-  const [integrations, setIntegrations] = useState<Integration[]>([]);
+  const [activeCategory, setActiveCategory] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState<string | null>(null);
   const [connecting, setConnecting] = useState<string | null>(null);
@@ -34,6 +55,7 @@ export default function Integrations() {
   const [showConnectionForm, setShowConnectionForm] = useState<string | null>(null);
   const [formData, setFormData] = useState<IntegrationFormData>({});
   const [selectedIntegration, setSelectedIntegration] = useState<string | null>(null);
+  const [integrations, setIntegrations] = useState<Integration[]>([]);
 
   useEffect(() => {
     fetchIntegrations();
@@ -246,165 +268,356 @@ export default function Integrations() {
     );
   }
 
+  // Create a mapping of our API integration IDs to more user-friendly data
+  const getDefaultIntegrations = () => {
+    const staticIntegrations = [
+      // CRM
+      {
+        id: 'salesforce',
+        name: 'Salesforce',
+        description: 'Connect your CRM data for enhanced customer insights',
+        icon: 'database',
+        status: 'disconnected',
+        category: 'crm',
+        type: 'salesforce' 
+      },
+      {
+        id: 'hubspot',
+        name: 'HubSpot',
+        description: 'Integrate with your marketing automation platform',
+        icon: 'database',
+        status: 'disconnected',
+        category: 'crm',
+        type: 'hubspot'
+      },
+      // Communication
+      {
+        id: 'slack',
+        name: 'Slack',
+        description: 'Get notifications and manage responses through Slack',
+        icon: 'message-square',
+        status: 'disconnected',
+        category: 'communication',
+        type: 'slack'
+      },
+      // Analytics
+      {
+        id: 'google_analytics',
+        name: 'Google Analytics',
+        description: 'Track customer engagement and response metrics',
+        icon: 'bar-chart',
+        status: 'disconnected',
+        category: 'analytics',
+        type: 'google_analytics'
+      },
+      // E-commerce
+      {
+        id: 'shopify',
+        name: 'Shopify',
+        description: 'Integrate with your e-commerce platform',
+        icon: 'shopping-bag',
+        status: 'disconnected',
+        category: 'ecommerce',
+        type: 'shopify'
+      },
+      // Helpdesk
+      {
+        id: 'zendesk',
+        name: 'Zendesk',
+        description: 'Sync customer support tickets and history',
+        icon: 'headphones',
+        status: 'disconnected',
+        category: 'helpdesk',
+        type: 'zendesk'
+      }
+    ];
+
+    return staticIntegrations;
+  };
+
+  // Merge the API data with the static metadata
+  const mergeIntegrationData = () => {
+    const defaultIntegrations = getDefaultIntegrations();
+    
+    if (integrations.length === 0) {
+      return defaultIntegrations;
+    }
+
+    // Enhance API integrations with static metadata
+    return defaultIntegrations.map(defaultInt => {
+      const apiInt = integrations.find(i => i.id === defaultInt.id);
+      if (apiInt) {
+        return {
+          ...defaultInt,
+          status: apiInt.status,
+          config: apiInt.config,
+          lastSync: apiInt.lastSync
+        };
+      }
+      return defaultInt;
+    });
+  };
+
+  // Categories for filtering
+  const categories = [
+    { id: 'all', label: 'All Integrations' },
+    { id: 'crm', label: 'CRM' },
+    { id: 'communication', label: 'Communication' },
+    { id: 'analytics', label: 'Analytics' },
+    { id: 'ecommerce', label: 'E-Commerce' },
+    { id: 'helpdesk', label: 'Helpdesk' }
+  ];
+
+  // Get the icon component based on the icon type
+  const getIcon = (iconName: string) => {
+    switch (iconName) {
+      case 'database':
+        return <Database size={20} />;
+      case 'message-square':
+        return <MessageSquare size={20} />;
+      case 'bar-chart':
+        return <BarChart size={20} />;
+      case 'shopping-bag':
+        return <ShoppingBag size={20} />;
+      case 'headphones':
+        return <Headphones size={20} />;
+      default:
+        return <Link2 size={20} />;
+    }
+  };
+
+  // Filter integrations based on selected category
+  const filteredIntegrations = activeCategory === 'all' 
+    ? mergeIntegrationData() 
+    : mergeIntegrationData().filter(integration => integration.category === activeCategory);
+
   return (
-    <div className="p-6">
-      <h2 className="text-2xl font-bold mb-6">Integrations</h2>
-
-      {error && (
-        <motion.div 
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-red-100 text-red-700 p-4 rounded mb-4"
-        >
-          {error}
-        </motion.div>
-      )}
-
-      {successMessage && (
-        <motion.div 
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-green-100 text-green-700 p-4 rounded mb-4"
-        >
-          {successMessage}
-        </motion.div>
-      )}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {loading ? (
-          <div className="col-span-3 flex justify-center items-center py-12">
-            <RotateCw size={24} className="animate-spin mr-2 text-blue-500" />
-            <span>Loading integrations...</span>
+    <div className="p-8">
+      <div className="max-w-6xl mx-auto">
+        {/* If Slack dashboard is selected, show it */}
+        {selectedIntegration === 'slack' ? (
+          <div>
+            <div className="flex items-center gap-3 mb-8">
+              <button 
+                onClick={handleBackToIntegrations}
+                className="text-blue-600 hover:text-blue-800 text-sm"
+              >
+                ← Back to Integrations
+              </button>
+              <div className="p-2 bg-blue-50 rounded-lg">
+                <MessageSquare className="h-6 w-6 text-blue-600" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Slack Integration</h1>
+                <p className="text-gray-500">Manage your Slack connection</p>
+              </div>
+            </div>
+            <SlackDashboard />
           </div>
         ) : (
-          integrations.map((integration) => (
-            <motion.div
-              key={integration.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-              className={`bg-white rounded-lg shadow p-6 ${
-                integration.status === 'active' && integration.id === 'slack' 
-                  ? 'cursor-pointer hover:bg-gray-50' 
-                  : ''
-              }`}
-              onClick={() => handleIntegrationClick(integration)}
-            >
-              <div className="flex justify-between items-start mb-4">
-                <h3 className="text-lg font-semibold">{integration.type.charAt(0).toUpperCase() + integration.type.slice(1)}</h3>
-                <div className="flex items-center gap-2">
-                  <span className={`w-2 h-2 rounded-full ${
-                    integration.status === 'active' ? 'bg-green-500' :
-                    integration.status === 'error' ? 'bg-red-500' :
-                    'bg-yellow-500'
-                  }`} />
-                  <span className="text-gray-600 text-sm">
-                    {integration.status.charAt(0).toUpperCase() + integration.status.slice(1)}
-                  </span>
-                </div>
+          <>
+            <div className="flex items-center gap-3 mb-8">
+              <div className="p-2 bg-blue-50 rounded-lg">
+                <Link2 className="h-6 w-6 text-blue-600" />
               </div>
-              
-              {integration.lastSync && (
-                <p className="text-sm text-gray-500 mb-4">
-                  Last synced: {new Date(integration.lastSync).toLocaleDateString()}
-                </p>
-              )}
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Integrations</h1>
+                <p className="text-gray-500">Connect your favorite tools with Dana AI</p>
+              </div>
+            </div>
 
-              {/* Integration Configuration Details */}
-              {integration.config && Object.keys(integration.config).length > 0 && (
-                <div className="mb-4 bg-gray-50 p-3 rounded text-sm">
-                  {Object.entries(integration.config).map(([key, value]) => {
-                    // Don't show empty arrays or sensitive information
-                    if (Array.isArray(value) && value.length === 0) return null;
-                    if (key.includes('token') || key.includes('password') || key.includes('secret')) {
-                      return (
-                        <div key={key} className="flex justify-between">
-                          <span className="font-medium">{key}:</span>
-                          <span>••••••••</span>
-                        </div>
-                      );
-                    }
-                    return (
-                      <div key={key} className="flex justify-between">
-                        <span className="font-medium">{key}:</span>
-                        <span>{String(value)}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              <div className="flex justify-between mt-4">
-                {integration.status === 'active' ? (
-                  <>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSync(integration.id);
-                      }}
-                      disabled={syncing === integration.id}
-                      className="text-blue-600 hover:text-blue-800 text-sm flex items-center"
-                    >
-                      {syncing === integration.id ? (
-                        <>
-                          <RotateCw size={14} className="animate-spin mr-1" />
-                          Syncing...
-                        </>
-                      ) : (
-                        <>
-                          <RefreshCw size={14} className="mr-1" />
-                          Sync Now
-                        </>
-                      )}
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDisconnect(integration.id);
-                      }}
-                      disabled={disconnecting === integration.id}
-                      className="text-red-600 hover:text-red-800 text-sm flex items-center"
-                    >
-                      {disconnecting === integration.id ? (
-                        <>
-                          <RotateCw size={14} className="animate-spin mr-1" />
-                          Disconnecting...
-                        </>
-                      ) : (
-                        <>
-                          <X size={14} className="mr-1" />
-                          Disconnect
-                        </>
-                      )}
-                    </button>
-                  </>
-                ) : (
+            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 mb-8">
+              <div className="flex flex-wrap gap-2">
+                {categories.map(category => (
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowConnectionForm(integration.id);
-                    }}
-                    className="text-blue-600 hover:text-blue-800 text-sm flex items-center"
+                    key={category.id}
+                    onClick={() => setActiveCategory(category.id)}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      activeCategory === category.id
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
                   >
-                    <Link size={14} className="mr-1" />
-                    Connect
+                    {category.label}
                   </button>
-                )}
+                ))}
               </div>
+            </div>
 
-              {showConnectionForm === integration.id && (
-                <div onClick={(e) => e.stopPropagation()}>
-                  {renderConfigForm(integration.id)}
-                </div>
-              )}
+            {error && (
+              <div className="bg-red-50 border border-red-100 rounded-lg p-4 mb-6 flex items-center text-red-700">
+                <AlertCircle className="h-5 w-5 mr-2" />
+                <p>{error}</p>
+              </div>
+            )}
 
-              {integration.status === 'active' && integration.id === 'slack' && (
-                <div className="mt-4 text-sm text-center text-blue-600">
-                  Click to access Slack dashboard
+            {successMessage && (
+              <div className="bg-green-50 border border-green-100 rounded-lg p-4 mb-6 flex items-center text-green-700">
+                <CheckCircle className="h-5 w-5 mr-2" />
+                <p>{successMessage}</p>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {loading ? (
+                <div className="col-span-3 flex justify-center items-center py-12">
+                  <RotateCw size={24} className="animate-spin mr-2 text-blue-500" />
+                  <span>Loading integrations...</span>
                 </div>
+              ) : (
+                filteredIntegrations.map((integration) => (
+                  <div
+                    key={integration.id}
+                    className={`bg-white rounded-xl p-6 shadow-sm border border-gray-100 ${
+                      integration.status === 'active' && integration.id === 'slack' 
+                        ? 'cursor-pointer hover:bg-gray-50' 
+                        : ''
+                    }`}
+                    onClick={() => integration.status === 'active' && integration.id === 'slack' ? handleIntegrationClick(integration) : null}
+                  >
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+                          {getIcon(integration.icon)}
+                        </div>
+                        <h3 className="text-lg font-semibold text-gray-900">{integration.name}</h3>
+                      </div>
+                      {integration.status === 'active' ? (
+                        <span className="flex items-center text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full">
+                          <CheckCircle size={12} className="mr-1" />
+                          Connected
+                        </span>
+                      ) : (
+                        <span className="flex items-center text-xs text-gray-600 bg-gray-50 px-2 py-1 rounded-full">
+                          <XCircle size={12} className="mr-1" />
+                          Disconnected
+                        </span>
+                      )}
+                    </div>
+                    
+                    <p className="text-sm text-gray-600 mb-4">{integration.description}</p>
+                    
+                    {integration.lastSync && (
+                      <p className="text-xs text-gray-500 mb-4">
+                        Last synced: {new Date(integration.lastSync).toLocaleDateString()}
+                      </p>
+                    )}
+
+                    {/* Integration Configuration Details */}
+                    {integration.config && Object.keys(integration.config).length > 0 && (
+                      <div className="mb-4 bg-gray-50 p-3 rounded text-xs">
+                        {Object.entries(integration.config).map(([key, value]) => {
+                          // Don't show empty arrays or sensitive information
+                          if (Array.isArray(value) && value.length === 0) return null;
+                          if (key.includes('token') || key.includes('password') || key.includes('secret')) {
+                            return (
+                              <div key={key} className="flex justify-between">
+                                <span className="font-medium">{key}:</span>
+                                <span>••••••••</span>
+                              </div>
+                            );
+                          }
+                          return (
+                            <div key={key} className="flex justify-between">
+                              <span className="font-medium">{key}:</span>
+                              <span>{String(value)}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    <div onClick={(e) => e.stopPropagation()}>
+                      {integration.status === 'active' ? (
+                        <div className="flex gap-2 mt-4">
+                          <button
+                            onClick={() => handleSync(integration.id)}
+                            disabled={syncing === integration.id}
+                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+                          >
+                            {syncing === integration.id ? (
+                              <>
+                                <Loader2 size={16} className="animate-spin" />
+                                Syncing...
+                              </>
+                            ) : (
+                              <>
+                                <RefreshCw size={16} />
+                                Sync
+                              </>
+                            )}
+                          </button>
+                          <button
+                            onClick={() => handleDisconnect(integration.id)}
+                            disabled={disconnecting === integration.id}
+                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-red-50 text-red-700 hover:bg-red-100 transition-colors"
+                          >
+                            {disconnecting === integration.id ? (
+                              <>
+                                <Loader2 size={16} className="animate-spin" />
+                                Disconnecting...
+                              </>
+                            ) : (
+                              <>
+                                <X size={16} />
+                                Disconnect
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setShowConnectionForm(integration.id)}
+                          disabled={connecting === integration.id}
+                          className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                        >
+                          {connecting === integration.id ? (
+                            <>
+                              <Loader2 size={16} className="animate-spin" />
+                              Connecting...
+                            </>
+                          ) : (
+                            <>
+                              <Link2 size={16} />
+                              Connect
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
+
+                    {showConnectionForm === integration.id && (
+                      <div onClick={(e) => e.stopPropagation()}>
+                        {renderConfigForm(integration.id)}
+                      </div>
+                    )}
+
+                    {integration.status === 'active' && integration.id === 'slack' && (
+                      <div className="mt-4 text-sm text-center text-blue-600">
+                        Click to access Slack dashboard
+                      </div>
+                    )}
+                  </div>
+                ))
               )}
-            </motion.div>
-          ))
+            </div>
+
+            <div className="bg-blue-50 rounded-xl p-6 mt-8 border border-blue-100">
+              <h3 className="text-lg font-semibold text-blue-900 mb-2">Need a custom integration?</h3>
+              <p className="text-blue-700 mb-4">
+                Don't see the tool you're looking for? We can build custom integrations for your specific needs.
+              </p>
+              <a 
+                href="mailto:support@hartford-tech.com" 
+                className="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium"
+              >
+                Contact us for custom integrations
+                <ExternalLink size={16} className="ml-1" />
+              </a>
+            </div>
+
+            <IntegrationGuide />
+          </>
         )}
       </div>
     </div>
