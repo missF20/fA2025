@@ -69,6 +69,11 @@ def slack_dashboard():
     """Slack dashboard UI"""
     return render_template("slack/dashboard.html")
 
+@app.route("/slack-demo")
+def slack_demo_dashboard():
+    """Slack demo dashboard UI"""
+    return render_template("slack_demo.html")
+
 @app.route("/api")
 def api_index():
     """API root endpoint"""
