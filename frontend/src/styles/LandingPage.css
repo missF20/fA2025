@@ -212,12 +212,12 @@
 
 /* Use Cases Section */
 .use-cases {
-  background-color: #f8f9fa;
+  background-color: white;
   padding: 100px 0;
   position: relative;
   overflow: hidden;
-  border-top: 1px solid #e9ecef;
-  border-bottom: 1px solid #e9ecef;
+  border-top: 1px solid rgba(26, 115, 232, 0.05);
+  border-bottom: 1px solid rgba(26, 115, 232, 0.05);
 }
 
 .use-cases::before {
@@ -242,9 +242,12 @@
   border-radius: 8px;
   overflow: hidden;
   transition: all 0.3s ease;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 10px rgba(26, 115, 232, 0.08);
   position: relative;
-  border: none;
+  border: 1px solid rgba(26, 115, 232, 0.05);
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .use-case-card::before {
@@ -253,7 +256,8 @@
 
 .use-case-card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 12px 20px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 12px 20px rgba(26, 115, 232, 0.15);
+  border: 1px solid rgba(26, 115, 232, 0.2);
 }
 
 .use-case-card .card-body {
@@ -310,16 +314,20 @@
   max-width: 850px;
   margin: 0 auto;
   padding: 2rem;
-  background: white;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 10px rgba(26, 115, 232, 0.08);
   position: relative;
   z-index: 1;
-  border: 1px solid #e9ecef;
+  border: 1px solid rgba(26, 115, 232, 0.1);
 }
 
 .integration-pill {
-  background-color: #f8f9fa;
+  background-color: rgba(248, 249, 250, 0.8);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   color: #1a73e8;
   font-weight: 500;
   padding: 0.5rem 1.25rem;
@@ -328,8 +336,8 @@
   transition: all 0.3s ease;
   display: inline-flex;
   align-items: center;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  border: 1px solid #e9ecef;
+  box-shadow: 0 1px 3px rgba(26, 115, 232, 0.08);
+  border: 1px solid rgba(26, 115, 232, 0.1);
 }
 
 .integration-pill:hover {
@@ -341,11 +349,11 @@
 
 /* Testimonials Section */
 .testimonials {
-  background-color: #f8f9fa;
+  background-color: white;
   padding: 100px 0;
   position: relative;
   overflow: hidden;
-  border-top: 1px solid #e9ecef;
+  border-top: 1px solid rgba(26, 115, 232, 0.05);
 }
 
 .testimonials::before,
@@ -363,19 +371,22 @@
 }
 
 .testimonial-card {
-  background: white;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border-radius: 8px;
   padding: 1.75rem;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 10px rgba(26, 115, 232, 0.05);
   position: relative;
   transition: all 0.3s ease;
-  border: 1px solid #e9ecef;
+  border: 1px solid rgba(26, 115, 232, 0.1);
   z-index: 1;
 }
 
 .testimonial-card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 20px rgba(26, 115, 232, 0.15);
+  border: 1px solid rgba(26, 115, 232, 0.2);
 }
 
 .testimonial-quote {
