@@ -9,6 +9,8 @@ import logging
 from flask import Flask, jsonify, g, render_template
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from sqlalchemy.orm import DeclarativeBase
 
 # Configure logging
@@ -40,6 +42,14 @@ db.init_app(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = "auth.login"
+
+# Initialize rate limiter
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://",
+)
 
 # Register error handlers
 @app.errorhandler(404)
@@ -224,6 +234,41 @@ def register_blueprints():
     except Exception as e:
         logger.error(f"Error registering blueprints: {e}")
 
+# Initialize Row Level Security for Supabase
+def init_rls():
+    """Initialize Row Level Security policies"""
+    try:
+        from utils.supabase_rls import apply_rls_policies, set_admin_emails
+        
+        # Apply RLS policies
+        if apply_rls_policies():
+            logger.info("Row Level Security policies applied successfully")
+            
+            # Set admin emails (can be configured from environment variables)
+            admin_emails = os.environ.get("ADMIN_EMAILS", "admin@dana-ai.com")
+            set_admin_emails(admin_emails)
+            logger.info(f"Admin emails set: {admin_emails}")
+        else:
+            logger.warning("Failed to apply Row Level Security policies")
+    except Exception as e:
+        logger.error(f"Error initializing Row Level Security: {str(e)}", exc_info=True)
+
+# Initialize rate limiting
+def init_rate_limiting():
+    """Initialize rate limiting for routes"""
+    try:
+        from utils.rate_limit import register_rate_limit_handler
+        
+        # Register rate limit exceeded handler
+        register_rate_limit_handler(app)
+        
+        # Apply specific rate limits to sensitive routes
+        # Note: This will be done within each blueprint during registration
+        
+        logger.info("Rate limiting initialized")
+    except Exception as e:
+        logger.error(f"Error initializing rate limiting: {str(e)}", exc_info=True)
+
 # Initialize application
 def init_app():
     """Initialize the application"""
@@ -232,6 +277,12 @@ def init_app():
     
     # Register blueprints
     register_blueprints()
+    
+    # Initialize Row Level Security
+    init_rls()
+    
+    # Initialize rate limiting
+    init_rate_limiting()
     
     # Initialize automation system
     init_automation()

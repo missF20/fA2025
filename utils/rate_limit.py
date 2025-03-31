@@ -1,111 +1,95 @@
 """
-Rate limiting utilities
+Rate Limiting Utilities
 
-This module provides rate limiting decorators for API endpoints.
+This module provides utilities for applying rate limits to routes to prevent abuse.
 """
 
-import time
 import logging
-from functools import wraps
-from flask import request, jsonify, g
-import threading
+import functools
+from flask import request, jsonify
+from app import limiter
 
 logger = logging.getLogger(__name__)
 
-# In-memory rate limit store
-# Format: {ip: {endpoint: {timestamp: count}}}
-rate_limits = {}
-rate_limit_lock = threading.Lock()
-
-# Rate limit presets
-RATE_LIMIT_PRESETS = {
-    'strict': {'window': 60, 'max_requests': 5},     # 5 requests per minute
-    'standard': {'window': 60, 'max_requests': 15},  # 15 requests per minute
-    'relaxed': {'window': 60, 'max_requests': 30},   # 30 requests per minute
-    'open': {'window': 60, 'max_requests': 60}       # 60 requests per minute
-}
-
-def rate_limit(preset='standard', custom_window=None, custom_max_requests=None):
+def rate_limit_middleware(limit_string="20 per minute"):
     """
-    Rate limit decorator for API endpoints
+    Applies rate limiting to a route function.
     
     Args:
-        preset: Rate limit preset (strict, standard, relaxed, open)
-        custom_window: Custom time window in seconds (overrides preset)
-        custom_max_requests: Custom max requests (overrides preset)
+        limit_string: The rate limit string, e.g. "20 per minute"
+        
+    Returns:
+        A decorated function with rate limiting applied
     """
-    # Get rate limit settings
-    settings = RATE_LIMIT_PRESETS.get(preset, RATE_LIMIT_PRESETS['standard'])
-    window = custom_window or settings['window']
-    max_requests = custom_max_requests or settings['max_requests']
-    
     def decorator(f):
-        @wraps(f)
-        def decorated_function(*args, **kwargs):
-            # Get client IP
-            client_ip = request.remote_addr or 'unknown'
-            
-            # Get endpoint
-            endpoint = request.path
-            
-            # Get current timestamp
-            current_time = int(time.time())
-            
-            # Calculate the start of the current window
-            window_start = current_time - window
-            
-            with rate_limit_lock:
-                # Initialize if needed
-                if client_ip not in rate_limits:
-                    rate_limits[client_ip] = {}
-                if endpoint not in rate_limits[client_ip]:
-                    rate_limits[client_ip][endpoint] = {}
-                
-                # Clean up old entries
-                for timestamp in list(rate_limits[client_ip][endpoint].keys()):
-                    if int(timestamp) < window_start:
-                        del rate_limits[client_ip][endpoint][timestamp]
-                
-                # Count requests in current window
-                current_count = sum(rate_limits[client_ip][endpoint].values())
-                
-                # Check if rate limit exceeded
-                if current_count >= max_requests:
-                    logger.warning(f"Rate limit exceeded for {client_ip} on {endpoint}")
-                    return jsonify({
-                        "error": "Rate limit exceeded",
-                        "message": f"You've made too many requests. Please try again in {window - (current_time - next(iter(sorted(rate_limits[client_ip][endpoint].keys())), current_time))} seconds."
-                    }), 429
-                
-                # Increment counter
-                if current_time not in rate_limits[client_ip][endpoint]:
-                    rate_limits[client_ip][endpoint][current_time] = 0
-                rate_limits[client_ip][endpoint][current_time] += 1
-            
-            # Add headers
-            response = f(*args, **kwargs)
-            if isinstance(response, tuple):
-                response_obj, status_code = response
-                headers = {}
-            else:
-                response_obj = response
-                status_code = 200
-                headers = {}
-            
-            # Add rate limit headers
-            headers['X-RateLimit-Limit'] = str(max_requests)
-            headers['X-RateLimit-Remaining'] = str(max_requests - current_count - 1)
-            headers['X-RateLimit-Reset'] = str(window_start + window)
-            
-            # Create response with headers
-            if isinstance(response_obj, dict):
-                response_obj = jsonify(response_obj)
-                
-            for key, value in headers.items():
-                response_obj.headers[key] = value
-                
-            return response_obj, status_code
-            
-        return decorated_function
-    
+        @functools.wraps(f)
+        @limiter.limit(limit_string)
+        def wrapped(*args, **kwargs):
+            return f(*args, **kwargs)
+        return wrapped
     return decorator
+
+def apply_rate_limit(blueprint, route, limit_string="20 per minute"):
+    """
+    Applies rate limiting to a route in a blueprint.
+    
+    Args:
+        blueprint: The Flask blueprint
+        route: The route path, e.g. "/api/users"
+        limit_string: The rate limit string, e.g. "20 per minute"
+    """
+    route_function = None
+    
+    # Find the route function
+    for rule in blueprint.url_map.iter_rules():
+        if rule.rule == route:
+            route_function = blueprint.view_functions[rule.endpoint]
+            break
+    
+    if route_function:
+        # Apply rate limit
+        limiter.limit(limit_string)(route_function)
+        logger.info(f"Applied rate limit '{limit_string}' to route {route}")
+    else:
+        logger.warning(f"Could not find route {route} in blueprint")
+
+def rate_limit_group(routes, limit_string="20 per minute"):
+    """
+    Applies rate limiting to a group of routes.
+    
+    Args:
+        routes: A list of (blueprint, route) tuples
+        limit_string: The rate limit string, e.g. "20 per minute"
+    """
+    for blueprint, route in routes:
+        apply_rate_limit(blueprint, route, limit_string)
+
+def handle_rate_limit_exceeded(e):
+    """
+    Handles rate limit exceeded errors.
+    
+    Args:
+        e: The rate limit exceeded exception
+        
+    Returns:
+        A JSON response with error message
+    """
+    logger.warning(f"Rate limit exceeded: {e.description}")
+    response = jsonify({
+        "error": "Rate limit exceeded",
+        "message": str(e.description),
+        "retry_after": e.retry_after
+    })
+    response.status_code = 429
+    return response
+
+def register_rate_limit_handler(app):
+    """
+    Registers the rate limit exceeded error handler with the Flask app.
+    
+    Args:
+        app: The Flask application
+    """
+    from flask_limiter.errors import RateLimitExceeded
+    app.errorhandler(RateLimitExceeded)(handle_rate_limit_exceeded)
+    logger.info("Rate limit exceeded handler registered")
