@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Configuration | Dana AI</title>
+    <link rel="stylesheet" href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css">
+    <style>
+        .config-container {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 2rem;
+            border-radius: 8px;
+            background-color: var(--bs-dark);
+        }
+        .form-control, .btn {
+            border-radius: 4px;
+        }
+        .key-input {
+            font-family: monospace;
+            letter-spacing: 0.5px;
+        }
+        .notice {
+            padding: 15px;
+            margin: 20px 0;
+            border-left: 4px solid var(--bs-warning);
+            background-color: rgba(var(--bs-warning-rgb), 0.1);
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">Dana AI</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/payment-config">Payment Config</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container config-container">
+        <h1 class="mb-4">PesaPal Payment Configuration</h1>
+        
+        <div id="status-alert" class="alert d-none" role="alert"></div>
+        
+        <div class="notice">
+            <h4>Administrator Access Required</h4>
+            <p>This page is for configuring the PesaPal payment gateway integration for your Dana AI platform. These settings allow your application to process payments from users.</p>
+        </div>
+        
+        <form id="config-form" class="mt-4">
+            <div class="mb-3">
+                <label for="consumerKey" class="form-label">PesaPal Consumer Key</label>
+                <input type="text" class="form-control key-input" id="consumerKey" name="consumer_key" 
+                       placeholder="Your PesaPal Consumer Key" required>
+                <div class="form-text">Found in your PesaPal merchant dashboard under Developer → API Keys</div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="consumerSecret" class="form-label">PesaPal Consumer Secret</label>
+                <input type="password" class="form-control key-input" id="consumerSecret" name="consumer_secret" 
+                       placeholder="Your PesaPal Consumer Secret" required>
+                <div class="form-text">Keep this value secure and never share it publicly</div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="ipnUrl" class="form-label">IPN URL</label>
+                <input type="url" class="form-control key-input" id="ipnUrl" name="ipn_url" 
+                       placeholder="https://yourdomain.com/api/payments/ipn" required>
+                <div class="form-text">URL where PesaPal will send payment notifications. Must be publicly accessible.</div>
+            </div>
+            
+            <div class="d-flex justify-content-between">
+                <button type="button" id="test-btn" class="btn btn-outline-primary">Test Credentials</button>
+                <button type="submit" class="btn btn-success">Save Configuration</button>
+            </div>
+        </form>
+        
+        <div class="mt-4">
+            <h4>Current Status</h4>
+            <div id="status-container" class="p-3 border rounded">
+                <p>Loading configuration status...</p>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check current configuration status
+            fetchConfigStatus();
+            
+            // Set up form submission
+            const configForm = document.getElementById('config-form');
+            configForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                saveConfig();
+            });
+            
+            // Set up test button
+            const testBtn = document.getElementById('test-btn');
+            testBtn.addEventListener('click', function() {
+                testCredentials();
+            });
+        });
+        
+        // Fetch current configuration status
+        function fetchConfigStatus() {
+            fetch('/api/payment-config/status', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + getAuthToken()
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Authentication required');
+                }
+                return response.json();
+            })
+            .then(data => {
+                updateStatusDisplay(data);
+            })
+            .catch(error => {
+                document.getElementById('status-container').innerHTML = `
+                    <div class="alert alert-danger">
+                        ${error.message || 'Error fetching configuration status'}
+                    </div>
+                `;
+            });
+        }
+        
+        // Save configuration
+        function saveConfig() {
+            const formData = {
+                consumer_key: document.getElementById('consumerKey').value,
+                consumer_secret: document.getElementById('consumerSecret').value,
+                ipn_url: document.getElementById('ipnUrl').value
+            };
+            
+            fetch('/api/payment-config/save', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + getAuthToken()
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert('success', 'Configuration saved successfully!');
+                    // Refresh status after saving
+                    fetchConfigStatus();
+                } else {
+                    showAlert('danger', 'Error: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                showAlert('danger', 'Error saving configuration: ' + error.message);
+            });
+        }
+        
+        // Test credentials
+        function testCredentials() {
+            const formData = {
+                consumer_key: document.getElementById('consumerKey').value,
+                consumer_secret: document.getElementById('consumerSecret').value,
+                ipn_url: document.getElementById('ipnUrl').value
+            };
+            
+            fetch('/api/payment-config/test-credentials', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + getAuthToken()
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert('success', 'Credentials are valid!');
+                } else {
+                    showAlert('warning', data.message || 'Credentials test failed');
+                }
+            })
+            .catch(error => {
+                showAlert('danger', 'Error testing credentials: ' + error.message);
+            });
+        }
+        
+        // Update status display
+        function updateStatusDisplay(data) {
+            const statusContainer = document.getElementById('status-container');
+            
+            if (data.configured) {
+                statusContainer.innerHTML = `
+                    <div class="alert alert-success mb-0">
+                        <h5>✅ PesaPal configuration complete</h5>
+                        <p>Your payment gateway is configured and ready to use.</p>
+                    </div>
+                `;
+            } else {
+                statusContainer.innerHTML = `
+                    <div class="alert alert-warning mb-0">
+                        <h5>⚠️ Configuration incomplete</h5>
+                        <p>The following API keys are missing:</p>
+                        <ul>
+                            ${data.missing_keys.map(key => `<li>${key}</li>`).join('')}
+                        </ul>
+                        <p>Complete the form above to configure PesaPal.</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // Show alert message
+        function showAlert(type, message) {
+            const alertEl = document.getElementById('status-alert');
+            alertEl.className = `alert alert-${type}`;
+            alertEl.textContent = message;
+            alertEl.classList.remove('d-none');
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                alertEl.classList.add('d-none');
+            }, 5000);
+        }
+        
+        // Get authentication token from local storage
+        function getAuthToken() {
+            return localStorage.getItem('auth_token') || '';
+        }
+    </script>
+</body>
+</html>

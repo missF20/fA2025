@@ -91,6 +91,11 @@ def slack_demo_dashboard():
     """Slack demo dashboard UI"""
     return render_template("slack_demo.html")
 
+@app.route("/payment-config")
+def payment_config():
+    """Payment configuration UI"""
+    return render_template("payment_config.html")
+
 @app.route("/payment-setup")
 def payment_setup():
     """Payment gateway setup page"""
