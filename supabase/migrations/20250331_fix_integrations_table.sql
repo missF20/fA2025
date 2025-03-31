@@ -3,6 +3,34 @@
 -- Check if the table exists
 DO $$
 BEGIN
+    -- Ensure extension is available for UUID generation
+    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+    -- Check if integrations_config table exists (wrong name)
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'integrations_config') THEN
+        -- Rename integrations_config to integration_configs if it exists
+        ALTER TABLE IF EXISTS public.integrations_config RENAME TO integration_configs;
+        RAISE NOTICE 'Renamed table integrations_config to integration_configs';
+    END IF;
+
+    -- Create the table if it doesn't exist
+    IF NOT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'integration_configs') THEN
+        -- Create the correctly named table if it doesn't exist
+        CREATE TABLE public.integration_configs (
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            user_id UUID NOT NULL,
+            integration_type TEXT NOT NULL,
+            config JSONB NOT NULL DEFAULT '{}'::jsonb,
+            status TEXT NOT NULL DEFAULT 'pending',
+            date_created TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            date_updated TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(user_id, integration_type)
+        );
+        
+        COMMENT ON TABLE public.integration_configs IS 'Stores integration configurations for users';
+        RAISE NOTICE 'Created table integration_configs';
+    END IF;
+    
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'integration_configs') THEN
         -- Table exists, enable RLS
         ALTER TABLE integration_configs ENABLE ROW LEVEL SECURITY;

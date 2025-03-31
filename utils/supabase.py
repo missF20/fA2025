@@ -2,11 +2,49 @@ import os
 import logging
 from supabase import create_client, Client
 from functools import lru_cache
+from utils.supabase_extension import query_sql
 
 logger = logging.getLogger(__name__)
 
 # Keep track of client for forced refresh
 _supabase_client = None
+
+# Extend the Supabase Client with raw_query method
+def _apply_supabase_extensions(client):
+    """
+    Extend the Supabase client with additional methods
+    
+    Args:
+        client: The Supabase client to extend
+        
+    Returns:
+        Client: The same client with extended methods
+    """
+    def raw_query(sql, params=None):
+        """
+        Execute a raw SQL query using direct database connection
+        
+        Args:
+            sql: SQL query to execute
+            params: Parameters for the query
+            
+        Returns:
+            dict: Dictionary with data and/or error
+        """
+        try:
+            results = query_sql(sql, params)
+            if results is not None:
+                return {'data': results, 'error': None}
+            else:
+                return {'data': None, 'error': "Query execution failed"}
+        except Exception as e:
+            logger.error(f"Error in raw_query: {str(e)}")
+            return {'data': None, 'error': str(e)}
+    
+    # Add the method to the client instance
+    client.raw_query = raw_query
+    
+    return client
 
 def get_supabase_client(force_refresh=False) -> Client:
     """
@@ -32,8 +70,10 @@ def get_supabase_client(force_refresh=False) -> Client:
         raise ValueError("Supabase URL and API Key must be set in environment variables")
     
     try:
+        # Create client and apply extensions
         _supabase_client = create_client(supabase_url, supabase_key)
-        logger.info("Supabase client initialized successfully")
+        _supabase_client = _apply_supabase_extensions(_supabase_client)
+        logger.info("Supabase client initialized successfully with extensions")
         return _supabase_client
     except Exception as e:
         logger.error(f"Failed to initialize Supabase client: {str(e)}", exc_info=True)
@@ -66,8 +106,10 @@ def get_supabase_admin_client() -> Client:
         raise ValueError("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in environment variables")
     
     try:
+        # Create admin client and apply extensions
         admin_client = create_client(supabase_url, supabase_service_key)
-        logger.info("Supabase admin client initialized successfully")
+        admin_client = _apply_supabase_extensions(admin_client)
+        logger.info("Supabase admin client initialized successfully with extensions")
         return admin_client
     except Exception as e:
         logger.error(f"Failed to initialize Supabase admin client: {str(e)}", exc_info=True)

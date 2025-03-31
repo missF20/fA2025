@@ -78,6 +78,17 @@ def execute_sql(sql_statements, params=None, ignore_errors=True):
             
         cursor = connection.cursor()
         
+        # Helper function to execute with parameter conversion
+        def execute_with_params(sql, p=None):
+            if p:
+                # Replace $1, $2, etc. with %s for psycopg2
+                modified_sql = sql
+                for i in range(1, len(p) + 1):
+                    modified_sql = modified_sql.replace(f"${i}", "%s")
+                cursor.execute(modified_sql, p)
+            else:
+                cursor.execute(sql)
+        
         # If a single statement is provided, execute it
         if isinstance(sql_statements, str):
             try:
@@ -85,7 +96,7 @@ def execute_sql(sql_statements, params=None, ignore_errors=True):
                 if sql_statements.strip().upper().startswith("ALTER DATABASE"):
                     logger.info(f"Skipping privileged statement: {sql_statements[:50]}...")
                 else:
-                    cursor.execute(sql_statements, params or ())
+                    execute_with_params(sql_statements, params)
             except Exception as e:
                 logger.warning(f"Error executing SQL statement: {str(e)}")
                 if not ignore_errors:
@@ -101,7 +112,7 @@ def execute_sql(sql_statements, params=None, ignore_errors=True):
                             logger.info(f"Skipping privileged statement: {stmt[:50]}...")
                             continue
                             
-                        cursor.execute(stmt, params or ())
+                        execute_with_params(stmt, params)
                     except Exception as e:
                         logger.warning(f"Error executing SQL statement: {str(e)}")
                         if not ignore_errors:
@@ -180,7 +191,17 @@ def query_sql(sql_query, params=None):
             return None
             
         cursor = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        cursor.execute(sql_query, params or ())
+        
+        # Convert $ parameters to psycopg2 % parameters format
+        if params:
+            # Replace $1, $2, etc. with %s
+            modified_query = sql_query
+            for i in range(1, len(params) + 1):
+                modified_query = modified_query.replace(f"${i}", "%s")
+            
+            cursor.execute(modified_query, params)
+        else:
+            cursor.execute(sql_query)
         
         results = cursor.fetchall()
         logger.info(f"SQL query executed successfully, returned {len(results)} rows")

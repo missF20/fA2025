@@ -152,5 +152,35 @@ BEGIN
             FOR DELETE 
             USING (user_id::text = auth.uid()::text);
     END IF;
+    
+    -- Integration configs table
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'integration_configs') THEN
+        ALTER TABLE integration_configs ENABLE ROW LEVEL SECURITY;
+        
+        -- Create policies for the integration_configs table
+        DROP POLICY IF EXISTS select_integration_configs ON integration_configs;
+        CREATE POLICY select_integration_configs 
+            ON integration_configs
+            FOR SELECT 
+            USING (user_id::text = auth.uid()::text);
+            
+        DROP POLICY IF EXISTS insert_integration_configs ON integration_configs;
+        CREATE POLICY insert_integration_configs 
+            ON integration_configs
+            FOR INSERT 
+            WITH CHECK (user_id::text = auth.uid()::text);
+            
+        DROP POLICY IF EXISTS update_integration_configs ON integration_configs;
+        CREATE POLICY update_integration_configs 
+            ON integration_configs
+            FOR UPDATE 
+            USING (user_id::text = auth.uid()::text);
+            
+        DROP POLICY IF EXISTS delete_integration_configs ON integration_configs;
+        CREATE POLICY delete_integration_configs 
+            ON integration_configs
+            FOR DELETE 
+            USING (user_id::text = auth.uid()::text);
+    END IF;
 END
 $$;
