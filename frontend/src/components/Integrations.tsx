@@ -61,6 +61,19 @@ export default function Integrations() {
 
   useEffect(() => {
     fetchIntegrations();
+    
+    // Test if email endpoint is accessible 
+    const testEmailEndpoint = async () => {
+      try {
+        const response = await fetch('/api/integrations/email/test');
+        const data = await response.json();
+        console.log("Email test endpoint response:", data);
+      } catch (error) {
+        console.error("Error accessing email test endpoint:", error);
+      }
+    };
+    
+    testEmailEndpoint();
   }, []);
 
   const fetchIntegrations = async () => {

@@ -64,6 +64,13 @@ export default defineConfig(({ mode }) => ({
     cors: true,
     hmr: {
       timeout: 5000
+    },
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+        secure: false
+      }
     }
   },
   preview: {

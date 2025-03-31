@@ -135,20 +135,29 @@ export const api = {
       
       console.log(`Connecting to ${integrationType} using endpoint: ${endpoint}`);
       
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ config })
-      });
+      try {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ config })
+        });
 
-      if (!response.ok) {
-        throw new Error(`Failed to connect ${integrationType}: ${response.statusText}`);
+        console.log(`Response status: ${response.status}, ${response.statusText}`);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`Error response body: ${errorText}`);
+          throw new Error(`Failed to connect ${integrationType}: ${response.status} ${response.statusText}`);
+        }
+
+        return await response.json();
+      } catch (error) {
+        console.error(`Error connecting to ${integrationType}:`, error);
+        throw error;
       }
-
-      return await response.json();
     },
 
     async disconnect(integrationId: string) {
@@ -162,19 +171,28 @@ export const api = {
       
       console.log(`Disconnecting from ${integrationId} using endpoint: ${endpoint}`);
 
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+      try {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        console.log(`Response status: ${response.status}, ${response.statusText}`);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`Error response body: ${errorText}`);
+          throw new Error(`Failed to disconnect ${integrationId}: ${response.status} ${response.statusText}`);
         }
-      });
 
-      if (!response.ok) {
-        throw new Error(`Failed to disconnect ${integrationId}: ${response.statusText}`);
+        return await response.json();
+      } catch (error) {
+        console.error(`Error disconnecting from ${integrationId}:`, error);
+        throw error;
       }
-
-      return await response.json();
     },
 
     async sync(integrationId: string) {
@@ -188,19 +206,28 @@ export const api = {
       
       console.log(`Syncing ${integrationId} using endpoint: ${endpoint}`);
 
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+      try {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        console.log(`Response status: ${response.status}, ${response.statusText}`);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`Error response body: ${errorText}`);
+          throw new Error(`Failed to sync ${integrationId}: ${response.status} ${response.statusText}`);
         }
-      });
 
-      if (!response.ok) {
-        throw new Error(`Failed to sync ${integrationId}: ${response.statusText}`);
+        return await response.json();
+      } catch (error) {
+        console.error(`Error syncing ${integrationId}:`, error);
+        throw error;
       }
-
-      return await response.json();
     }
   }
 };
