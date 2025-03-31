@@ -6,7 +6,7 @@ Main application module for the Dana AI Platform.
 
 import os
 import logging
-from flask import Flask, jsonify, g, render_template
+from flask import Flask, jsonify, g, render_template, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_socketio import SocketIO
@@ -90,6 +90,32 @@ def slack_dashboard():
 def slack_demo_dashboard():
     """Slack demo dashboard UI"""
     return render_template("slack_demo.html")
+
+@app.route("/payment-setup")
+def payment_setup():
+    """Payment gateway setup page"""
+    # Get application URL for IPN configuration
+    app_url = request.url_root.rstrip('/')
+    
+    # Get configuration status
+    pesapal_configured = all([
+        os.environ.get('PESAPAL_CONSUMER_KEY'),
+        os.environ.get('PESAPAL_CONSUMER_SECRET'),
+        os.environ.get('PESAPAL_IPN_URL')
+    ])
+    
+    missing_keys = [
+        key for key in ['PESAPAL_CONSUMER_KEY', 'PESAPAL_CONSUMER_SECRET', 'PESAPAL_IPN_URL'] 
+        if not os.environ.get(key)
+    ]
+    
+    status = {
+        'configured': pesapal_configured,
+        'provider': 'pesapal',
+        'missing_keys': missing_keys
+    }
+    
+    return render_template("payment_setup.html", status=status, app_url=app_url)
 
 @app.route("/api")
 def api_index():
