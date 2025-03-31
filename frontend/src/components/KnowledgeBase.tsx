@@ -556,6 +556,42 @@ export function KnowledgeBase() {
     );
   };
 
+  // Render selected files toolbar
+  const renderSelectedFilesToolbar = () => {
+    if (selectedFiles.length === 0) return null;
+    
+    return (
+      <div className="mb-4 p-2 bg-gray-50 border border-gray-200 rounded-lg flex items-center justify-between">
+        <div className="text-sm text-gray-700">
+          {selectedFiles.length} {selectedFiles.length === 1 ? 'file' : 'files'} selected
+        </div>
+        
+        <div className="flex items-center space-x-2 relative">
+          <button
+            onClick={() => setSelectedFiles([])}
+            className="p-1.5 rounded-md text-gray-600 hover:bg-gray-200"
+            title="Clear selection"
+          >
+            <X size={16} />
+          </button>
+          
+          <button
+            onClick={() => setBulkActionOpen(!bulkActionOpen)}
+            className="px-3 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700 flex items-center"
+            disabled={bulkProcessing}
+          >
+            {bulkProcessing ? (
+              <Loader2 size={14} className="animate-spin mr-1" />
+            ) : null}
+            Actions
+          </button>
+          
+          {renderBulkActionMenu()}
+        </div>
+      </div>
+    );
+  };
+
   // Render bulk action menu
   const renderBulkActionMenu = () => {
     if (!bulkActionOpen || selectedFiles.length === 0) return null;
@@ -721,9 +757,6 @@ export function KnowledgeBase() {
               Name
             </th>
             <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Type
-            </th>
-            <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Category
             </th>
             <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -733,9 +766,9 @@ export function KnowledgeBase() {
               Size
             </th>
             <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Uploaded
+              Updated
             </th>
-            <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th scope="col" className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
               Actions
             </th>
           </tr>
@@ -758,27 +791,20 @@ export function KnowledgeBase() {
               </td>
               <td className="px-3 py-4 whitespace-nowrap">
                 <div className="flex items-center">
-                  <span className="mr-2">{getFileIcon(file.file_type)}</span>
-                  <span className="text-sm font-medium text-gray-900 truncate max-w-[200px]" title={file.file_name}>
+                  <span className="text-xl mr-3">{getFileIcon(file.file_type)}</span>
+                  <div className="text-sm font-medium text-gray-900 line-clamp-1" title={file.file_name}>
                     {file.file_name}
-                  </span>
+                  </div>
                 </div>
               </td>
-              <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
-                {file.file_type.split('/').pop()?.toUpperCase()}
-              </td>
-              <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
-                {file.category ? (
-                  <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">
-                    {file.category}
-                  </span>
-                ) : (
-                  <span className="text-gray-400">—</span>
-                )}
+              <td className="px-3 py-4 whitespace-nowrap">
+                <div className="text-sm text-gray-500">
+                  {file.category || '-'}
+                </div>
               </td>
               <td className="px-3 py-4 whitespace-nowrap">
-                <div className="flex flex-wrap gap-1 max-w-[200px]">
-                  {getFileTags(file).slice(0, 2).map((tag, index) => (
+                <div className="flex flex-wrap gap-1 max-w-xs">
+                  {getFileTags(file).slice(0, 3).map((tag, index) => (
                     <span
                       key={index}
                       className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-800"
@@ -786,9 +812,9 @@ export function KnowledgeBase() {
                       {tag}
                     </span>
                   ))}
-                  {getFileTags(file).length > 2 && (
+                  {getFileTags(file).length > 3 && (
                     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">
-                      +{getFileTags(file).length - 2}
+                      +{getFileTags(file).length - 3}
                     </span>
                   )}
                 </div>
@@ -797,20 +823,26 @@ export function KnowledgeBase() {
                 {formatFileSize(file.file_size)}
               </td>
               <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
-                {formatDate(file.created_at)}
+                {formatDate(file.updated_at || file.created_at)}
               </td>
-              <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
-                <div className="flex space-x-2" onClick={e => e.stopPropagation()}>
+              <td className="px-3 py-4 whitespace-nowrap text-right text-sm font-medium">
+                <div className="flex justify-end space-x-2">
                   <button
-                    onClick={() => setPreviewFileId(file.id)}
-                    className="text-gray-500 hover:text-blue-600"
+                    onClick={e => {
+                      e.stopPropagation();
+                      setPreviewFileId(file.id);
+                    }}
+                    className="text-blue-600 hover:text-blue-900"
                     title="Preview file"
                   >
                     <FileText size={16} />
                   </button>
                   <button
-                    onClick={() => handleDeleteFile(file.id)}
-                    className="text-gray-500 hover:text-red-600"
+                    onClick={e => {
+                      e.stopPropagation();
+                      handleDeleteFile(file.id);
+                    }}
+                    className="text-red-600 hover:text-red-900"
                     title="Delete file"
                   >
                     <Trash2 size={16} />
@@ -830,104 +862,95 @@ export function KnowledgeBase() {
     if (totalPages <= 1) return null;
     
     return (
-      <div className="flex justify-between items-center mt-4">
+      <div className="flex justify-center items-center mt-4 space-x-2">
+        <button
+          onClick={() => setCurrentPage(currentPage - 1)}
+          disabled={currentPage === 0}
+          className="px-3 py-1 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50"
+        >
+          Previous
+        </button>
+        
         <div className="text-sm text-gray-700">
-          Showing <span className="font-medium">{files.length}</span> of{' '}
-          <span className="font-medium">{totalFiles}</span> files
+          Page {currentPage + 1} of {totalPages}
         </div>
         
-        <div className="flex space-x-2">
-          <button
-            onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
-            disabled={currentPage === 0}
-            className="px-3 py-1 rounded border border-gray-300 text-sm font-medium text-gray-700 disabled:opacity-50"
-          >
-            Previous
-          </button>
-          
-          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-            // For simplicity, just show 5 page buttons
-            let pageNum = i;
-            if (totalPages > 5) {
-              if (currentPage < 3) {
-                pageNum = i;
-              } else if (currentPage > totalPages - 3) {
-                pageNum = totalPages - 5 + i;
-              } else {
-                pageNum = currentPage - 2 + i;
-              }
-            }
-            
-            return (
-              <button
-                key={i}
-                onClick={() => setCurrentPage(pageNum)}
-                className={`w-8 h-8 flex items-center justify-center rounded text-sm font-medium ${
-                  currentPage === pageNum
-                    ? 'bg-blue-600 text-white'
-                    : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                {pageNum + 1}
-              </button>
-            );
-          })}
-          
-          <button
-            onClick={() => setCurrentPage(prev => Math.min(totalPages - 1, prev + 1))}
-            disabled={currentPage === totalPages - 1 || totalPages === 0}
-            className="px-3 py-1 rounded border border-gray-300 text-sm font-medium text-gray-700 disabled:opacity-50"
-          >
-            Next
-          </button>
-        </div>
+        <button
+          onClick={() => setCurrentPage(currentPage + 1)}
+          disabled={currentPage >= totalPages - 1}
+          className="px-3 py-1 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50"
+        >
+          Next
+        </button>
       </div>
     );
   };
 
-  // Render file detail preview
+  // Render file detail
   const renderFileDetail = () => {
     if (!previewFileId) return null;
     
     return (
-      <KnowledgeFilePreview
-        fileId={previewFileId}
-        onClose={() => setPreviewFileId(null)}
-      />
-    );
-  };
-
-  // Render selected files toolbar
-  const renderSelectedFilesToolbar = () => {
-    if (selectedFiles.length === 0) return null;
-    
-    return (
-      <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg flex justify-between items-center">
-        <div className="text-sm text-blue-700">
-          <span className="font-medium">{selectedFiles.length}</span> file{selectedFiles.length !== 1 ? 's' : ''} selected
-        </div>
-        
-        <div className="relative">
-          <button
-            onClick={() => setBulkActionOpen(!bulkActionOpen)}
-            className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm flex items-center"
-          >
-            Bulk Actions
-            <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl h-4/5 flex flex-col">
+          <div className="p-4 border-b flex items-center justify-between">
+            <h3 className="text-lg font-medium text-gray-900">
+              File Preview
+            </h3>
+            <button
+              onClick={() => setPreviewFileId(null)}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <X size={20} />
+            </button>
+          </div>
           
-          {renderBulkActionMenu()}
+          <div className="flex-1 overflow-auto p-4">
+            <KnowledgeFilePreview 
+              fileId={previewFileId} 
+              onUpdate={handleFileUpdate}
+            />
+          </div>
         </div>
       </div>
     );
   };
 
   // Render error message
+  const renderError = () => {
+    if (!error) return null;
+    
+    return (
+      <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 flex items-center">
+        <AlertCircle size={20} className="mr-2 text-red-500" />
+        {error}
+        <button
+          onClick={() => setError(null)}
+          className="ml-auto text-red-500 hover:text-red-700"
+        >
+          <X size={18} />
+        </button>
+      </div>
+    );
   };
 
-
+  // Render upload error message
+  const renderUploadError = () => {
+    if (!uploadError) return null;
+    
+    return (
+      <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 flex items-center">
+        <AlertCircle size={20} className="mr-2 text-red-500" />
+        {uploadError}
+        <button
+          onClick={() => setUploadError(null)}
+          className="ml-auto text-red-500 hover:text-red-700"
+        >
+          <X size={18} />
+        </button>
+      </div>
+    );
+  };
   
   // Render drag overlay
   const renderDragOverlay = () => {
