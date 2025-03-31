@@ -118,35 +118,75 @@ export const uploadKnowledgeFile = async (
           // Prepare tags as string if they exist
           const tagString = tags && tags.length > 0 ? JSON.stringify(tags) : undefined;
           
+          // Determine correct file_type based on MIME type or extension
+          let fileType = file.type;
+          
+          // If file.type is not detailed enough, try to get it from extension
+          if (!fileType || fileType === 'application/octet-stream') {
+            const extension = file.name.split('.').pop()?.toLowerCase();
+            if (extension === 'pdf') fileType = 'application/pdf';
+            else if (['doc', 'docx'].includes(extension || '')) fileType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+            else if (['txt', 'md'].includes(extension || '')) fileType = 'text/plain';
+          }
+          
           // Use API only
           const fileData = {
             user_id: user.id,
             file_name: file.name,
             file_size: file.size,
-            file_type: file.type,
+            file_type: fileType,
             content: base64Content,
             category,
             tags: tagString
           };
           
-          console.log(`Uploading file ${file.name} (${file.size} bytes, type: ${file.type})`);
+          console.log(`Uploading file ${file.name} (${file.size} bytes, type: ${fileType})`);
           
-          const response = await fetch('/api/knowledge/files', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${session.access_token}`
-            },
-            body: JSON.stringify(fileData)
-          });
-          
-          if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`API upload failed with status: ${response.status}, ${errorText}`);
+          try {
+            const response = await fetch('/api/knowledge/files', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.access_token}`
+              },
+              body: JSON.stringify(fileData)
+            });
+            
+            if (!response.ok) {
+              const errorText = await response.text();
+              console.error(`API upload failed with status: ${response.status}, response:`, errorText);
+              throw new Error(`API upload failed with status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            resolve(data.file);
+          } catch (fetchErr) {
+            console.error('Fetch error during upload:', fetchErr);
+            
+            // Fallback to binary file upload endpoint if available
+            try {
+              console.warn('Trying alternative upload endpoint...');
+              const binaryResponse = await fetch('/api/knowledge/files/binary', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${session.access_token}`
+                },
+                body: JSON.stringify(fileData)
+              });
+              
+              if (!binaryResponse.ok) {
+                const binaryErrorText = await binaryResponse.text();
+                throw new Error(`Binary API upload failed: ${binaryResponse.status}, ${binaryErrorText}`);
+              }
+              
+              const binaryData = await binaryResponse.json();
+              resolve(binaryData.file);
+            } catch (binaryErr) {
+              console.error('Binary upload failed:', binaryErr);
+              reject(new Error(`Upload failed after multiple attempts. ${fetchErr.message}`));
+            }
           }
-          
-          const data = await response.json();
-          resolve(data.file);
         } catch (err) {
           console.error('Upload processing error:', err);
           reject(err);
