@@ -5,7 +5,7 @@ import { ForgotPasswordForm } from './components/ForgotPasswordForm';
 import { ResetPassword } from './components/ResetPassword';
 import { Sidebar } from './components/Sidebar';
 import { MetricCard } from './components/MetricCard';
-import { TopIssuesChart } from './components/TopIssuesChart';
+import { TopIssuesCard } from './components/TopIssuesCard';
 import { InteractionChart } from './components/InteractionChart';
 import { ConversationsList } from './components/ConversationsList';
 import { RateUs } from './components/RateUs';
@@ -393,7 +393,7 @@ function App() {
                   allowedPlatforms={metrics.allowedPlatforms || allowedPlatforms}
                 />
 
-                <TopIssuesChart issues={metrics.topIssues} />
+                <TopIssuesCard issues={metrics.topIssues} />
 
                 <InteractionChart data={metrics.interactionsByType} />
               </div>
