@@ -50,6 +50,29 @@ def refresh_supabase_client():
     logger.info("Forcing Supabase client refresh")
     return get_supabase_client(force_refresh=True)
 
+def get_supabase_admin_client() -> Client:
+    """
+    Create and return a Supabase client with service role (admin) permissions.
+    This client should only be used for admin operations that require elevated privileges.
+    
+    Returns:
+        Client: Supabase admin client instance with service role permissions
+    """
+    supabase_url = os.environ.get("SUPABASE_URL")
+    supabase_service_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+    
+    if not supabase_url or not supabase_service_key:
+        logger.error("Supabase admin credentials not found in environment variables")
+        raise ValueError("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in environment variables")
+    
+    try:
+        admin_client = create_client(supabase_url, supabase_service_key)
+        logger.info("Supabase admin client initialized successfully")
+        return admin_client
+    except Exception as e:
+        logger.error(f"Failed to initialize Supabase admin client: {str(e)}", exc_info=True)
+        raise
+
 def setup_rls_policies():
     """
     Set up Row Level Security policies for Supabase tables.

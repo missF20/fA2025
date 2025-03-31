@@ -12,7 +12,7 @@ ALTER TABLE user_subscriptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE subscription_tiers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE subscription_features ENABLE ROW LEVEL SECURITY;
 ALTER TABLE subscription_invoices ENABLE ROW LEVEL SECURITY;
-ALTER TABLE integrations_config ENABLE ROW LEVEL SECURITY;
+ALTER TABLE integration_configs ENABLE ROW LEVEL SECURITY;
 
 -- Remove any existing policies
 DROP POLICY IF EXISTS "Users can view own profile" ON profiles;
@@ -36,8 +36,8 @@ DROP POLICY IF EXISTS "Users can update own knowledge files" ON knowledge_files;
 DROP POLICY IF EXISTS "Users can delete own knowledge files" ON knowledge_files;
 DROP POLICY IF EXISTS "Users can view own subscriptions" ON user_subscriptions;
 DROP POLICY IF EXISTS "Users can view own invoices" ON subscription_invoices;
-DROP POLICY IF EXISTS "Users can view own integrations" ON integrations_config;
-DROP POLICY IF EXISTS "Users can update own integrations" ON integrations_config;
+DROP POLICY IF EXISTS "Users can view own integrations" ON integration_configs;
+DROP POLICY IF EXISTS "Users can update own integrations" ON integration_configs;
 
 -- Create helper function to check if user is admin
 CREATE OR REPLACE FUNCTION is_admin(user_id uuid)
@@ -187,19 +187,19 @@ CREATE POLICY "Admins can manage all invoices" ON subscription_invoices
   FOR ALL USING (is_admin(auth.uid()));
 
 -- Integrations config policies
-CREATE POLICY "Users can view own integrations" ON integrations_config
+CREATE POLICY "Users can view own integrations" ON integration_configs
   FOR SELECT USING (auth.uid()::text = user_id::text);
 
-CREATE POLICY "Users can insert own integrations" ON integrations_config
+CREATE POLICY "Users can insert own integrations" ON integration_configs
   FOR INSERT WITH CHECK (auth.uid()::text = user_id::text);
 
-CREATE POLICY "Users can update own integrations" ON integrations_config
+CREATE POLICY "Users can update own integrations" ON integration_configs
   FOR UPDATE USING (auth.uid()::text = user_id::text);
 
-CREATE POLICY "Users can delete own integrations" ON integrations_config
+CREATE POLICY "Users can delete own integrations" ON integration_configs
   FOR DELETE USING (auth.uid()::text = user_id::text);
 
-CREATE POLICY "Admins can manage all integrations" ON integrations_config
+CREATE POLICY "Admins can manage all integrations" ON integration_configs
   FOR ALL USING (is_admin(auth.uid()));
 
 -- Create trigger to automatically set user_id if not provided
@@ -234,7 +234,7 @@ CREATE TRIGGER set_knowledge_files_user_id
   BEFORE INSERT ON knowledge_files
   FOR EACH ROW EXECUTE FUNCTION set_auth_user_id();
 
-DROP TRIGGER IF EXISTS set_integrations_config_user_id ON integrations_config;
+DROP TRIGGER IF EXISTS set_integrations_config_user_id ON integration_configs;
 CREATE TRIGGER set_integrations_config_user_id
-  BEFORE INSERT ON integrations_config
+  BEFORE INSERT ON integration_configs
   FOR EACH ROW EXECUTE FUNCTION set_auth_user_id();

@@ -5,8 +5,8 @@ import urllib.request
 import urllib.parse
 import urllib.error
 from urllib.parse import urljoin
-from utils.supabase import get_supabase_client
-from utils.supabase_extension import execute_sql
+from utils.supabase import get_supabase_client, get_supabase_admin_client
+from utils.supabase_extension import execute_sql, get_db_connection
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -19,10 +19,10 @@ def create_storage_bucket_via_api():
     Sometimes the Python SDK doesn't have the right permissions, so we use direct API calls
     """
     supabase_url = os.environ.get("SUPABASE_URL")
-    supabase_key = os.environ.get("SUPABASE_KEY")
+    supabase_service_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
     
-    if not supabase_url or not supabase_key:
-        logger.error("SUPABASE_URL and SUPABASE_KEY must be set")
+    if not supabase_url or not supabase_service_key:
+        logger.error("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set")
         return False
     
     try:
@@ -32,8 +32,8 @@ def create_storage_bucket_via_api():
         # Send direct API request to create bucket
         url = urljoin(supabase_url, "storage/v1/bucket")
         headers = {
-            "Authorization": f"Bearer {supabase_key}",
-            "apikey": supabase_key,
+            "Authorization": f"Bearer {supabase_service_key}",
+            "apikey": supabase_service_key,
             "Content-Type": "application/json"
         }
         data = {
@@ -95,6 +95,14 @@ def create_storage_bucket_via_sql():
     try:
         logger.info(f"Creating storage bucket via SQL: {bucket_name}")
         
+        # Get Supabase credentials for service role
+        supabase_url = os.environ.get("SUPABASE_URL")
+        supabase_service_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+        
+        if not supabase_url or not supabase_service_key:
+            logger.error("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set")
+            return False
+        
         # Use SQL to create the bucket
         # This SQL statement directly inserts into the storage.buckets table
         sql = f"""
@@ -103,7 +111,26 @@ def create_storage_bucket_via_sql():
         ON CONFLICT (id) DO NOTHING;
         """
         
-        result = execute_sql(sql, ignore_errors=False)
+        # Use execute_sql with service role key
+        from utils.supabase_extension import get_db_connection
+        conn = get_db_connection(supabase_url, supabase_service_key)
+        
+        if conn:
+            cursor = conn.cursor()
+            try:
+                cursor.execute(sql)
+                conn.commit()
+                logger.info(f"Successfully created bucket via SQL: {bucket_name}")
+                return True
+            except Exception as e:
+                logger.error(f"Error executing SQL: {str(e)}")
+                return False
+            finally:
+                cursor.close()
+                conn.close()
+        else:
+            # Fallback to regular execute_sql if connection fails
+            result = execute_sql(sql, ignore_errors=False)
         
         if result:
             logger.info(f"Successfully created bucket via SQL: {bucket_name}")
@@ -125,8 +152,13 @@ def create_storage_bucket():
     
     # First try with the standard SDK
     try:
-        # Get the Supabase client
-        supabase = get_supabase_client()
+        # Get the Supabase client with service role key
+        try:
+            # Use our helper function to get admin client with service role key
+            supabase = get_supabase_admin_client()
+        except ValueError:
+            logger.error("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set")
+            return False
         
         logger.info(f"Creating storage bucket using SDK: {bucket_name}")
         response = supabase.storage.create_bucket(
@@ -155,6 +187,14 @@ def setup_storage_rls_policies():
     """
     try:
         logger.info("Setting up RLS policies for storage bucket")
+        
+        # Get Supabase credentials for service role
+        supabase_url = os.environ.get("SUPABASE_URL")
+        supabase_service_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+        
+        if not supabase_url or not supabase_service_key:
+            logger.error("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set")
+            return False
         
         # Enable RLS for storage.objects table
         enable_rls_sql = """
@@ -191,6 +231,32 @@ def setup_storage_rls_policies():
             USING (bucket_id = 'knowledge-files' AND auth.uid()::text = owner);
             """
         ]
+        
+        # Get a database connection with service role key
+        conn = get_db_connection(supabase_url, supabase_service_key)
+        
+        if conn:
+            cursor = conn.cursor()
+            try:
+                # First enable RLS
+                cursor.execute(enable_rls_sql)
+                
+                # Then create policies
+                for policy in policies:
+                    cursor.execute(policy)
+                    
+                logger.info("Successfully set up RLS policies via direct connection")
+                cursor.close()
+                conn.close()
+                return True
+            except Exception as e:
+                logger.error(f"Error setting up RLS policies via direct connection: {str(e)}")
+                cursor.close()
+                conn.close()
+                # Fall back to execute_sql method
+        
+        # Fallback method using execute_sql
+        logger.info("Falling back to execute_sql method for RLS policies")
         
         # First enable RLS
         execute_sql(enable_rls_sql, ignore_errors=True)

@@ -7,6 +7,7 @@ to handle operations that aren't natively supported.
 
 import logging
 import os
+import urllib.parse
 import psycopg2
 import psycopg2.extras
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
@@ -123,6 +124,41 @@ def execute_sql(sql_statements, params=None, ignore_errors=True):
             cursor.close()
         if connection:
             connection.close()
+
+def get_db_connection(supabase_url, supabase_key):
+    """
+    Create a direct PostgreSQL database connection using psycopg2 
+    with Supabase connection parameters extracted from URL.
+    
+    Args:
+        supabase_url: The Supabase URL
+        supabase_key: The Supabase key (service role key for admin operations)
+        
+    Returns:
+        Connection: PostgreSQL connection object or None if unsuccessful
+    """
+    try:
+        # Extract host from Supabase URL
+        # Example: https://project-ref.supabase.co -> project-ref.supabase.co
+        parsed_url = urllib.parse.urlparse(supabase_url)
+        db_host = parsed_url.netloc
+        
+        # Connect with default Supabase parameters
+        connection = psycopg2.connect(
+            host=db_host,
+            port="5432",  # Default Supabase PostgreSQL port
+            dbname="postgres",  # Default Supabase database name
+            user="postgres",  # Default Supabase admin user
+            password=supabase_key  # Use service role key as password
+        )
+            
+        # Set autocommit mode for DDL operations
+        connection.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+        logger.info(f"Database connection established for {db_host} with service role key")
+        return connection
+    except Exception as e:
+        logger.error(f"Failed to create database connection with service role: {str(e)}", exc_info=True)
+        return None
 
 def query_sql(sql_query, params=None):
     """
