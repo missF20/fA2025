@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Connection Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>Email Connection Test</h1>
+    <div class="form-group">
+        <label for="email">Email:</label>
+        <input type="email" id="email" name="email" value="test@example.com">
+    </div>
+    <div class="form-group">
+        <label for="password">Password:</label>
+        <input type="password" id="password" name="password" value="test_password">
+    </div>
+    <div class="form-group">
+        <label for="smtp_server">SMTP Server:</label>
+        <input type="text" id="smtp_server" name="smtp_server" value="smtp.gmail.com">
+    </div>
+    <div class="form-group">
+        <label for="smtp_port">SMTP Port:</label>
+        <input type="text" id="smtp_port" name="smtp_port" value="587">
+    </div>
+    <button onclick="testConnection()">Test Connection</button>
+    <div id="result"></div>
+
+    <script>
+        async function testConnection() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Testing connection...';
+            
+            const config = {
+                email: document.getElementById('email').value,
+                password: document.getElementById('password').value,
+                smtp_server: document.getElementById('smtp_server').value,
+                smtp_port: document.getElementById('smtp_port').value
+            };
+            
+            try {
+                // For testing both endpoints
+                const endpoints = [
+                    '/api/integrations/connect/email',
+                    '/api/integrations/email/connect'
+                ];
+                
+                for (const endpoint of endpoints) {
+                    try {
+                        resultDiv.innerHTML += `\nTrying endpoint: ${endpoint}`;
+                        
+                        const response = await fetch(endpoint, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ config })
+                        });
+                        
+                        const text = await response.text();
+                        let result;
+                        try {
+                            result = JSON.parse(text);
+                            resultDiv.innerHTML += `\nEndpoint ${endpoint} response: ${JSON.stringify(result, null, 2)}`;
+                        } catch (e) {
+                            resultDiv.innerHTML += `\nEndpoint ${endpoint} response (not JSON): ${text}`;
+                        }
+                        
+                        if (response.ok) {
+                            resultDiv.innerHTML += `\nSuccessfully connected using ${endpoint}`;
+                            return;
+                        }
+                    } catch (error) {
+                        resultDiv.innerHTML += `\nError with ${endpoint}: ${error.message}`;
+                    }
+                }
+                
+                resultDiv.innerHTML += '\nFailed to connect with all endpoints.';
+            } catch (error) {
+                resultDiv.innerHTML = `Error: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>

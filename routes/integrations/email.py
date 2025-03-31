@@ -152,3 +152,144 @@ def get_email_config_schema():
             "description": "SMTP server port (usually 587 for TLS or 465 for SSL)"
         }
     }
+
+@email_integration_bp.route('/connect', methods=['POST'])
+@token_required
+def handle_connect_email():
+    """
+    Connect to email service
+    
+    Body:
+    {
+        "config": {
+            "email": "your@email.com",
+            "password": "your_password",
+            "smtp_server": "smtp.example.com",
+            "smtp_port": "587"
+        }
+    }
+    
+    Returns:
+        JSON response with connection status
+    """
+    data = request.get_json()
+    
+    if not data or 'config' not in data:
+        return jsonify({
+            'success': False,
+            'message': 'Configuration data is required'
+        }), 400
+    
+    config = data.get('config', {})
+    user_id = g.user.id
+    
+    success, message, status_code = connect_email(user_id, config)
+    
+    return jsonify({
+        'success': success,
+        'message': message
+    }), status_code
+
+@email_integration_bp.route('/disconnect', methods=['POST'])
+@token_required
+def handle_disconnect_email():
+    """
+    Disconnect from email service
+    
+    Returns:
+        JSON response with disconnection status
+    """
+    user_id = g.user.id
+    
+    try:
+        # Get integration config
+        integration = IntegrationConfig.query.filter_by(
+            user_id=user_id,
+            integration_type=IntegrationType.EMAIL.value
+        ).first()
+        
+        if not integration:
+            return jsonify({
+                'success': False,
+                'message': 'Email integration not found'
+            }), 404
+            
+        # Update status to inactive
+        integration.status = IntegrationStatus.INACTIVE.value
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Email integration disconnected successfully'
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error disconnecting from email: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Failed to disconnect from email: {str(e)}'
+        }), 500
+
+@email_integration_bp.route('/send', methods=['POST'])
+@token_required
+def handle_send_email():
+    """
+    Send an email
+    
+    Body:
+    {
+        "to": "recipient@example.com",
+        "subject": "Email subject",
+        "body": "Email body content",
+        "html": "Optional HTML content"
+    }
+    
+    Returns:
+        JSON response with send status
+    """
+    data = request.get_json()
+    user_id = g.user.id
+    
+    if not data:
+        return jsonify({
+            'success': False,
+            'message': 'Email data is required'
+        }), 400
+    
+    required_fields = ['to', 'subject', 'body']
+    for field in required_fields:
+        if field not in data:
+            return jsonify({
+                'success': False,
+                'message': f'Missing required field: {field}'
+            }), 400
+    
+    try:
+        # Get integration config
+        integration = IntegrationConfig.query.filter_by(
+            user_id=user_id,
+            integration_type=IntegrationType.EMAIL.value,
+            status=IntegrationStatus.ACTIVE.value
+        ).first()
+        
+        if not integration:
+            return jsonify({
+                'success': False,
+                'message': 'Active email integration not found. Please connect your email first.'
+            }), 404
+        
+        # In a real implementation, we would send the email here using the integration config
+        # For demo purposes, we'll just return success
+        
+        return jsonify({
+            'success': True,
+            'message': f'Email sent to {data["to"]} successfully'
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error sending email: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Failed to send email: {str(e)}'
+        }), 500

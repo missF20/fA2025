@@ -44,7 +44,8 @@ def test_integrations():
             'salesforce',
             'zendesk',
             'google_analytics',
-            'shopify'
+            'shopify',
+            'email'
         ]
     })
 
