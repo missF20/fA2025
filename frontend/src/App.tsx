@@ -21,6 +21,9 @@ import { useMetrics } from './hooks/useMetrics';
 import { MessageSquare, CheckCircle, Clock, Users, AlertTriangle, Activity } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { AuthFormData } from './types';
+import { ThemeProvider } from './context/ThemeContext';
+import { ThemeToggleButton } from './components/ThemeToggleButton';
+import { DashboardBackground } from './components/DashboardBackground';
 // Used to track the platforms the user is allowed to access based on their subscription
 
 function App() {
@@ -428,7 +431,8 @@ function App() {
   // Show loading indicator while checking session
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gradient-to-br from-blue-50 to-purple-50">
+      <div className="flex items-center justify-center h-screen">
+        <DashboardBackground />
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
@@ -445,13 +449,14 @@ function App() {
 
   // If session exists, show dashboard
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex">
+    <div className="min-h-screen flex">
+      <DashboardBackground />
       <Sidebar currentSection={currentSection} onSectionChange={setCurrentSection} />
-      <div className="flex-1 ml-64 bg-gray-50/50 backdrop-blur-sm">
+      <div className="flex-1 ml-64 backdrop-blur-sm">
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="p-4 bg-white/90 backdrop-blur-sm border-b border-gray-200/50 flex items-center justify-between"
+          className="p-4 dashboard-card border-b border-gray-200/50 flex items-center justify-between"
         >
           <div className="flex items-center">
             <motion.div
@@ -460,9 +465,12 @@ function App() {
             >
               <Activity className="text-blue-600 h-6 w-6 mr-2" />
             </motion.div>
-            <h1 className="text-xl font-bold text-gray-900">DANA AI by Hartford Tech</h1>
+            <h1 className="text-xl font-bold dashboard-text-primary">DANA AI by Hartford Tech</h1>
           </div>
-          <ProfileMenu onSectionChange={setCurrentSection} />
+          <div className="flex items-center gap-4">
+            <ThemeToggleButton />
+            <ProfileMenu onSectionChange={setCurrentSection} />
+          </div>
         </motion.div>
         {renderDashboard()}
         {!accountSetupComplete && <NewUserSetupPrompt onDismiss={() => setShowSetupPrompt(false)} />}

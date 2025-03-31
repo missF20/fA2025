@@ -146,7 +146,7 @@ export interface UserSubscription {
 }
 
 // Utility types
-export type Platform = 'facebook' | 'instagram' | 'whatsapp' | 'email' | 'website' | 'slack';
+export type Platform = 'facebook' | 'instagram' | 'whatsapp' | 'email' | 'slack';
 
 export interface PaginatedResponse<T> {
   data: T[];
@@ -244,6 +244,20 @@ export interface AuthFormData {
 }
 
 // Dashboard metrics types
+// Theme-related types
+export interface TopIssue {
+  topic: string;
+  count: number;
+  trend: 'up' | 'down' | 'stable';
+  platforms: Platform[];
+}
+
+export interface PlatformData {
+  platform: Platform;
+  interactions: number;
+  responseRate: number;
+}
+
 export interface ChatMetrics {
   totalResponses: number;
   responsesBreakdown: {
@@ -300,11 +314,8 @@ export interface ChatMetrics {
     platform: Platform;
   }>;
   responseTime: string;
-  topIssues: Array<any>;
-  interactionsByType: Array<{
-    type: string;
-    count: number;
-  }>;
+  topIssues: TopIssue[];
+  interactionsByType: PlatformData[];
   conversations: Conversation[];
   integrations: Array<any>;
   // Platforms allowed in the user's subscription

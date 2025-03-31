@@ -1,103 +1,107 @@
-import React from 'react';
-import type { ChatMetrics } from '../types';
-import { Facebook, Instagram, MessageCircle, Mail, Slack } from 'lucide-react';
+import { useEffect, useRef, useContext } from 'react';
+import { Card } from 'react-bootstrap';
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
+import { Bar } from 'react-chartjs-2';
+import { PlatformData } from '../types';
+import { getPlatformColor, getPlatformDisplayName } from '../utils/platformUtils';
+import { ThemeContext } from '../context/ThemeContext';
+
+// Register Chart.js components
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 interface InteractionChartProps {
-  data: ChatMetrics['interactionsByType'];
+  data: PlatformData[];
+  allowedPlatforms?: string[];
 }
 
-export function InteractionChart({ data }: InteractionChartProps) {
-  // Handle empty or undefined data
-  if (!data || data.length === 0) {
-    return (
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Interactions by Platform</h3>
-        <p className="text-gray-500 text-center">No interaction data available</p>
-      </div>
-    );
-  }
+export const InteractionChart = ({ data, allowedPlatforms = [] }: InteractionChartProps) => {
+  const chartRef = useRef<ChartJS>(null);
+  const { isDarkMode } = useContext(ThemeContext);
+  
+  // Filtered data based on allowed platforms
+  const filteredData = allowedPlatforms.length 
+    ? data.filter(item => allowedPlatforms.includes(item.platform))
+    : data;
 
-  const total = data.reduce((sum, item) => sum + item.count, 0);
-  let currentAngle = 0;
+  // Chart data
+  const chartData = {
+    labels: filteredData.map(item => getPlatformDisplayName(item.platform)),
+    datasets: [
+      {
+        label: 'Interactions',
+        data: filteredData.map(item => item.interactions),
+        backgroundColor: filteredData.map(item => getPlatformColor(item.platform, isDarkMode)),
+        borderWidth: 0,
+        borderRadius: 4,
+      },
+      {
+        label: 'Response Rate %',
+        data: filteredData.map(item => Math.round(item.responseRate * 100)),
+        backgroundColor: isDarkMode ? 'rgba(255, 206, 86, 0.7)' : 'rgba(255, 193, 7, 0.7)',
+        borderWidth: 0,
+        borderRadius: 4,
+      }
+    ]
+  };
 
-  // Color palette for all platforms
-  const colors = {
-    Facebook: {
-      fill: 'fill-blue-500',
-      bg: 'bg-blue-500',
-      icon: <Facebook size={16} className="text-blue-500" />
+  // Chart options
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      y: {
+        beginAtZero: true,
+        grid: {
+          color: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+        },
+        ticks: {
+          color: isDarkMode ? '#adb5bd' : '#495057',
+        }
+      },
+      x: {
+        grid: {
+          display: false
+        },
+        ticks: {
+          color: isDarkMode ? '#adb5bd' : '#495057',
+        }
+      }
     },
-    Instagram: {
-      fill: 'fill-pink-500',
-      bg: 'bg-pink-500',
-      icon: <Instagram size={16} className="text-pink-500" />
-    },
-    Whatsapp: {
-      fill: 'fill-green-500',
-      bg: 'bg-green-500',
-      icon: <MessageCircle size={16} className="text-green-500" />
-    },
-    Slack: {
-      fill: 'fill-purple-500',
-      bg: 'bg-purple-500',
-      icon: <Slack size={16} className="text-purple-500" />
-    },
-    Email: {
-      fill: 'fill-cyan-500',
-      bg: 'bg-cyan-500',
-      icon: <Mail size={16} className="text-cyan-500" />
+    plugins: {
+      legend: {
+        position: 'top' as const,
+        labels: {
+          color: isDarkMode ? '#dee2e6' : '#212529',
+          padding: 20,
+        }
+      },
+      tooltip: {
+        backgroundColor: isDarkMode ? 'rgba(33, 37, 41, 0.8)' : 'rgba(255, 255, 255, 0.8)',
+        titleColor: isDarkMode ? '#f8f9fa' : '#212529',
+        bodyColor: isDarkMode ? '#f8f9fa' : '#212529',
+        borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+        borderWidth: 1,
+      }
     }
   };
 
+  // Update chart if theme changes
+  useEffect(() => {
+    if (chartRef.current) {
+      chartRef.current.update();
+    }
+  }, [isDarkMode]);
+
   return (
-    <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">Interactions by Platform</h3>
-      <div className="flex items-center justify-between">
-        <div className="relative w-[200px] h-[200px]">
-          <svg viewBox="0 0 100 100" className="transform -rotate-90">
-            {data.map((item) => {
-              const percentage = (item.count / total) * 100;
-              const angle = (percentage / 100) * 360;
-              
-              const startAngle = currentAngle;
-              currentAngle += angle;
-              
-              const x1 = 50 + 40 * Math.cos((Math.PI * startAngle) / 180);
-              const y1 = 50 + 40 * Math.sin((Math.PI * startAngle) / 180);
-              const x2 = 50 + 40 * Math.cos((Math.PI * currentAngle) / 180);
-              const y2 = 50 + 40 * Math.sin((Math.PI * currentAngle) / 180);
-              
-              const largeArcFlag = angle > 180 ? 1 : 0;
-              
-              const platformKey = item.type as keyof typeof colors;
-              const colorClass = colors[platformKey]?.fill || 'fill-gray-300';
-              
-              return (
-                <path
-                  key={item.type}
-                  d={`M 50 50 L ${x1} ${y1} A 40 40 0 ${largeArcFlag} 1 ${x2} ${y2} Z`}
-                  className={`${colorClass} opacity-80`}
-                />
-              );
-            })}
-          </svg>
+    <Card className="h-100">
+      <Card.Header>
+        <h5 className="mb-0">Platform Interactions & Response Rates</h5>
+      </Card.Header>
+      <Card.Body>
+        <div style={{ height: '300px' }}>
+          <Bar ref={chartRef} data={chartData} options={chartOptions} />
         </div>
-        <div className="flex flex-col space-y-3">
-          {data.map((item) => {
-            const platformKey = item.type as keyof typeof colors;
-            const platformIcon = colors[platformKey]?.icon;
-            
-            return (
-              <div key={item.type} className="flex items-center">
-                {platformIcon}
-                <span className="text-sm text-gray-600 ml-2">
-                  {item.type}: {item.count} ({((item.count / total) * 100).toFixed(1)}%)
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
+      </Card.Body>
+    </Card>
   );
-}
+};
