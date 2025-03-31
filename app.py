@@ -100,6 +100,18 @@ def api_index():
         "status": "online"
     })
 
+@app.route("/routes")
+def list_routes():
+    """List all routes in the application"""
+    routes = []
+    for rule in app.url_map.iter_rules():
+        routes.append({
+            'endpoint': rule.endpoint,
+            'methods': list(rule.methods),
+            'path': str(rule)
+        })
+    return jsonify(routes)
+
 @app.route("/status")
 def status():
     """API status endpoint"""
@@ -186,6 +198,14 @@ def register_blueprints():
         app.register_blueprint(pdf_analysis_bp)
         app.register_blueprint(knowledge_bp)
         logger.info("Knowledge blueprint registered successfully")
+        
+        # Register payments blueprint - which depends on requests
+        try:
+            from routes.payments import payments_bp
+            app.register_blueprint(payments_bp)
+            logger.info("Payments blueprint registered successfully")
+        except ImportError as e:
+            logger.warning(f"Could not register payments blueprint: {e}")
         
         # Try to import and register additional blueprints
         try:
@@ -322,6 +342,24 @@ def init_rate_limiting():
     except Exception as e:
         logger.error(f"Error initializing rate limiting: {str(e)}", exc_info=True)
 
+# Check for PesaPal configuration
+def check_pesapal_config():
+    """Check if PesaPal is properly configured"""
+    try:
+        pesapal_keys_exist = all([
+            os.environ.get('PESAPAL_CONSUMER_KEY'),
+            os.environ.get('PESAPAL_CONSUMER_SECRET'),
+            os.environ.get('PESAPAL_IPN_URL')
+        ])
+        
+        if not pesapal_keys_exist:
+            logger.warning("PesaPal API keys not configured. Payment functionality will be limited.")
+            logger.warning("Run setup_pesapal.py to configure PesaPal integration.")
+        else:
+            logger.info("PesaPal configuration detected.")
+    except Exception as e:
+        logger.error(f"Error checking PesaPal configuration: {str(e)}")
+
 # Initialize application
 def init_app():
     """Initialize the application"""
@@ -339,6 +377,9 @@ def init_app():
     
     # Initialize automation system
     init_automation()
+    
+    # Check for PesaPal configuration
+    check_pesapal_config()
     
     logger.info("Application initialized")
 

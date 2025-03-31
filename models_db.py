@@ -290,15 +290,21 @@ class Payment(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    subscription_id = db.Column(db.Integer, db.ForeignKey('user_subscriptions.id'), nullable=False)
+    subscription_tier_id = db.Column(db.Integer, db.ForeignKey('subscription_tiers.id'), nullable=False)
+    # Optional reference to subscription if it exists already
+    subscription_id = db.Column(db.Integer, db.ForeignKey('user_subscriptions.id'))
+    order_id = db.Column(db.String(100), unique=True)  # Our internal order ID
     amount = db.Column(db.Float, nullable=False)
     currency = db.Column(db.String(3), default='USD', nullable=False)
     status = db.Column(db.String(20), default='pending', nullable=False)
-    payment_method = db.Column(db.String(100))
-    transaction_id = db.Column(db.String(100))
-    invoice_url = db.Column(db.String(255))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    billing_cycle = db.Column(db.String(20), default='monthly')  # monthly or annual
+    payment_method = db.Column(db.String(100), default='pesapal')
+    payment_provider_reference = db.Column(db.String(100))  # PesaPal tracking ID
+    payment_date = db.Column(db.DateTime)  # When payment was completed
+    invoice_url = db.Column(db.String(255))  # URL to invoice
+    meta_data = db.Column(db.JSON)  # Additional data like tracking info, redirect URLs
+    date_created = db.Column(db.DateTime, default=datetime.utcnow)
+    date_updated = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     def __repr__(self):
         return f'<Payment {self.id}: ${self.amount} {self.currency} - {self.status}>'
