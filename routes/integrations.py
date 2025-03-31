@@ -983,21 +983,21 @@ def admin_get_all_integrations():
             {
                 "user_id": "user1",
                 "integration_type": IntegrationType.SLACK.value,
-                "status": IntegrationStatus.ACTIVE.value,
+                "status": "active",
                 "created_at": "2025-03-27T12:00:00Z",
                 "updated_at": "2025-03-27T12:00:00Z"
             },
             {
                 "user_id": "user2",
                 "integration_type": IntegrationType.EMAIL.value,
-                "status": IntegrationStatus.ACTIVE.value,
+                "status": "active",
                 "created_at": "2025-03-27T12:00:00Z",
                 "updated_at": "2025-03-27T12:00:00Z"
             },
             {
                 "user_id": "user3",
                 "integration_type": IntegrationType.DATABASE_POSTGRESQL.value,
-                "status": IntegrationStatus.ACTIVE.value,
+                "status": "active",
                 "created_at": "2025-03-27T12:00:00Z",
                 "updated_at": "2025-03-27T12:00:00Z"
             }
@@ -1023,13 +1023,13 @@ def admin_get_all_integrations():
             
             # Count by status
             status = integration["status"]
-            if status == IntegrationStatus.ACTIVE.value:
+            if status == "active":
                 stats["active_integrations"] += 1
-            elif status == IntegrationStatus.INACTIVE.value:
+            elif status == "inactive":
                 stats["inactive_integrations"] += 1
-            elif status == IntegrationStatus.PENDING.value:
+            elif status == "pending":
                 stats["pending_integrations"] += 1
-            elif status == IntegrationStatus.ERROR.value:
+            elif status == "error":
                 stats["error_integrations"] += 1
         
         return jsonify({
@@ -1113,12 +1113,12 @@ def admin_update_integration_status(user_id, integration_type):
             }), 400
         
         # Validate status
-        try:
-            status_enum = IntegrationStatus(data['status'])
-        except ValueError:
+        status = data['status'].lower()
+        valid_statuses = ['active', 'inactive', 'pending', 'error']
+        if status not in valid_statuses:
             return jsonify({
                 "success": False,
-                "message": f"Invalid status: {data['status']}"
+                "message": f"Invalid status: {status}. Must be one of: {', '.join(valid_statuses)}"
             }), 400
         
         # TODO: Update integration status in database
@@ -1126,11 +1126,11 @@ def admin_update_integration_status(user_id, integration_type):
         
         return jsonify({
             "success": True,
-            "message": f"Integration status updated to {status_enum.value}",
+            "message": f"Integration status updated to {status}",
             "integration": {
                 "user_id": user_id,
                 "integration_type": integration_enum.value,
-                "status": status_enum.value,
+                "status": status,
                 "updated_at": "2025-03-27T12:00:00Z"
             }
         }), 200

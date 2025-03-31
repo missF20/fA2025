@@ -70,7 +70,7 @@ def get_integrations_status():
     integrations.append({
         'id': 'slack',
         'type': IntegrationType.SLACK.value,
-        'status': IntegrationStatus.ACTIVE.value if slack_status['valid'] else IntegrationStatus.ERROR.value,
+        'status': 'active' if slack_status['valid'] else 'error',
         'lastSync': None,
         'config': {
             'channel_id': slack_status['channel_id'],
@@ -80,10 +80,25 @@ def get_integrations_status():
     
     # Add placeholder for other integrations
     # Email integration
+    # Check if there's an active email integration for this user
+    from models_db import IntegrationConfig
+    email_integration = None
+    try:
+        from routes.integrations.email import get_or_create_user
+        user = get_or_create_user(g.user.email)
+        if user:
+            email_integration = IntegrationConfig.query.filter_by(
+                user_id=user.id,
+                integration_type=IntegrationType.EMAIL.value,
+                status='active'
+            ).first()
+    except Exception as e:
+        logger.error(f"Error checking for email integration: {str(e)}")
+        
     integrations.append({
         'id': 'email',
         'type': IntegrationType.EMAIL.value,
-        'status': IntegrationStatus.INACTIVE.value,
+        'status': 'active' if email_integration else 'inactive',
         'lastSync': None
     })
     
@@ -92,7 +107,7 @@ def get_integrations_status():
         integrations.append({
             'id': crm.lower(),
             'type': crm.value,
-            'status': IntegrationStatus.INACTIVE.value,
+            'status': 'inactive',
             'lastSync': None
         })
     
@@ -101,7 +116,7 @@ def get_integrations_status():
     integrations.append({
         'id': 'zendesk',
         'type': IntegrationType.ZENDESK.value,
-        'status': IntegrationStatus.INACTIVE.value,
+        'status': 'inactive',
         'lastSync': None
     })
     
@@ -109,7 +124,7 @@ def get_integrations_status():
     integrations.append({
         'id': 'google_analytics',
         'type': IntegrationType.GOOGLE_ANALYTICS.value,
-        'status': IntegrationStatus.INACTIVE.value,
+        'status': 'inactive',
         'lastSync': None
     })
     
@@ -117,7 +132,7 @@ def get_integrations_status():
     integrations.append({
         'id': 'shopify',
         'type': IntegrationType.SHOPIFY.value,
-        'status': IntegrationStatus.INACTIVE.value,
+        'status': 'inactive',
         'lastSync': None
     })
     

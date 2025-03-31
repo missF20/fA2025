@@ -73,14 +73,14 @@ def connect_email(user_id, config):
         # Create or update the integration
         if existing_integration:
             existing_integration.config = config
-            existing_integration.status = IntegrationStatus.ACTIVE.value
+            existing_integration.status = 'active'
             message = "Email integration updated successfully"
         else:
             new_integration = IntegrationConfig(
                 user_id=user_id,
                 integration_type=IntegrationType.EMAIL.value,
                 config=config,
-                status=IntegrationStatus.ACTIVE.value
+                status='active'
             )
             db.session.add(new_integration)
             message = "Email integration connected successfully"
@@ -115,7 +115,7 @@ def sync_email(user_id, integration_id):
         if not integration:
             return False, "Email integration not found", 404
             
-        if integration.status != IntegrationStatus.ACTIVE.value:
+        if integration.status != 'active':
             return False, "Email integration is not active", 400
             
         # In a real implementation, we would sync emails here
@@ -274,7 +274,7 @@ def handle_disconnect_email():
             }), 404
             
         # Update status to inactive
-        integration.status = IntegrationStatus.INACTIVE.value
+        integration.status = 'inactive'
         db.session.commit()
         
         return jsonify({
@@ -314,7 +314,7 @@ def handle_sync_email():
         integration = IntegrationConfig.query.filter_by(
             user_id=user_id,
             integration_type=IntegrationType.EMAIL.value,
-            status=IntegrationStatus.ACTIVE.value
+            status='active'
         ).first()
         
         if not integration:
@@ -385,7 +385,7 @@ def handle_send_email():
         integration = IntegrationConfig.query.filter_by(
             user_id=user_id,
             integration_type=IntegrationType.EMAIL.value,
-            status=IntegrationStatus.ACTIVE.value
+            status='active'
         ).first()
         
         if not integration:

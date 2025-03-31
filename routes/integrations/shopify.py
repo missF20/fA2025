@@ -60,14 +60,14 @@ def connect_shopify(user_id, config_data):
         # Update or create integration
         if existing_integration:
             existing_integration.config = integration_config
-            existing_integration.status = IntegrationStatus.ACTIVE.value
+            existing_integration.status = 'active'
             message = "Shopify integration updated successfully"
         else:
             new_integration = IntegrationConfig(
                 user_id=user_id,
                 integration_type=IntegrationType.SHOPIFY.value,
                 config=integration_config,
-                status=IntegrationStatus.ACTIVE.value
+                status='active'
             )
             db.session.add(new_integration)
             message = "Shopify integration connected successfully"
@@ -102,7 +102,7 @@ def sync_shopify(user_id, integration_id):
         if not integration:
             return False, "Shopify integration not found", 404
             
-        if integration.status != IntegrationStatus.ACTIVE.value:
+        if integration.status != 'active':
             return False, "Shopify integration is not active", 400
             
         # In a real implementation, we would initiate a sync process here

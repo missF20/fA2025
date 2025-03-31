@@ -85,14 +85,14 @@ def connect_salesforce(user_id, config_data):
         # Update or create integration
         if existing_integration:
             existing_integration.config = integration_config
-            existing_integration.status = IntegrationStatus.ACTIVE.value
+            existing_integration.status = 'active'
             message = "Salesforce integration updated successfully"
         else:
             new_integration = IntegrationConfig(
                 user_id=user_id,
                 integration_type=IntegrationType.SALESFORCE.value,
                 config=integration_config,
-                status=IntegrationStatus.ACTIVE.value
+                status='active'
             )
             db.session.add(new_integration)
             message = "Salesforce integration connected successfully"
@@ -127,7 +127,7 @@ def sync_salesforce(user_id, integration_id):
         if not integration:
             return False, "Salesforce integration not found", 404
             
-        if integration.status != IntegrationStatus.ACTIVE.value:
+        if integration.status != 'active':
             return False, "Salesforce integration is not active", 400
             
         # In a real implementation, we would initiate a sync process here
@@ -228,7 +228,7 @@ def get_contacts():
         integration = IntegrationConfig.query.filter_by(
             user_id=g.user.id,
             integration_type=IntegrationType.SALESFORCE.value,
-            status=IntegrationStatus.ACTIVE.value
+            status='active'
         ).first()
         
         if not integration:
@@ -297,7 +297,7 @@ def get_opportunities():
         integration = IntegrationConfig.query.filter_by(
             user_id=g.user.id,
             integration_type=IntegrationType.SALESFORCE.value,
-            status=IntegrationStatus.ACTIVE.value
+            status='active'
         ).first()
         
         if not integration:
@@ -364,7 +364,7 @@ def get_accounts():
         integration = IntegrationConfig.query.filter_by(
             user_id=g.user.id,
             integration_type=IntegrationType.SALESFORCE.value,
-            status=IntegrationStatus.ACTIVE.value
+            status='active'
         ).first()
         
         if not integration:

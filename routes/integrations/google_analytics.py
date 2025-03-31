@@ -84,14 +84,14 @@ def connect_google_analytics(user_id, config_data):
         # Update or create integration
         if existing_integration:
             existing_integration.config = integration_config
-            existing_integration.status = IntegrationStatus.ACTIVE.value
+            existing_integration.status = 'active'
             message = "Google Analytics integration updated successfully"
         else:
             new_integration = IntegrationConfig(
                 user_id=user_id,
                 integration_type=IntegrationType.GOOGLE_ANALYTICS.value,
                 config=integration_config,
-                status=IntegrationStatus.ACTIVE.value
+                status='active'
             )
             db.session.add(new_integration)
             message = "Google Analytics integration connected successfully"
@@ -126,7 +126,7 @@ def sync_google_analytics(user_id, integration_id):
         if not integration:
             return False, "Google Analytics integration not found", 404
             
-        if integration.status != IntegrationStatus.ACTIVE.value:
+        if integration.status != 'active':
             return False, "Google Analytics integration is not active", 400
             
         # In a real implementation, we would initiate a sync process here
