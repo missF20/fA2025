@@ -1,5 +1,6 @@
 {pkgs}: {
   deps = [
+    pkgs.jq
     pkgs.unzip
     pkgs.wget
     pkgs.sqlite

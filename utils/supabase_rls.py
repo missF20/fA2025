@@ -1,144 +1,443 @@
 """
-Supabase Row Level Security utilities
+Supabase Row Level Security Management
 
-This module provides utilities for managing Row Level Security in Supabase.
+This module manages Row Level Security (RLS) policies for Supabase tables.
+It provides functions for creating and managing RLS policies that protect
+data isolation between different users.
 """
 
-import os
 import logging
-from utils.supabase import get_supabase_client
-from utils.supabase_extension import execute_sql, query_sql
+from utils.supabase_extension import execute_sql
 
 logger = logging.getLogger(__name__)
 
+def setup_table_rls(table_name):
+    """
+    Enable Row Level Security for a table
+    
+    Args:
+        table_name: The name of the table to enable RLS for
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    sql = f"""
+    ALTER TABLE {table_name} ENABLE ROW LEVEL SECURITY;
+    """
+    
+    logger.info(f"Enabling RLS for table: {table_name}")
+    return execute_sql(sql, ignore_errors=True)
+
+def create_select_policy(table_name, policy_name, using_clause):
+    """
+    Create a policy for SELECT operations
+    
+    Args:
+        table_name: The name of the table
+        policy_name: Name of the policy
+        using_clause: The USING clause that determines row visibility
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    sql = f"""
+    CREATE POLICY "{policy_name}" ON {table_name}
+    FOR SELECT
+    USING ({using_clause});
+    """
+    
+    logger.info(f"Creating SELECT policy for table {table_name}: {policy_name}")
+    return execute_sql(sql, ignore_errors=True)
+
+def create_insert_policy(table_name, policy_name, check_clause):
+    """
+    Create a policy for INSERT operations
+    
+    Args:
+        table_name: The name of the table
+        policy_name: Name of the policy
+        check_clause: The WITH CHECK clause that determines row insertability
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    sql = f"""
+    CREATE POLICY "{policy_name}" ON {table_name}
+    FOR INSERT
+    WITH CHECK ({check_clause});
+    """
+    
+    logger.info(f"Creating INSERT policy for table {table_name}: {policy_name}")
+    return execute_sql(sql, ignore_errors=True)
+
+def create_update_policy(table_name, policy_name, using_clause, check_clause=None):
+    """
+    Create a policy for UPDATE operations
+    
+    Args:
+        table_name: The name of the table
+        policy_name: Name of the policy
+        using_clause: The USING clause that determines row updatability
+        check_clause: Optional WITH CHECK clause for new row values
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    if check_clause:
+        sql = f"""
+        CREATE POLICY "{policy_name}" ON {table_name}
+        FOR UPDATE
+        USING ({using_clause})
+        WITH CHECK ({check_clause});
+        """
+    else:
+        sql = f"""
+        CREATE POLICY "{policy_name}" ON {table_name}
+        FOR UPDATE
+        USING ({using_clause});
+        """
+    
+    logger.info(f"Creating UPDATE policy for table {table_name}: {policy_name}")
+    return execute_sql(sql, ignore_errors=True)
+
+def create_delete_policy(table_name, policy_name, using_clause):
+    """
+    Create a policy for DELETE operations
+    
+    Args:
+        table_name: The name of the table
+        policy_name: Name of the policy
+        using_clause: The USING clause that determines row deletability
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    sql = f"""
+    CREATE POLICY "{policy_name}" ON {table_name}
+    FOR DELETE
+    USING ({using_clause});
+    """
+    
+    logger.info(f"Creating DELETE policy for table {table_name}: {policy_name}")
+    return execute_sql(sql, ignore_errors=True)
+
+def drop_policy(table_name, policy_name):
+    """
+    Drop a policy
+    
+    Args:
+        table_name: The name of the table
+        policy_name: Name of the policy to drop
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    sql = f"""
+    DROP POLICY IF EXISTS "{policy_name}" ON {table_name};
+    """
+    
+    logger.info(f"Dropping policy from table {table_name}: {policy_name}")
+    return execute_sql(sql, ignore_errors=True)
+
+def setup_profile_rls():
+    """
+    Set up RLS policies for the profiles table
+    
+    Returns:
+        bool: True if all operations were successful, False otherwise
+    """
+    table_name = "profiles"
+    
+    # Enable RLS
+    success = setup_table_rls(table_name)
+    
+    # Create policies
+    success = success and create_select_policy(
+        table_name,
+        "Users can view own profile",
+        "auth.uid()::text = user_id::text"
+    )
+    
+    success = success and create_update_policy(
+        table_name,
+        "Users can update own profile",
+        "auth.uid()::text = user_id::text"
+    )
+    
+    return success
+
+def setup_conversations_rls():
+    """
+    Set up RLS policies for the conversations table
+    
+    Returns:
+        bool: True if all operations were successful, False otherwise
+    """
+    table_name = "conversations"
+    
+    # Enable RLS
+    success = setup_table_rls(table_name)
+    
+    # Create policies
+    success = success and create_select_policy(
+        table_name,
+        "Users can view own conversations",
+        "auth.uid()::text = user_id::text"
+    )
+    
+    success = success and create_insert_policy(
+        table_name,
+        "Users can insert own conversations",
+        "auth.uid()::text = user_id::text"
+    )
+    
+    success = success and create_update_policy(
+        table_name,
+        "Users can update own conversations",
+        "auth.uid()::text = user_id::text"
+    )
+    
+    success = success and create_delete_policy(
+        table_name,
+        "Users can delete own conversations",
+        "auth.uid()::text = user_id::text"
+    )
+    
+    return success
+
+def setup_messages_rls():
+    """
+    Set up RLS policies for the messages table
+    
+    Returns:
+        bool: True if all operations were successful, False otherwise
+    """
+    table_name = "messages"
+    
+    # Enable RLS
+    success = setup_table_rls(table_name)
+    
+    # Create policies - Messages are linked to conversations, which are linked to users
+    success = success and create_select_policy(
+        table_name,
+        "Users can view messages in their conversations",
+        "conversation_id IN (SELECT id FROM conversations WHERE user_id::text = auth.uid()::text)"
+    )
+    
+    success = success and create_insert_policy(
+        table_name,
+        "Users can insert messages in their conversations",
+        "conversation_id IN (SELECT id FROM conversations WHERE user_id::text = auth.uid()::text)"
+    )
+    
+    success = success and create_update_policy(
+        table_name,
+        "Users can update their messages",
+        "conversation_id IN (SELECT id FROM conversations WHERE user_id::text = auth.uid()::text)"
+    )
+    
+    success = success and create_delete_policy(
+        table_name,
+        "Users can delete their messages",
+        "conversation_id IN (SELECT id FROM conversations WHERE user_id::text = auth.uid()::text)"
+    )
+    
+    return success
+
+def setup_knowledge_files_rls():
+    """
+    Set up RLS policies for the knowledge_files table
+    
+    Returns:
+        bool: True if all operations were successful, False otherwise
+    """
+    table_name = "knowledge_files"
+    
+    # Enable RLS
+    success = setup_table_rls(table_name)
+    
+    # Create policies
+    success = success and create_select_policy(
+        table_name,
+        "Users can view own knowledge files",
+        "user_id::text = auth.uid()::text"
+    )
+    
+    success = success and create_insert_policy(
+        table_name,
+        "Users can insert own knowledge files",
+        "user_id::text = auth.uid()::text"
+    )
+    
+    success = success and create_update_policy(
+        table_name,
+        "Users can update own knowledge files",
+        "user_id::text = auth.uid()::text"
+    )
+    
+    success = success and create_delete_policy(
+        table_name,
+        "Users can delete own knowledge files",
+        "user_id::text = auth.uid()::text"
+    )
+    
+    return success
+
+def setup_integration_configs_rls():
+    """
+    Set up RLS policies for the integration_configs table
+    
+    Returns:
+        bool: True if all operations were successful, False otherwise
+    """
+    table_name = "integration_configs"
+    
+    # Enable RLS
+    success = setup_table_rls(table_name)
+    
+    # Create policies
+    success = success and create_select_policy(
+        table_name,
+        "Users can view own integration configs",
+        "user_id::text = auth.uid()::text"
+    )
+    
+    success = success and create_insert_policy(
+        table_name,
+        "Users can insert own integration configs",
+        "user_id::text = auth.uid()::text"
+    )
+    
+    success = success and create_update_policy(
+        table_name,
+        "Users can update own integration configs",
+        "user_id::text = auth.uid()::text"
+    )
+    
+    success = success and create_delete_policy(
+        table_name,
+        "Users can delete own integration configs",
+        "user_id::text = auth.uid()::text"
+    )
+    
+    return success
+
+def setup_all_rls_policies():
+    """
+    Set up RLS policies for all tables
+    
+    Returns:
+        dict: Dictionary mapping table names to success status
+    """
+    results = {}
+    
+    # Set up RLS for each table
+    results["profiles"] = setup_profile_rls()
+    results["conversations"] = setup_conversations_rls()
+    results["messages"] = setup_messages_rls()
+    results["knowledge_files"] = setup_knowledge_files_rls()
+    results["integration_configs"] = setup_integration_configs_rls()
+    
+    # Add more tables as needed
+    
+    # Log results
+    for table, success in results.items():
+        if success:
+            logger.info(f"Successfully set up RLS policies for table: {table}")
+        else:
+            logger.warning(f"Failed to set up some RLS policies for table: {table}")
+    
+    return results
+
 def apply_rls_policies():
     """
-    Applies Row Level Security policies to Supabase tables.
+    Apply all Row Level Security policies
     
-    This function reads the SQL migration file and applies the policies.
-    It should be called during application initialization.
+    This function is called during application initialization to set up security
+    
+    Returns:
+        dict: Dictionary with results of the RLS setup
     """
+    logger.info("Applying Row Level Security policies to all tables")
+    
     try:
-        # Read the migration file
-        migration_path = os.path.join('supabase', 'migrations', '20250331000000_row_level_security.sql')
+        results = setup_all_rls_policies()
         
-        if not os.path.exists(migration_path):
-            logger.error(f"Migration file not found: {migration_path}")
-            return False
-            
-        with open(migration_path, 'r') as f:
-            sql = f.read()
-            
-        # Split the SQL into individual statements
-        statements = sql.split(';')
+        success_count = sum(1 for success in results.values() if success)
+        total_count = len(results)
         
-        # Filter out empty statements
-        statements = [stmt.strip() for stmt in statements if stmt.strip()]
+        logger.info(f"Applied RLS policies to {success_count}/{total_count} tables successfully")
         
-        # Execute the SQL statements using our direct connection
-        if statements:
-            execute_sql(statements)
-        
-        logger.info("Row Level Security policies applied successfully")
-        return True
+        return {
+            "success": success_count == total_count,
+            "results": results,
+            "message": f"Applied {success_count}/{total_count} RLS policies"
+        }
     except Exception as e:
         logger.error(f"Error applying RLS policies: {str(e)}", exc_info=True)
-        return False
+        return {
+            "success": False,
+            "error": str(e),
+            "message": "Failed to apply RLS policies"
+        }
 
 def set_admin_emails(admin_emails):
     """
-    Sets the admin emails in Supabase configuration.
+    Set up admin users with elevated permissions
     
     Args:
-        admin_emails: Comma-separated list of admin email addresses
-    """
-    try:
-        # In development environment, we'll just log this since we may not have
-        # privileges to alter the database
-        logger.info(f"Would set admin emails to: {admin_emails}")
-        
-        # Store admin emails in environment or memory cache for application usage
-        # This is a workaround for development environments where database
-        # ALTER privileges are not available
-        os.environ['DANA_ADMIN_EMAILS'] = admin_emails
-        
-        logger.info(f"Admin emails set: {admin_emails}")
-        return True
-    except Exception as e:
-        logger.error(f"Error setting admin emails: {str(e)}", exc_info=True)
-        return False
-
-def is_admin(user_id):
-    """
-    Checks if a user is an admin.
-    
-    Args:
-        user_id: User ID to check
+        admin_emails: List of email addresses for admin users
         
     Returns:
-        bool: True if the user is an admin, False otherwise
+        dict: Result of the operation
     """
-    try:
-        # First check if there's an admin emails list in the environment
-        admin_emails = os.environ.get('DANA_ADMIN_EMAILS', '')
-        if admin_emails:
-            # Get user's email from the database or cache
-            supabase = get_supabase_client()
-            user_data = supabase.auth.admin.get_user(user_id)
-            if user_data and hasattr(user_data, 'user') and hasattr(user_data.user, 'email'):
-                user_email = user_data.user.email
-                # Check if user's email is in the admin emails list
-                admin_email_list = [email.strip() for email in admin_emails.split(',')]
-                if user_email in admin_email_list:
-                    return True
-        
-        # Try the database methods if environment check fails
-        try:
-            # Try using Supabase RPC if the function exists
-            supabase = get_supabase_client()
-            result = supabase.rpc('is_admin', {'uid': user_id}).execute()
-            if result and result.data:
-                return result.data
-        except Exception as e:
-            logger.debug(f"Could not use RPC for is_admin: {str(e)}")
-        
-        try:
-            # Fallback to direct SQL query
-            result = query_sql(f"SELECT is_admin('{user_id}') as is_admin")
-            if result and len(result) > 0:
-                return result[0]['is_admin']
-        except Exception as e:
-            logger.debug(f"Could not use SQL query for is_admin: {str(e)}")
-            
-        # Default to hardcoded admin user IDs for development
-        dev_admin_ids = ['adbc1234-5678-90ab-cdef-123456789012']  # Example ID, replace with real ones
-        if user_id in dev_admin_ids:
-            return True
-            
-        return False
-    except Exception as e:
-        logger.error(f"Error checking if user is admin: {str(e)}", exc_info=True)
-        return False
-
-def validate_user_access(user_id, current_user_id, check_admin=True):
-    """
-    Validates that a user has access to the specified user_id.
+    if not admin_emails:
+        logger.warning("No admin emails provided, skipping admin setup")
+        return {
+            "success": False,
+            "message": "No admin emails provided"
+        }
     
-    Args:
-        user_id: ID of the user to validate access for
-        current_user_id: ID of the current user
-        check_admin: Whether to allow access if the current user is an admin
+    logger.info(f"Setting up {len(admin_emails)} admin emails with elevated permissions")
+    
+    try:
+        # Creating a SQL statement to set up admin permissions for these users
+        emails_list = ", ".join([f"'{email}'" for email in admin_emails])
         
-    Returns:
-        bool: True if the current user has access, False otherwise
-    """
-    # Users always have access to their own data
-    if user_id == current_user_id:
-        return True
+        sql = f"""
+        -- Create admin role if it doesn't exist
+        DO $$
+        BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'admin') THEN
+                CREATE ROLE admin;
+            END IF;
+        END
+        $$;
         
-    # Check if the current user is an admin
-    if check_admin and is_admin(current_user_id):
-        return True
+        -- Grant admin privileges to users with these emails
+        UPDATE auth.users
+        SET role = 'admin'
+        WHERE email IN ({emails_list});
+        """
         
-    # Otherwise, deny access
-    return False
+        result = execute_sql(sql, ignore_errors=False)
+        
+        if result:
+            logger.info(f"Successfully set up admin privileges for {len(admin_emails)} users")
+            return {
+                "success": True,
+                "message": f"Set up admin privileges for {len(admin_emails)} users"
+            }
+        else:
+            logger.error("Failed to set up admin privileges")
+            return {
+                "success": False,
+                "message": "Failed to set up admin privileges"
+            }
+    except Exception as e:
+        logger.error(f"Error setting up admin privileges: {str(e)}", exc_info=True)
+        return {
+            "success": False,
+            "error": str(e),
+            "message": "Error setting up admin privileges"
+        }
