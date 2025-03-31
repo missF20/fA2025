@@ -6,15 +6,18 @@ This module provides API routes for managing external integrations.
 
 import os
 import logging
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g
 from slack import check_slack_status
 from models import IntegrationType, IntegrationStatus
+from utils.auth import token_required, validate_user_access
 
 # Import integration-specific modules
 from routes.integrations.zendesk import connect_zendesk, sync_zendesk
 from routes.integrations.google_analytics import connect_google_analytics, sync_google_analytics
 from routes.integrations.shopify import connect_shopify, sync_shopify
 from routes.integrations.slack import connect_slack, sync_slack, post_message, get_channel_history
+from routes.integrations.hubspot import connect_hubspot, sync_hubspot, hubspot_bp
+from routes.integrations.salesforce import connect_salesforce, sync_salesforce, salesforce_bp
 from routes.integrations.config_schemas import validate_config
 
 # Set up logger
@@ -23,7 +26,29 @@ logger = logging.getLogger(__name__)
 # Create blueprint
 integrations_bp = Blueprint('integrations', __name__, url_prefix='/api/integrations')
 
+@integrations_bp.route('/test', methods=['GET'])
+def test_integrations():
+    """
+    Test endpoint for integrations that doesn't require authentication
+    
+    Returns:
+        JSON response with test data
+    """
+    return jsonify({
+        'success': True,
+        'message': 'Integrations API is working',
+        'available_integrations': [
+            'slack',
+            'hubspot',
+            'salesforce',
+            'zendesk',
+            'google_analytics',
+            'shopify'
+        ]
+    })
+
 @integrations_bp.route('/status', methods=['GET'])
+@token_required
 def get_integrations_status():
     """
     Get all integrations status
@@ -102,6 +127,7 @@ def get_integrations_status():
     })
 
 @integrations_bp.route('/connect/<integration_type>', methods=['POST'])
+@token_required
 def connect_integration(integration_type):
     """
     Connect to a specific integration
@@ -150,6 +176,12 @@ def connect_integration(integration_type):
             response, status_code = connect_google_analytics(config)
         elif integration_type == 'shopify':
             response, status_code = connect_shopify(config)
+        elif integration_type == 'hubspot':
+            success, message, status_code = connect_hubspot(g.user.id, config)
+            response = {'success': success, 'message': message}
+        elif integration_type == 'salesforce':
+            success, message, status_code = connect_salesforce(g.user.id, config)
+            response = {'success': success, 'message': message}
         else:
             return jsonify({
                 'success': False,
@@ -171,6 +203,7 @@ def connect_integration(integration_type):
         }), 500
 
 @integrations_bp.route('/disconnect/<integration_id>', methods=['POST'])
+@token_required
 def disconnect_integration(integration_id):
     """
     Disconnect a specific integration
@@ -192,6 +225,7 @@ def disconnect_integration(integration_id):
     })
 
 @integrations_bp.route('/sync/<integration_id>', methods=['POST'])
+@token_required
 def sync_integration(integration_id):
     """
     Trigger a manual sync for a specific integration
@@ -225,6 +259,12 @@ def sync_integration(integration_id):
             result = sync_google_analytics(integration_id, config)
         elif integration_id == 'shopify':
             result = sync_shopify(integration_id, config)
+        elif integration_id == 'hubspot':
+            success, message, status_code = sync_hubspot(g.user.id, integration_id)
+            result = {'success': success, 'message': message}
+        elif integration_id == 'salesforce':
+            success, message, status_code = sync_salesforce(g.user.id, integration_id)
+            result = {'success': success, 'message': message}
         else:
             return jsonify({
                 'success': False,
@@ -241,6 +281,7 @@ def sync_integration(integration_id):
         }), 500
 
 @integrations_bp.route('/slack/message', methods=['POST'])
+@token_required
 def send_slack_message():
     """
     Send a message to Slack

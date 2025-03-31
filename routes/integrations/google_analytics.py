@@ -1,109 +1,204 @@
 """
-Google Analytics Integration
+Google Analytics Integration Routes
 
-This module handles Google Analytics integrations for the Dana AI platform.
+This module provides API routes for connecting to and interacting with Google Analytics.
 """
 
-import logging
+import os
 import json
-import urllib.request
-import urllib.error
-import urllib.parse
-from flask import current_app
-from datetime import datetime
-from typing import Dict, Any, Optional, List, Tuple
-import base64
+import logging
+from flask import Blueprint, request, jsonify, current_app, g
+from utils.auth import token_required, validate_user_access
+from utils.rate_limiter import rate_limit
+from models import IntegrationType, IntegrationStatus
+from models_db import IntegrationConfig, User
+from app import db
+from automation.integrations.business.google_analytics import get_config_schema
 
-# Set up a logger
+# Set up logger
 logger = logging.getLogger(__name__)
 
-
-def connect_google_analytics(config: Dict[str, Any]) -> Tuple[Dict[str, Any], int]:
+def connect_google_analytics(user_id, config_data):
     """
-    Connect to Google Analytics API
+    Connect to Google Analytics using provided credentials
     
     Args:
-        config: Google Analytics configuration including client_id, client_secret, and property_id
-    
+        user_id: ID of the user connecting to Google Analytics
+        config_data: Configuration data with Google Analytics credentials
+        
     Returns:
-        Tuple of (response_data, status_code)
+        tuple: (success, message, status_code)
     """
     try:
-        # Extract config values
-        client_id = config.get('client_id')
-        client_secret = config.get('client_secret')
-        property_id = config.get('property_id')
+        # Validate required fields
+        required_fields = ['view_id', 'property_id']
+        missing_fields = [field for field in required_fields if field not in config_data]
         
-        if not all([client_id, client_secret, property_id]):
-            return {
-                "success": False,
-                "message": "Missing required Google Analytics configuration"
-            }, 400
-        
-        # In a real implementation, we would:
-        # 1. Perform OAuth 2.0 authorization flow
-        # 2. Exchange authorization code for access token
-        # 3. Store tokens securely
-        
-        # For now, we'll simulate a successful connection
-        # In production, this would redirect to Google's OAuth consent screen
-        
-        # Simulate connection
-        if client_id and client_secret and (client_id.startswith('client_id_') if client_id else False) and (client_secret.startswith('client_secret_') if client_secret else False):
-            # This is a valid test pattern
-            return {
-                "success": True,
-                "message": "Successfully connected to Google Analytics",
-                "connection_data": {
-                    "property_id": property_id,
-                    "connected_at": datetime.utcnow().isoformat()
-                }
-            }, 200
-        else:
-            # For demo/testing purposes, any credentials with the prefix pattern are accepted
-            return {
-                "success": False,
-                "message": "Invalid Google Analytics credentials format. For testing, use client_id and client_secret with prefix 'client_id_' and 'client_secret_'."
-            }, 400
+        if missing_fields:
+            return False, f"Missing required fields: {', '.join(missing_fields)}", 400
             
+        # At least one authentication method is required
+        auth_methods = ['service_account_json', 'client_id_and_secret']
+        has_auth = False
+        
+        for method in auth_methods:
+            if method == 'service_account_json' and 'service_account_json' in config_data:
+                has_auth = True
+                break
+            elif method == 'client_id_and_secret' and 'client_id' in config_data and 'client_secret' in config_data:
+                has_auth = True
+                break
+                
+        if not has_auth:
+            return False, "Missing authentication credentials. Either service_account_json or client_id/client_secret pair is required.", 400
+            
+        # Check if integration already exists
+        existing_integration = IntegrationConfig.query.filter_by(
+            user_id=user_id,
+            integration_type=IntegrationType.GOOGLE_ANALYTICS.value
+        ).first()
+        
+        # Prepare configuration
+        integration_config = {
+            'view_id': config_data['view_id'],
+            'property_id': config_data['property_id']
+        }
+        
+        # Add authentication method
+        if 'service_account_json' in config_data:
+            integration_config['service_account_json'] = config_data['service_account_json']
+        else:
+            integration_config['client_id'] = config_data['client_id']
+            integration_config['client_secret'] = config_data['client_secret']
+            
+            if 'refresh_token' in config_data:
+                integration_config['refresh_token'] = config_data['refresh_token']
+        
+        # Add optional configuration
+        if 'metrics' in config_data:
+            integration_config['metrics'] = config_data['metrics']
+            
+        if 'dimensions' in config_data:
+            integration_config['dimensions'] = config_data['dimensions']
+            
+        # Update or create integration
+        if existing_integration:
+            existing_integration.config = integration_config
+            existing_integration.status = IntegrationStatus.ACTIVE.value
+            message = "Google Analytics integration updated successfully"
+        else:
+            new_integration = IntegrationConfig(
+                user_id=user_id,
+                integration_type=IntegrationType.GOOGLE_ANALYTICS.value,
+                config=integration_config,
+                status=IntegrationStatus.ACTIVE.value
+            )
+            db.session.add(new_integration)
+            message = "Google Analytics integration connected successfully"
+            
+        db.session.commit()
+        return True, message, 200
+        
     except Exception as e:
-        logger.exception(f"Error connecting to Google Analytics: {str(e)}")
-        return {
-            "success": False,
-            "message": f"Error connecting to Google Analytics: {str(e)}"
-        }, 500
+        db.session.rollback()
+        logger.error(f"Error connecting to Google Analytics: {str(e)}")
+        return False, "Failed to connect to Google Analytics", 500
 
-
-def sync_google_analytics(integration_id: str, config: Dict[str, Any]) -> Dict[str, Any]:
+def sync_google_analytics(user_id, integration_id):
     """
-    Sync data from Google Analytics
+    Sync data with Google Analytics
     
     Args:
-        integration_id: ID of the integration
-        config: Google Analytics configuration
-    
+        user_id: ID of the user
+        integration_id: ID of the integration to sync
+        
     Returns:
-        Status of the sync operation
+        tuple: (success, message, status_code)
     """
     try:
-        # In a real implementation, this would:
-        # 1. Use the Google Analytics API to fetch data
-        # 2. Store it in our database
-        # 3. Process and organize the metrics
+        # Get integration config
+        integration = IntegrationConfig.query.filter_by(
+            id=integration_id,
+            user_id=user_id,
+            integration_type=IntegrationType.GOOGLE_ANALYTICS.value
+        ).first()
         
-        # For now, we'll just return a success message
-        return {
-            "success": True,
-            "message": "Google Analytics sync initiated",
-            "sync_status": {
-                "started_at": datetime.utcnow().isoformat(),
-                "status": "running"
-            }
-        }
+        if not integration:
+            return False, "Google Analytics integration not found", 404
+            
+        if integration.status != IntegrationStatus.ACTIVE.value:
+            return False, "Google Analytics integration is not active", 400
+            
+        # In a real implementation, we would initiate a sync process here
+        # For demo purposes, we'll just update the last_sync timestamp
+        integration.last_sync = db.func.now()
+        db.session.commit()
+        
+        return True, "Google Analytics sync initiated successfully", 200
         
     except Exception as e:
-        logger.exception(f"Error syncing Google Analytics: {str(e)}")
-        return {
-            "success": False,
-            "message": f"Error syncing Google Analytics: {str(e)}"
-        }
+        db.session.rollback()
+        logger.error(f"Error syncing with Google Analytics: {str(e)}")
+        return False, "Failed to sync with Google Analytics", 500
+
+def get_google_analytics_config_schema():
+    """
+    Get configuration schema for Google Analytics integration
+    
+    Returns:
+        dict: Configuration schema
+    """
+    return {
+        "type": "object",
+        "properties": {
+            "view_id": {
+                "type": "string",
+                "title": "View ID",
+                "description": "Google Analytics View ID"
+            },
+            "property_id": {
+                "type": "string",
+                "title": "Property ID",
+                "description": "Google Analytics Property ID"
+            },
+            "service_account_json": {
+                "type": "string",
+                "title": "Service Account JSON",
+                "description": "Google Service Account JSON key"
+            },
+            "client_id": {
+                "type": "string",
+                "title": "Client ID",
+                "description": "Google OAuth Client ID"
+            },
+            "client_secret": {
+                "type": "string",
+                "title": "Client Secret",
+                "description": "Google OAuth Client Secret"
+            },
+            "refresh_token": {
+                "type": "string",
+                "title": "Refresh Token",
+                "description": "Google OAuth Refresh Token"
+            },
+            "metrics": {
+                "type": "array",
+                "title": "Metrics",
+                "description": "Metrics to retrieve from Google Analytics",
+                "items": {
+                    "type": "string"
+                },
+                "default": ["ga:users", "ga:sessions", "ga:pageviews"]
+            },
+            "dimensions": {
+                "type": "array",
+                "title": "Dimensions",
+                "description": "Dimensions to retrieve from Google Analytics",
+                "items": {
+                    "type": "string"
+                },
+                "default": ["ga:date", "ga:deviceCategory"]
+            }
+        },
+        "required": ["view_id", "property_id"]
+    }
