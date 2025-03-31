@@ -7,6 +7,9 @@ export function useMetrics(session: any) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [allowedPlatforms, setAllowedPlatforms] = useState<string[]>([]);
+  
+  // Make allowedPlatforms available to components
+  const exportedMetrics = metrics ? { ...metrics, allowedPlatforms } : null;
 
   useEffect(() => {
     if (!session?.user?.id) {
@@ -29,7 +32,7 @@ export function useMetrics(session: any) {
 
         if (profileError) {
           console.error('Error fetching subscription tier:', profileError);
-          return ['facebook', 'instagram', 'whatsapp']; // Default to all platforms if error
+          return ['facebook', 'instagram', 'whatsapp', 'slack']; // Default to all platforms if error
         }
 
         if (profileData?.subscription_tiers?.platforms) {
@@ -37,10 +40,10 @@ export function useMetrics(session: any) {
         }
 
         // Default to all platforms if no subscription is set
-        return ['facebook', 'instagram', 'whatsapp'];
+        return ['facebook', 'instagram', 'whatsapp', 'slack'];
       } catch (err) {
         console.error('Error fetching subscription tier:', err);
-        return ['facebook', 'instagram', 'whatsapp']; // Default to all platforms if error
+        return ['facebook', 'instagram', 'whatsapp', 'slack']; // Default to all platforms if error
       }
     }
 
@@ -101,13 +104,15 @@ export function useMetrics(session: any) {
           responsesBreakdown: {
             facebook: responses?.filter(r => r.platform === 'facebook').length || 0,
             instagram: responses?.filter(r => r.platform === 'instagram').length || 0,
-            whatsapp: responses?.filter(r => r.platform === 'whatsapp').length || 0
+            whatsapp: responses?.filter(r => r.platform === 'whatsapp').length || 0,
+            slack: responses?.filter(r => r.platform === 'slack').length || 0
           },
           completedTasks: tasks?.filter(t => t.status === 'completed').length || 0,
           completedTasksBreakdown: {
             facebook: tasks?.filter(t => t.status === 'completed' && t.platform === 'facebook').length || 0,
             instagram: tasks?.filter(t => t.status === 'completed' && t.platform === 'instagram').length || 0,
-            whatsapp: tasks?.filter(t => t.status === 'completed' && t.platform === 'whatsapp').length || 0
+            whatsapp: tasks?.filter(t => t.status === 'completed' && t.platform === 'whatsapp').length || 0,
+            slack: tasks?.filter(t => t.status === 'completed' && t.platform === 'slack').length || 0
           },
           pendingTasks: tasks?.filter(t => t.status === 'pending').map(t => ({
             id: t.id,
@@ -123,7 +128,8 @@ export function useMetrics(session: any) {
           chatsBreakdown: {
             facebook: interactions?.filter(i => i.platform === 'facebook').length || 0,
             instagram: interactions?.filter(i => i.platform === 'instagram').length || 0,
-            whatsapp: interactions?.filter(i => i.platform === 'whatsapp').length || 0
+            whatsapp: interactions?.filter(i => i.platform === 'whatsapp').length || 0,
+            slack: interactions?.filter(i => i.platform === 'slack').length || 0
           },
           peopleInteracted: interactions?.map(i => ({
             id: i.id,
@@ -173,5 +179,5 @@ export function useMetrics(session: any) {
     };
   }, [session]);
 
-  return { metrics, loading, error };
+  return { metrics: exportedMetrics, loading, error, allowedPlatforms };
 }

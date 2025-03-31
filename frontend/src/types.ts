@@ -286,4 +286,6 @@ export interface ChatMetrics {
   }>;
   conversations: Conversation[];
   integrations: Array<any>;
+  // Platforms allowed in the user's subscription
+  allowedPlatforms?: string[];
 }

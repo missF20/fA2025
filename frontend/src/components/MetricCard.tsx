@@ -1,17 +1,28 @@
 import React, { useState } from 'react';
-import type { MetricCardType, PendingTask, Interaction, EscalatedTask } from '../types';
-import { TrendingDown, TrendingUp, ChevronDown, ChevronUp, Facebook, Instagram, MessageCircle, AlertTriangle } from 'lucide-react';
+import type { PendingTask, Interaction, EscalatedTask } from '../types';
+import { TrendingDown, TrendingUp, ChevronDown, ChevronUp, Facebook, Instagram, MessageCircle, AlertTriangle, MessageSquare } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-interface ExtendedMetricCardProps extends MetricCardType {
-  pendingTasks?: PendingTask[];
-  escalatedTasks?: EscalatedTask[];
-  interactions?: Interaction[];
+// Define the MetricCard props interface
+interface ExtendedMetricCardProps {
+  title: string;
+  value: number;
+  icon: React.ReactNode;
+  description: string;
+  trend?: {
+    value: number;
+    isPositive: boolean;
+  };
+  pendingTasks?: (PendingTask & { allowedPlatforms?: string[] })[];
+  escalatedTasks?: (EscalatedTask & { allowedPlatforms?: string[] })[];
+  interactions?: (Interaction & { allowedPlatforms?: string[] })[];
   breakdown?: {
     facebook: number;
     instagram: number;
     whatsapp: number;
+    slack?: number;
   };
+  allowedPlatforms?: string[];
 }
 
 export function MetricCard({ 
@@ -23,7 +34,8 @@ export function MetricCard({
   pendingTasks,
   escalatedTasks,
   interactions,
-  breakdown
+  breakdown,
+  allowedPlatforms
 }: ExtendedMetricCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -31,32 +43,75 @@ export function MetricCard({
   const renderBreakdown = () => {
     if (!breakdown) return null;
 
+    // Use the allowed platforms list from props (passed directly from App.tsx)
+    // Default to all platforms enabled if no allowedPlatforms prop is provided
+    const platformsList = allowedPlatforms || ['facebook', 'instagram', 'whatsapp', 'slack']; // Default fallback
+
     return (
       <motion.div 
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mt-4 grid grid-cols-3 gap-2"
+        className="mt-4 grid grid-cols-4 gap-2"
       >
         <motion.div 
           whileHover={{ scale: 1.05 }}
-          className="flex items-center space-x-2 bg-blue-50/80 backdrop-blur-sm p-2 rounded-lg hover:bg-blue-100/80 transition-colors"
+          className={`flex items-center space-x-2 ${
+            platformsList.includes('facebook')
+              ? 'bg-blue-50/80 backdrop-blur-sm hover:bg-blue-100/80'
+              : 'bg-gray-100/80 backdrop-blur-sm'
+          } p-2 rounded-lg transition-colors`}
         >
-          <Facebook size={16} className="text-blue-600" />
-          <span className="text-sm text-blue-700">{breakdown.facebook}</span>
+          <Facebook size={16} className={
+            platformsList.includes('facebook') ? 'text-blue-600' : 'text-gray-400'
+          } />
+          <span className={
+            platformsList.includes('facebook') ? 'text-sm text-blue-700' : 'text-sm text-gray-400'
+          }>{breakdown.facebook}</span>
         </motion.div>
         <motion.div 
           whileHover={{ scale: 1.05 }}
-          className="flex items-center space-x-2 bg-pink-50/80 backdrop-blur-sm p-2 rounded-lg hover:bg-pink-100/80 transition-colors"
+          className={`flex items-center space-x-2 ${
+            platformsList.includes('instagram')
+              ? 'bg-pink-50/80 backdrop-blur-sm hover:bg-pink-100/80'
+              : 'bg-gray-100/80 backdrop-blur-sm'
+          } p-2 rounded-lg transition-colors`}
         >
-          <Instagram size={16} className="text-pink-600" />
-          <span className="text-sm text-pink-700">{breakdown.instagram}</span>
+          <Instagram size={16} className={
+            platformsList.includes('instagram') ? 'text-pink-600' : 'text-gray-400'
+          } />
+          <span className={
+            platformsList.includes('instagram') ? 'text-sm text-pink-700' : 'text-sm text-gray-400'
+          }>{breakdown.instagram}</span>
         </motion.div>
         <motion.div 
           whileHover={{ scale: 1.05 }}
-          className="flex items-center space-x-2 bg-green-50/80 backdrop-blur-sm p-2 rounded-lg hover:bg-green-100/80 transition-colors"
+          className={`flex items-center space-x-2 ${
+            platformsList.includes('whatsapp')
+              ? 'bg-green-50/80 backdrop-blur-sm hover:bg-green-100/80'
+              : 'bg-gray-100/80 backdrop-blur-sm'
+          } p-2 rounded-lg transition-colors`}
         >
-          <MessageCircle size={16} className="text-green-600" />
-          <span className="text-sm text-green-700">{breakdown.whatsapp}</span>
+          <MessageCircle size={16} className={
+            platformsList.includes('whatsapp') ? 'text-green-600' : 'text-gray-400'
+          } />
+          <span className={
+            platformsList.includes('whatsapp') ? 'text-sm text-green-700' : 'text-sm text-gray-400'
+          }>{breakdown.whatsapp}</span>
+        </motion.div>
+        <motion.div 
+          whileHover={{ scale: 1.05 }}
+          className={`flex items-center space-x-2 ${
+            platformsList.includes('slack')
+              ? 'bg-purple-50/80 backdrop-blur-sm hover:bg-purple-100/80'
+              : 'bg-gray-100/80 backdrop-blur-sm'
+          } p-2 rounded-lg transition-colors`}
+        >
+          <MessageSquare size={16} className={
+            platformsList.includes('slack') ? 'text-purple-600' : 'text-gray-400'
+          } />
+          <span className={
+            platformsList.includes('slack') ? 'text-sm text-purple-700' : 'text-sm text-gray-400'
+          }>{breakdown.slack || 0}</span>
         </motion.div>
       </motion.div>
     );

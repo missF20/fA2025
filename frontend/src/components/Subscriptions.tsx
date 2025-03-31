@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { CreditCard, CheckCircle, ArrowRight, Loader2 } from 'lucide-react';
 import type { SubscriptionTier } from '../types';
+import { PaymentProcessor } from './PaymentProcessor';
 
 export function Subscriptions() {
   const [currentTier, setCurrentTier] = useState<SubscriptionTier | null>(null);
@@ -9,6 +10,8 @@ export function Subscriptions() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [upgrading, setUpgrading] = useState(false);
+  const [showPaymentProcessor, setShowPaymentProcessor] = useState(false);
+  const [selectedTierId, setSelectedTierId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchSubscriptionData();
@@ -47,37 +50,27 @@ export function Subscriptions() {
     }
   }
 
-  const handleUpgrade = async (tierId: string) => {
+  const handleUpgrade = (tierId: string) => {
+    // Set the selected tier ID and show the payment processor
+    setSelectedTierId(tierId);
+    setShowPaymentProcessor(true);
+  };
+  
+  const handlePaymentSuccess = async () => {
     try {
-      setUpgrading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-
-      // Update user subscription
-      await supabase
-        .from('user_subscriptions')
-        .upsert({
-          user_id: user.id,
-          subscription_tier_id: tierId,
-          status: 'pending',
-          start_date: new Date().toISOString(),
-          payment_status: 'unpaid'
-        });
-
-      // Update profile
-      await supabase
-        .from('profiles')
-        .update({ subscription_tier_id: tierId })
-        .eq('id', user.id);
-
-      // Refresh data
+      // Payment was successful, refresh the subscription data
       await fetchSubscriptionData();
+      setShowPaymentProcessor(false);
     } catch (err) {
-      console.error('Error upgrading subscription:', err);
-      setError('Failed to upgrade subscription. Please try again.');
-    } finally {
-      setUpgrading(false);
+      console.error('Error updating subscription after payment:', err);
+      setError('Payment was successful, but we had trouble updating your subscription. Please refresh the page.');
     }
+  };
+  
+  const handlePaymentCancel = () => {
+    // User canceled the payment process
+    setShowPaymentProcessor(false);
+    setSelectedTierId(null);
   };
 
   if (loading) {
@@ -85,6 +78,16 @@ export function Subscriptions() {
       <div className="flex justify-center items-center min-h-[400px]">
         <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
       </div>
+    );
+  }
+  
+  if (showPaymentProcessor && selectedTierId) {
+    return (
+      <PaymentProcessor
+        subscriptionTierId={selectedTierId}
+        onCancel={handlePaymentCancel}
+        onSuccess={handlePaymentSuccess}
+      />
     );
   }
 

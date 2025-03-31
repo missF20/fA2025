@@ -21,6 +21,7 @@ import { useMetrics } from './hooks/useMetrics';
 import { MessageSquare, CheckCircle, Clock, Users, AlertTriangle, Activity } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { AuthFormData } from './types';
+// Used to track the platforms the user is allowed to access based on their subscription
 
 function App() {
   const [session, setSession] = useState<any>(null);
@@ -34,7 +35,7 @@ function App() {
   const [showSetupPrompt, setShowSetupPrompt] = useState(false);
   const [accountSetupComplete, setAccountSetupComplete] = useState(true);
   const [showSubscriptionSelector, setShowSubscriptionSelector] = useState(false);
-  const { metrics, loading, error } = useMetrics(session);
+  const { metrics, loading, error, allowedPlatforms } = useMetrics(session);
 
   useEffect(() => {
     async function checkSession() {
@@ -348,6 +349,7 @@ function App() {
                   description="AI responses across all platforms"
                   trend={{ value: 12, isPositive: true }}
                   breakdown={metrics.responsesBreakdown}
+                  allowedPlatforms={metrics.allowedPlatforms || allowedPlatforms}
                 />
 
                 <MetricCard
@@ -357,6 +359,7 @@ function App() {
                   description="Tasks successfully completed by AI"
                   trend={{ value: 8, isPositive: true }}
                   breakdown={metrics.completedTasksBreakdown}
+                  allowedPlatforms={metrics.allowedPlatforms || allowedPlatforms}
                 />
 
                 <MetricCard
@@ -365,7 +368,7 @@ function App() {
                   icon={<Clock size={24} />}
                   description="Tasks waiting for completion"
                   trend={{ value: 3, isPositive: false }}
-                  pendingTasks={metrics.pendingTasks}
+                  pendingTasks={metrics.pendingTasks.map(task => ({...task, allowedPlatforms: metrics.allowedPlatforms || allowedPlatforms}))}
                 />
 
                 <MetricCard
@@ -374,7 +377,7 @@ function App() {
                   icon={<AlertTriangle size={24} />}
                   description="Tasks requiring human attention"
                   trend={{ value: 5, isPositive: false }}
-                  escalatedTasks={metrics.escalatedTasks}
+                  escalatedTasks={metrics.escalatedTasks.map(task => ({...task, allowedPlatforms: metrics.allowedPlatforms || allowedPlatforms}))}
                 />
               </div>
 
@@ -386,7 +389,8 @@ function App() {
                   description="Unique users across all platforms"
                   trend={{ value: 15, isPositive: true }}
                   breakdown={metrics.chatsBreakdown}
-                  interactions={metrics.peopleInteracted.slice(0, 3)}
+                  interactions={metrics.peopleInteracted.slice(0, 3).map(interaction => ({...interaction, allowedPlatforms: metrics.allowedPlatforms || allowedPlatforms}))}
+                  allowedPlatforms={metrics.allowedPlatforms || allowedPlatforms}
                 />
 
                 <TopIssuesChart issues={metrics.topIssues} />
