@@ -67,9 +67,17 @@ export function KnowledgeBase() {
       return;
     }
 
-    // Check file type (PDF only)
-    if (selectedFile.type !== 'application/pdf') {
-      setError('Only PDF files are supported');
+    // Check file type (PDF, DOCX, TXT, and HTML)
+    const supportedTypes = [
+      'application/pdf', 
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/msword',
+      'text/plain',
+      'text/html'
+    ];
+    
+    if (!supportedTypes.includes(selectedFile.type)) {
+      setError('Supported file types: PDF, DOCX, DOC, TXT, and HTML');
       return;
     }
 
@@ -319,14 +327,14 @@ export function KnowledgeBase() {
                 <>
                   <Upload size={24} className="text-blue-500" />
                   <span className="text-sm font-medium text-gray-700 mt-2">
-                    Drag and drop your PDF file here, or click to browse
+                    Drag and drop your document here, or click to browse
                   </span>
                 </>
               )}
               <input
                 id="file-upload"
                 type="file"
-                accept=".pdf"
+                accept=".pdf,.docx,.doc,.txt,.html"
                 className="hidden"
                 onChange={handleFileUpload}
                 disabled={isUploading}
@@ -334,7 +342,7 @@ export function KnowledgeBase() {
             </label>
           </div>
           <p className="text-xs text-gray-500 mt-2">
-            Only PDF files are supported. Maximum file size: 10MB.
+            Supported formats: PDF, DOCX, DOC, TXT, and HTML. Maximum file size: 10MB.
           </p>
         </div>
 
