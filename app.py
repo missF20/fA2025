@@ -9,8 +9,9 @@ import logging
 from flask import Flask, jsonify, g, render_template
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
+# Temporarily commented out due to installation issues
+# from flask_limiter import Limiter
+# from flask_limiter.util import get_remote_address
 from sqlalchemy.orm import DeclarativeBase
 
 # Configure logging
@@ -43,13 +44,13 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = "auth.login"
 
-# Initialize rate limiter
-limiter = Limiter(
-    get_remote_address,
-    app=app,
-    default_limits=["200 per day", "50 per hour"],
-    storage_uri="memory://",
-)
+# Initialize rate limiter - Temporarily commented out
+# limiter = Limiter(
+#     get_remote_address,
+#     app=app,
+#     default_limits=["200 per day", "50 per hour"],
+#     storage_uri="memory://",
+# )
 
 # Register error handlers
 @app.errorhandler(404)
@@ -96,10 +97,35 @@ def api_index():
 @app.route("/status")
 def status():
     """API status endpoint"""
-    return jsonify({
+    status_info = {
         "status": "online",
         "database": "connected"
-    })
+    }
+    
+    # Add basic database health information if possible
+    try:
+        # Check if database is available
+        db.engine.connect().close()
+        
+        # Get backup stats if available
+        try:
+            from utils.db_backup import get_backup_stats, check_backup_health
+            backup_stats = get_backup_stats()
+            health_status, health_message = check_backup_health()
+            
+            status_info["database_backups"] = {
+                "count": backup_stats["count"],
+                "latest": backup_stats["newest"],
+                "healthy": health_status
+            }
+        except Exception as e:
+            logger.warning(f"Could not retrieve backup stats: {str(e)}")
+    except Exception as e:
+        logger.error(f"Database connection error: {str(e)}")
+        status_info["database"] = "error"
+        status_info["database_error"] = str(e)
+    
+    return jsonify(status_info)
 
 # Load user for Flask-Login
 @login_manager.user_loader
@@ -118,6 +144,14 @@ def init_db():
         # Create tables
         db.create_all()
         logger.info("Database initialized")
+        
+        # Initialize database migration and backup system
+        try:
+            from utils.init_db_migration import initialize_db_migration_system
+            initialize_db_migration_system(db.engine)
+            logger.info("Database migration system initialized")
+        except Exception as e:
+            logger.error(f"Error initializing database migration system: {str(e)}")
 
 # Initialize automation system
 def init_automation():
@@ -229,6 +263,13 @@ def register_blueprints():
             logger.info("Support blueprint registered successfully")
         except ImportError as e:
             logger.warning(f"Could not register support blueprint: {e}")
+            
+        try:
+            from routes.database import database_bp
+            app.register_blueprint(database_bp)
+            logger.info("Database management blueprint registered successfully")
+        except ImportError as e:
+            logger.warning(f"Could not register database management blueprint: {e}")
         
         logger.info("Route blueprints registration completed")
     except Exception as e:
@@ -281,8 +322,8 @@ def init_app():
     # Initialize Row Level Security
     init_rls()
     
-    # Initialize rate limiting
-    init_rate_limiting()
+    # Initialize rate limiting - Temporarily commented out
+    # init_rate_limiting()
     
     # Initialize automation system
     init_automation()
