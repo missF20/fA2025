@@ -54,21 +54,26 @@ def get_knowledge_files():
     offset = request.args.get('offset', 0, type=int)
     
     try:
-        # Get files without content for listing (to save bandwidth)
-        query = supabase.table('knowledge_files').select('id,user_id,file_name,file_size,file_type,created_at,updated_at,category,tags,metadata').eq('user_id', user['id'])
-        
-        # Add pagination
-        query = query.order('created_at', desc=True).range(offset, offset + limit - 1)
-        
-        # Execute the query
-        files_result = query.execute()
+        # Use direct SQL to get files
+        files_sql = """
+        SELECT id, user_id, file_name, file_size, file_type, created_at, updated_at, 
+               category, tags, metadata
+        FROM knowledge_files 
+        WHERE user_id = %s
+        ORDER BY created_at DESC
+        LIMIT %s OFFSET %s
+        """
+        files_params = (user['id'], limit, offset)
+        files_result = query_sql(files_sql, files_params)
         
         # Get total count
-        count_result = supabase.table('knowledge_files').select('id', count='exact').eq('user_id', user['id']).execute()
-        total_count = len(count_result.data)
+        count_sql = "SELECT COUNT(*) as total FROM knowledge_files WHERE user_id = %s"
+        count_params = (user['id'],)
+        count_result = query_sql(count_sql, count_params)
+        total_count = count_result[0]['total'] if count_result else 0
         
         return jsonify({
-            'files': files_result.data,
+            'files': files_result if files_result else [],
             'total': total_count,
             'limit': limit,
             'offset': offset
@@ -245,6 +250,8 @@ def create_knowledge_file():
         file_type = data.get('file_type', '')
         is_base64 = data.get('is_base64', True)
         file_content = data.get('content', '')
+        category = data.get('category', '')
+        tags = data.get('tags', [])
         
         # If we have a file extension or type and content, try to parse it
         if (file_name or file_type) and file_content:
@@ -278,16 +285,36 @@ def create_knowledge_file():
         data['created_at'] = now
         data['updated_at'] = now
         
-        # Create file entry
-        file_result = supabase.table('knowledge_files').insert(data).execute()
+        # Convert tags to JSON string if they're a list
+        if isinstance(tags, list):
+            data['tags'] = json.dumps(tags)
         
-        if not file_result.data:
+        # Use direct SQL to insert the file to avoid Supabase schema cache issues
+        insert_sql = """
+        INSERT INTO knowledge_files 
+        (user_id, file_name, file_type, file_size, content, created_at, updated_at, category, tags, metadata) 
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        RETURNING id, user_id, file_name, file_type, file_size, created_at, updated_at, category, tags, metadata
+        """
+        params = (
+            data['user_id'],
+            data['file_name'],
+            data['file_type'],
+            data.get('file_size', 0),
+            data.get('content', ''),
+            data['created_at'],
+            data['updated_at'],
+            category,
+            data.get('tags'),
+            data.get('metadata')
+        )
+        
+        result = query_sql(insert_sql, params)
+        
+        if not result:
             return jsonify({'error': 'Failed to upload file'}), 500
         
-        new_file = file_result.data[0]
-        
-        # Don't include content in the response
-        new_file.pop('content', None)
+        new_file = result[0]
         
         # Emit socket event
         socketio.emit('new_knowledge_file', {
@@ -558,18 +585,24 @@ def get_knowledge_categories():
     user = get_user_from_token(request)
     
     try:
-        # Get all distinct categories
-        categories_result = supabase.table('knowledge_files').select('category').eq('user_id', user['id']).execute()
+        # Use direct SQL to get categories
+        categories_sql = """
+        SELECT DISTINCT category 
+        FROM knowledge_files 
+        WHERE user_id = %s AND category IS NOT NULL AND category != ''
+        """
+        params = (user['id'],)
+        categories_result = query_sql(categories_sql, params)
         
         # Extract unique categories
-        categories = set()
-        for item in categories_result.data:
-            category = item.get('category')
-            if category:
-                categories.add(category)
+        categories = []
+        if categories_result:
+            for item in categories_result:
+                if item.get('category'):
+                    categories.append(item['category'])
         
         return jsonify({
-            'categories': sorted(list(categories))
+            'categories': sorted(categories)
         }), 200
         
     except Exception as e:
@@ -599,26 +632,33 @@ def get_knowledge_tags():
     user = get_user_from_token(request)
     
     try:
-        # Get all tags
-        tags_result = supabase.table('knowledge_files').select('tags').eq('user_id', user['id']).execute()
+        # Use direct SQL to get tags
+        tags_sql = """
+        SELECT tags 
+        FROM knowledge_files 
+        WHERE user_id = %s AND tags IS NOT NULL AND tags != ''
+        """
+        params = (user['id'],)
+        tags_result = query_sql(tags_sql, params)
         
         # Extract unique tags
         all_tags = set()
-        for item in tags_result.data:
-            tags = item.get('tags')
-            if tags:
-                # Handle both string (JSON) and array formats
-                if isinstance(tags, str):
-                    try:
-                        tags_list = json.loads(tags)
-                        if isinstance(tags_list, list):
-                            for tag in tags_list:
-                                all_tags.add(tag)
-                    except:
-                        all_tags.add(tags)
-                elif isinstance(tags, list):
-                    for tag in tags:
-                        all_tags.add(tag)
+        if tags_result:
+            for item in tags_result:
+                tags = item.get('tags')
+                if tags:
+                    # Handle both string (JSON) and array formats
+                    if isinstance(tags, str):
+                        try:
+                            tags_list = json.loads(tags)
+                            if isinstance(tags_list, list):
+                                for tag in tags_list:
+                                    all_tags.add(tag)
+                        except:
+                            all_tags.add(tags)
+                    elif isinstance(tags, list):
+                        for tag in tags:
+                            all_tags.add(tag)
         
         return jsonify({
             'tags': sorted(list(all_tags))
@@ -745,16 +785,34 @@ def upload_binary_file():
         data['created_at'] = now
         data['updated_at'] = now
         
-        # Create file entry
-        file_result = supabase.table('knowledge_files').insert(data).execute()
+        # Use direct SQL to insert the file to avoid Supabase schema cache issues
+        insert_sql = """
+        INSERT INTO knowledge_files 
+        (user_id, file_name, file_type, file_size, content, created_at, updated_at, category, tags, metadata) 
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        RETURNING id, user_id, file_name, file_type, file_size, created_at, updated_at, category, tags, metadata
+        """
+        params = (
+            data['user_id'],
+            data['file_name'],
+            data['file_type'],
+            data.get('file_size', 0),
+            data.get('content', ''),
+            data['created_at'],
+            data['updated_at'],
+            data.get('category', ''),
+            data.get('tags', ''),
+            data.get('metadata', '')
+        )
         
-        if not file_result.data:
+        file_result = query_sql(insert_sql, params)
+        
+        if not file_result:
             return jsonify({'error': 'Failed to upload file'}), 500
         
-        new_file = file_result.data[0]
+        new_file = file_result[0]
         
-        # Don't include content in the response
-        new_file.pop('content', None)
+        # Content is not included in the returned fields
         
         # Emit socket event
         socketio.emit('new_knowledge_file', {
