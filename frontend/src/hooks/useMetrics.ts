@@ -224,10 +224,13 @@ export function useMetrics(session: any) {
           })) || [],
           responseTime: '1m 30s',
           topIssues: messages ? extractTopIssues(messages, interactions || [], conversations || [], platforms) : [],
-          interactionsByType: platforms.map(platform => ({
-            type: platform.charAt(0).toUpperCase() + platform.slice(1),
-            count: interactions?.filter(i => i.platform === platform).length || 0
-          })),
+          // Include all available platforms in the chart, even if they have 0 interactions
+          interactionsByType: ['facebook', 'instagram', 'whatsapp', 'slack', 'email']
+            .filter(platform => platforms.includes(platform))
+            .map(platform => ({
+              type: platform.charAt(0).toUpperCase() + platform.slice(1),
+              count: interactions?.filter(i => i.platform === platform).length || 0
+            })),
           conversations: conversationsWithMessages,
           integrations: []
         };

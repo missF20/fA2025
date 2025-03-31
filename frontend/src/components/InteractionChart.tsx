@@ -1,6 +1,6 @@
 import React from 'react';
 import type { ChatMetrics } from '../types';
-import { Facebook, Instagram, MessageCircle } from 'lucide-react';
+import { Facebook, Instagram, MessageCircle, Mail, Slack } from 'lucide-react';
 
 interface InteractionChartProps {
   data: ChatMetrics['interactionsByType'];
@@ -20,7 +20,7 @@ export function InteractionChart({ data }: InteractionChartProps) {
   const total = data.reduce((sum, item) => sum + item.count, 0);
   let currentAngle = 0;
 
-  // Updated color palette for social media platforms
+  // Color palette for all platforms
   const colors = {
     Facebook: {
       fill: 'fill-blue-500',
@@ -32,10 +32,20 @@ export function InteractionChart({ data }: InteractionChartProps) {
       bg: 'bg-pink-500',
       icon: <Instagram size={16} className="text-pink-500" />
     },
-    WhatsApp: {
+    Whatsapp: {
       fill: 'fill-green-500',
       bg: 'bg-green-500',
       icon: <MessageCircle size={16} className="text-green-500" />
+    },
+    Slack: {
+      fill: 'fill-purple-500',
+      bg: 'bg-purple-500',
+      icon: <Slack size={16} className="text-purple-500" />
+    },
+    Email: {
+      fill: 'fill-cyan-500',
+      bg: 'bg-cyan-500',
+      icon: <Mail size={16} className="text-cyan-500" />
     }
   };
 
