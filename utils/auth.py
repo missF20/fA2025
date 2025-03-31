@@ -148,7 +148,7 @@ def get_user_from_token(token_or_request):
         
         if result and len(result) > 0:
             # Found the user, use the database ID
-            user_id = result[0]['id']
+            user_id = int(result[0]['id'])
             logger.info(f"Mapped Supabase user to database ID: {user_id}")
         else:
             # Fallback to the Supabase ID
@@ -269,7 +269,7 @@ def validate_user_access(user_id):
         return True
     
     # Users have access to their own data
-    return g.current_user["id"] == str(user_id)
+    return int(g.current_user["id"]) == int(user_id)
 
 def token_required(f):
     """

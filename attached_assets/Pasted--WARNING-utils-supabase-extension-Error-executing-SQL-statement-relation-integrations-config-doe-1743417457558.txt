@@ -1,0 +1,65 @@
+
+WARNING:utils.supabase_extension:Error executing SQL statement: relation "integrations_config" does not exist
+
+WARNING:utils.supabase_extension:Error executing SQL statement: unterminated dollar-quoted string at or near "$$
+BEGIN
+  IF NEW.user_id IS NULL THEN
+    NEW.user_id = auth.uid()"
+LINE 3: RETURNS TRIGGER AS $$
+                           ^
+
+WARNING:utils.supabase_extension:Error executing SQL statement: syntax error at or near "IF"
+LINE 1: END IF
+            ^
+
+WARNING:utils.supabase_extension:Error executing SQL statement: syntax error at or near "RETURN"
+LINE 1: RETURN NEW
+        ^
+
+WARNING:utils.supabase_extension:Error executing SQL statement: unterminated dollar-quoted string at or near "$$ LANGUAGE plpgsql SECURITY DEFINER"
+LINE 1: $$ LANGUAGE plpgsql SECURITY DEFINER
+        ^
+
+WARNING:utils.supabase_extension:Error executing SQL statement: function set_auth_user_id() does not exist
+
+WARNING:utils.supabase_extension:Error executing SQL statement: function set_auth_user_id() does not exist
+
+WARNING:utils.supabase_extension:Error executing SQL statement: function set_auth_user_id() does not exist
+
+WARNING:utils.supabase_extension:Error executing SQL statement: function set_auth_user_id() does not exist
+
+WARNING:utils.supabase_extension:Error executing SQL statement: relation "integrations_config" does not exist
+
+WARNING:utils.supabase_extension:Some SQL statements failed but execution continued
+INFO:utils.supabase_rls:Row Level Security policies applied successfully
+INFO:app:Row Level Security policies applied successfully
+INFO:utils.supabase_rls:Would set admin emails to: admin@dana-ai.com
+INFO:utils.supabase_rls:Admin emails set: admin@dana-ai.com
+INFO:app:Admin emails set: admin@dana-ai.com
+INFO:automation:Initializing automation system (sync)
+INFO:app:Automation system initialized
+INFO:app:Application initialized
+INFO:main:Knowledge Base Demo disabled to free up port 5173 for React frontend
+INFO:main:Starting React Frontend on port 5173...
+INFO:main:React Frontend thread started
+INFO:main:Starting Simple API on port 5001...
+INFO:main:Simple API thread started
+INFO:main:React Frontend process started
+ * Serving Flask app 'simple_app'
+ * Debug mode: off
+INFO:werkzeug:WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5001
+ * Running on http://172.31.128.46:5001
+INFO:werkzeug:Press CTRL+C to quit
+INFO:main:React Frontend: 
+INFO:main:React Frontend: > dana-ai@1.0.0 dev
+INFO:main:React Frontend: > vite --host 0.0.0.0 --port 5173
+INFO:main:React Frontend: 
+INFO:main:React Frontend: 
+INFO:main:React Frontend: VITE v5.1.4  ready in 235 ms
+INFO:main:React Frontend: 
+INFO:main:React Frontend: ➜  Local:   http://localhost:5173/
+INFO:main:React Frontend: ➜  Network: http://172.31.128.46:5173/
+INFO:main:React Frontend: ➜  press h + enter to show help
+[2025-03-31 10:35:25 +0000] [4317] [INFO] Handling signal: winch
