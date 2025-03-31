@@ -5,6 +5,7 @@ import json
 import os
 from utils.validation import validate_request_json
 from utils.supabase import get_supabase_client, refresh_supabase_client
+from utils.supabase_extension import query_sql, execute_sql
 from utils.auth import get_user_from_token, require_auth
 from utils.file_parser import FileParser
 from models import KnowledgeFileCreate, KnowledgeFileUpdate
