@@ -7,7 +7,6 @@ import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from 'react-query';
 import * as Sentry from '@sentry/react';
 import { AppErrorBoundary } from './components/ErrorBoundary';
-import { ThemeProvider } from './context/ThemeContext';
 import App from './App';
 import './index.css';
 import { reportWebVitals } from './reportWebVitals';
@@ -49,9 +48,7 @@ createRoot(document.getElementById('root')!).render(
     <QueryClientProvider client={queryClient}>
       <AppErrorBoundary>
         <BrowserRouter>
-          <ThemeProvider>
-            <App />
-          </ThemeProvider>
+          <App />
         </BrowserRouter>
       </AppErrorBoundary>
     </QueryClientProvider>

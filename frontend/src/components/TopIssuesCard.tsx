@@ -1,78 +1,86 @@
-import { useContext } from 'react';
-import { Card, Table, Badge } from 'react-bootstrap';
-import { TopIssue } from '../types';
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
-import { getPlatformColor, getPlatformDisplayName } from '../utils/platformUtils';
-import { ThemeContext } from '../context/ThemeContext';
+import React from 'react';
+import { motion } from 'framer-motion';
+import { TrendingUp, TrendingDown, BarChart2 } from 'lucide-react';
+
+interface TopIssue {
+  id: string;
+  name: string;
+  count: number;
+  trend: number;
+  platform?: string;
+}
 
 interface TopIssuesCardProps {
   issues: TopIssue[];
 }
 
-export const TopIssuesCard = ({ issues }: TopIssuesCardProps) => {
-  const { isDarkMode } = useContext(ThemeContext);
-
-  const getTrendIcon = (trend: 'up' | 'down' | 'stable') => {
-    switch (trend) {
-      case 'up':
-        return <TrendingUp size={16} color="#dc3545" />;
-      case 'down':
-        return <TrendingDown size={16} color="#28a745" />;
-      case 'stable':
-        return <Minus size={16} color="#ffc107" />;
-    }
-  };
+export function TopIssuesCard({ issues }: TopIssuesCardProps) {
+  if (!issues || issues.length === 0) {
+    return (
+      <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-gray-100/50">
+        <h3 className="text-lg font-bold text-gray-900 mb-3 flex items-center">
+          <BarChart2 size={18} className="mr-2 text-amber-500" />
+          Common Support Topics
+        </h3>
+        <div className="text-gray-500 text-sm py-6 text-center">
+          No common support topics detected yet
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <Card className="h-100">
-      <Card.Header>
-        <h5 className="mb-0">Top Issues</h5>
-      </Card.Header>
-      <Card.Body className="p-0">
-        <Table responsive className="mb-0">
-          <thead>
-            <tr>
-              <th>Topic</th>
-              <th>Count</th>
-              <th>Trend</th>
-              <th>Platforms</th>
-            </tr>
-          </thead>
-          <tbody>
-            {issues.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="text-center">No issues data available</td>
-              </tr>
-            ) : (
-              issues.map((issue, index) => (
-                <tr key={index}>
-                  <td>{issue.topic}</td>
-                  <td>{issue.count}</td>
-                  <td>
-                    <span className="d-flex align-items-center">
-                      {getTrendIcon(issue.trend)}
-                    </span>
-                  </td>
-                  <td>
-                    <div className="d-flex gap-1">
-                      {issue.platforms.map((platform, i) => (
-                        <Badge
-                          key={i}
-                          bg="secondary"
-                          style={{ backgroundColor: getPlatformColor(platform, isDarkMode) }}
-                          className="text-white"
-                        >
-                          {getPlatformDisplayName(platform)}
-                        </Badge>
-                      ))}
-                    </div>
-                  </td>
-                </tr>
-              ))
+    <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-gray-100/50">
+      <h3 className="text-lg font-bold text-gray-900 mb-3 flex items-center">
+        <BarChart2 size={18} className="mr-2 text-amber-500" />
+        Common Support Topics
+      </h3>
+      <div className="space-y-3">
+        {issues.map((issue) => (
+          <motion.div
+            key={issue.id}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            whileHover={{ scale: 1.02 }}
+            className="bg-gray-50/80 backdrop-blur-sm p-3 rounded-lg hover:bg-gray-100/80 transition-all"
+          >
+            <div className="flex justify-between items-start">
+              <h4 className="text-sm font-medium text-gray-900">{issue.name}</h4>
+              <div className="flex items-center text-xs">
+                <span className="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
+                  {issue.count} mentions
+                </span>
+              </div>
+            </div>
+            
+            {issue.platform && (
+              <div className="text-xs text-gray-500 mt-1 flex items-center">
+                <span className={`px-2 py-0.5 rounded-full mr-1 text-xs ${
+                  issue.platform === 'facebook' ? 'bg-blue-100 text-blue-700' : 
+                  issue.platform === 'instagram' ? 'bg-pink-100 text-pink-700' : 
+                  issue.platform === 'whatsapp' ? 'bg-green-100 text-green-700' : 
+                  issue.platform === 'slack' ? 'bg-purple-100 text-purple-700' :
+                  issue.platform === 'email' ? 'bg-cyan-100 text-cyan-700' :
+                  'bg-gray-100 text-gray-700'
+                }`}>
+                  {issue.platform}
+                </span>
+              </div>
             )}
-          </tbody>
-        </Table>
-      </Card.Body>
-    </Card>
+            
+            <div className="flex items-center justify-end mt-2">
+              <div className={`flex items-center text-xs ${issue.trend > 0 ? 'text-red-500' : 'text-green-500'}`}>
+                {issue.trend > 0 ? (
+                  <TrendingUp size={12} className="mr-1" />
+                ) : (
+                  <TrendingDown size={12} className="mr-1" />
+                )}
+                <span>{Math.abs(issue.trend)}% {issue.trend > 0 ? 'increase' : 'decrease'}</span>
+              </div>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+    </div>
   );
-};
+}

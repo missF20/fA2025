@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import type { ChatMetrics, Platform, TopIssue, PlatformData } from '../types';
+import type { ChatMetrics, Message, Conversation } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 
 // Function to extract and analyze top issues from messages and interactions
-function extractTopIssues(messages: any[], interactions: any[], conversations: any[], platforms: string[]): TopIssue[] {
+function extractTopIssues(messages: any[], interactions: any[], conversations: any[], platforms: string[]) {
   // If no data, return empty array
   if (!messages?.length && !interactions?.length) return [];
   
@@ -51,21 +51,19 @@ function extractTopIssues(messages: any[], interactions: any[], conversations: a
     .sort((a, b) => b[1].count - a[1].count)
     .slice(0, 5)
     .map(([issue, data]) => {
-      // Convert platforms object to array of platforms
-      const platformEntries = Object.entries(data.platforms);
-      const platformsArray = platformEntries
-        .sort((a, b) => b[1] - a[1])
-        .map(([platform]) => platform as Platform);
+      // Find the most common platform for this issue
+      const topPlatform = Object.entries(data.platforms)
+        .sort((a, b) => b[1] - a[1])[0]?.[0] || null;
       
-      // Determine trend direction based on count
-      const trendValue = Math.floor(Math.random() * 35) - 15;
-      const trendDirection = trendValue > 0 ? 'up' as const : (trendValue < 0 ? 'down' as const : 'stable' as const);
+      // Generate a random trend between -15 and +20
+      const trend = Math.floor(Math.random() * 35) - 15;
       
       return {
-        topic: issue.charAt(0).toUpperCase() + issue.slice(1),
+        id: uuidv4(),
+        name: issue.charAt(0).toUpperCase() + issue.slice(1),
         count: data.count,
-        trend: trendDirection,
-        platforms: platformsArray.slice(0, 3) // Include top 3 platforms max
+        trend: trend,
+        platform: topPlatform
       };
     });
   
@@ -230,9 +228,8 @@ export function useMetrics(session: any) {
           interactionsByType: ['facebook', 'instagram', 'whatsapp', 'slack', 'email']
             .filter(platform => platforms.includes(platform))
             .map(platform => ({
-              platform: platform as Platform,
-              interactions: interactions?.filter(i => i.platform === platform).length || 0,
-              responseRate: Math.random() * 0.4 + 0.6 // Random response rate between 60-100%
+              type: platform.charAt(0).toUpperCase() + platform.slice(1),
+              count: interactions?.filter(i => i.platform === platform).length || 0
             })),
           conversations: conversationsWithMessages,
           integrations: []
