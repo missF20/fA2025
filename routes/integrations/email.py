@@ -182,7 +182,16 @@ def handle_connect_email():
         }), 400
     
     config = data.get('config', {})
-    user_id = g.user.id
+    
+    # We need to get the real user ID from the database based on the email
+    user = User.query.filter_by(email=g.user.email).first()
+    if not user:
+        return jsonify({
+            'success': False,
+            'message': 'User not found in database. Please log in again.'
+        }), 404
+        
+    user_id = user.id
     
     success, message, status_code = connect_email(user_id, config)
     
@@ -200,7 +209,15 @@ def handle_disconnect_email():
     Returns:
         JSON response with disconnection status
     """
-    user_id = g.user.id
+    # Get the real user ID from the database based on the email
+    user = User.query.filter_by(email=g.user.email).first()
+    if not user:
+        return jsonify({
+            'success': False,
+            'message': 'User not found in database. Please log in again.'
+        }), 404
+        
+    user_id = user.id
     
     try:
         # Get integration config
@@ -241,7 +258,15 @@ def handle_sync_email():
     Returns:
         JSON response with sync status
     """
-    user_id = g.user.id
+    # Get the real user ID from the database based on the email
+    user = User.query.filter_by(email=g.user.email).first()
+    if not user:
+        return jsonify({
+            'success': False,
+            'message': 'User not found in database. Please log in again.'
+        }), 404
+        
+    user_id = user.id
     
     try:
         # Get integration config
@@ -289,7 +314,16 @@ def handle_send_email():
         JSON response with send status
     """
     data = request.get_json()
-    user_id = g.user.id
+    
+    # Get the real user ID from the database based on the email
+    user = User.query.filter_by(email=g.user.email).first()
+    if not user:
+        return jsonify({
+            'success': False,
+            'message': 'User not found in database. Please log in again.'
+        }), 404
+        
+    user_id = user.id
     
     if not data:
         return jsonify({
