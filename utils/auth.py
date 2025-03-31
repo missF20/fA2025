@@ -104,16 +104,31 @@ def verify_token(token):
         logger.warning(f"Invalid token: {e}")
         return None
 
-def get_user_from_token(token):
+def get_user_from_token(token_or_request):
     """
-    Get user information from a token
+    Get user information from a token or request object
     
     Args:
-        token: JWT token
+        token_or_request: JWT token or Flask request object
     
     Returns:
         dict: User information if token is valid, None otherwise
     """
+    # Check if we were passed a request object instead of a token
+    if hasattr(token_or_request, 'headers'):
+        # Extract token from the request's Authorization header
+        auth_header = token_or_request.headers.get("Authorization")
+        token = None
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header[7:]
+        
+        if not token:
+            logger.warning("No token found in Authorization header")
+            return None
+    else:
+        # Assume we were passed a token directly
+        token = token_or_request
+    
     payload = verify_token(token)
     if not payload:
         return None
