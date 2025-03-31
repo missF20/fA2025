@@ -1,6 +1,5 @@
-import React from 'react';
-import type { ChatMetrics } from '../types';
 import { Facebook, Instagram, MessageCircle, Mail, Slack } from 'lucide-react';
+import type { ChatMetrics } from '../types';
 
 interface InteractionChartProps {
   data: ChatMetrics['interactionsByType'];

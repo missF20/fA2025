@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import type { ChatMetrics, Message, Conversation } from '../types';
+import type { ChatMetrics, Integration } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 
 // Function to extract and analyze top issues from messages and interactions
@@ -53,7 +53,7 @@ function extractTopIssues(messages: any[], interactions: any[], conversations: a
     .map(([issue, data]) => {
       // Find the most common platform for this issue
       const topPlatform = Object.entries(data.platforms)
-        .sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+        .sort((a, b) => b[1] - a[1])[0]?.[0] || undefined;
       
       // Generate a random trend between -15 and +20
       const trend = Math.floor(Math.random() * 35) - 15;
@@ -77,7 +77,12 @@ export function useMetrics(session: any) {
   const [allowedPlatforms, setAllowedPlatforms] = useState<string[]>([]);
   
   // Make allowedPlatforms available to components
-  const exportedMetrics = metrics ? { ...metrics, allowedPlatforms } : null;
+  const exportedMetrics = metrics ? { 
+    ...metrics, 
+    allowedPlatforms,
+    // Fix the type for integrations
+    integrations: metrics.integrations as unknown as Integration[]
+  } : null;
 
   useEffect(() => {
     if (!session?.user?.id) {
@@ -103,8 +108,8 @@ export function useMetrics(session: any) {
           return ['facebook', 'instagram', 'whatsapp', 'slack', 'email']; // Default to all platforms if error
         }
 
-        if (profileData?.subscription_tiers?.platforms) {
-          return profileData.subscription_tiers.platforms;
+        if (profileData?.subscription_tiers && 'platforms' in profileData.subscription_tiers) {
+          return profileData.subscription_tiers.platforms as string[];
         }
 
         // Default to all platforms if no subscription is set

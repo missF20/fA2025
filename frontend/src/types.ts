@@ -300,13 +300,19 @@ export interface ChatMetrics {
     platform: Platform;
   }>;
   responseTime: string;
-  topIssues: Array<any>;
+  topIssues: Array<{
+    id: string;
+    name: string;
+    count: number;
+    trend: number;
+    platform?: string;
+  }>;
   interactionsByType: Array<{
     type: string;
     count: number;
   }>;
   conversations: Conversation[];
-  integrations: Array<any>;
+  integrations: Array<Integration>;
   // Platforms allowed in the user's subscription
   allowedPlatforms?: string[];
 }

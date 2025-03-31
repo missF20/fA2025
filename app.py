@@ -15,8 +15,20 @@ from flask_socketio import SocketIO
 # from flask_limiter.util import get_remote_address
 from sqlalchemy.orm import DeclarativeBase
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+# Import custom environment and logging modules
+try:
+    from utils.environment import setup_environment, get_config, is_production
+    from utils.logger import setup_logging, log_api_request
+    
+    # Set up environment and logging
+    setup_environment()
+    setup_logging()
+    config = get_config()
+except ImportError:
+    # Fallback if the modules are not available
+    logging.basicConfig(level=logging.INFO)
+    config = {"API_RATE_LIMIT": "100 per minute"}
+    
 logger = logging.getLogger(__name__)
 
 # Create SQLAlchemy base class
