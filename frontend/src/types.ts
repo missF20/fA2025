@@ -246,6 +246,7 @@ export interface ChatMetrics {
     instagram: number;
     whatsapp: number;
     slack?: number;
+    email?: number;
   };
   completedTasks: number;
   completedTasksBreakdown: {
@@ -253,6 +254,7 @@ export interface ChatMetrics {
     instagram: number;
     whatsapp: number;
     slack?: number;
+    email?: number;
   };
   pendingTasks: Array<{
     id: string;
@@ -270,6 +272,7 @@ export interface ChatMetrics {
     instagram: number;
     whatsapp: number;
     slack?: number;
+    email?: number;
   };
   peopleInteracted: Array<{
     id: string;

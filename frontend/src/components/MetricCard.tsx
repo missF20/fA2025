@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { PendingTask, Interaction, EscalatedTask } from '../types';
-import { TrendingDown, TrendingUp, ChevronDown, ChevronUp, Facebook, Instagram, MessageCircle, AlertTriangle, MessageSquare } from 'lucide-react';
+import { TrendingDown, TrendingUp, ChevronDown, ChevronUp, Facebook, Instagram, MessageCircle, AlertTriangle, MessageSquare, Mail } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // Define the MetricCard props interface
@@ -21,6 +21,7 @@ interface ExtendedMetricCardProps {
     instagram: number;
     whatsapp: number;
     slack?: number;
+    email?: number;
   };
   allowedPlatforms?: string[];
 }
@@ -45,13 +46,13 @@ export function MetricCard({
 
     // Use the allowed platforms list from props (passed directly from App.tsx)
     // Default to all platforms enabled if no allowedPlatforms prop is provided
-    const platformsList = allowedPlatforms || ['facebook', 'instagram', 'whatsapp', 'slack']; // Default fallback
+    const platformsList = allowedPlatforms || ['facebook', 'instagram', 'whatsapp', 'slack', 'email']; // Default fallback
 
     return (
       <motion.div 
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mt-4 grid grid-cols-4 gap-2"
+        className="mt-4 grid grid-cols-5 gap-2"
       >
         <motion.div 
           whileHover={{ scale: 1.05 }}
@@ -112,6 +113,21 @@ export function MetricCard({
           <span className={
             platformsList.includes('slack') ? 'text-sm text-purple-700' : 'text-sm text-gray-400'
           }>{breakdown.slack || 0}</span>
+        </motion.div>
+        <motion.div 
+          whileHover={{ scale: 1.05 }}
+          className={`flex items-center space-x-2 ${
+            platformsList.includes('email')
+              ? 'bg-cyan-50/80 backdrop-blur-sm hover:bg-cyan-100/80'
+              : 'bg-gray-100/80 backdrop-blur-sm'
+          } p-2 rounded-lg transition-colors`}
+        >
+          <Mail size={16} className={
+            platformsList.includes('email') ? 'text-cyan-600' : 'text-gray-400'
+          } />
+          <span className={
+            platformsList.includes('email') ? 'text-sm text-cyan-700' : 'text-sm text-gray-400'
+          }>{breakdown.email || 0}</span>
         </motion.div>
       </motion.div>
     );
