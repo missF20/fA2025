@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Facebook, Instagram, MessageCircle, Loader2, ArrowRight } from 'lucide-react';
 import type { SubscriptionTier } from '../types';
+import { PaymentProcessor } from './PaymentProcessor';
 
 interface SubscriptionTierSelectorProps {
   onComplete: (tierId: string) => Promise<void>;
@@ -15,6 +16,7 @@ export function SubscriptionTierSelector({ onComplete, onSkip }: SubscriptionTie
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPlatformConnect, setShowPlatformConnect] = useState(false);
+  const [showPaymentProcessor, setShowPaymentProcessor] = useState(false);
   const [selectedTier, setSelectedTier] = useState<SubscriptionTier | null>(null);
 
   useEffect(() => {
@@ -53,14 +55,27 @@ export function SubscriptionTierSelector({ onComplete, onSkip }: SubscriptionTie
     setError(null);
 
     try {
-      await onComplete(selectedTierId);
-      setShowPlatformConnect(true);
+      // Show the payment processor instead of immediately completing
+      setShowPaymentProcessor(true);
     } catch (err) {
       console.error('Error selecting subscription tier:', err);
       setError('Failed to select subscription tier');
     } finally {
       setSubmitting(false);
     }
+  };
+  
+  const handlePaymentSuccess = async () => {
+    // Complete the subscription process
+    await onComplete(selectedTierId!);
+    // Show the platform connection screen after payment
+    setShowPaymentProcessor(false);
+    setShowPlatformConnect(true);
+  };
+  
+  const handlePaymentCancel = () => {
+    // Go back to plan selection
+    setShowPaymentProcessor(false);
   };
 
   const getPlatformIcon = (platform: string) => {
@@ -155,6 +170,16 @@ export function SubscriptionTierSelector({ onComplete, onSkip }: SubscriptionTie
     );
   }
 
+  if (showPaymentProcessor && selectedTierId) {
+    return (
+      <PaymentProcessor 
+        subscriptionTierId={selectedTierId} 
+        onCancel={handlePaymentCancel}
+        onSuccess={handlePaymentSuccess}
+      />
+    );
+  }
+  
   if (showPlatformConnect) {
     return renderPlatformConnection();
   }
