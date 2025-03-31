@@ -153,6 +153,9 @@ class KnowledgeFileBase(BaseModel):
     file_size: int
     file_type: str
     content: str
+    category: Optional[str] = None
+    tags: Optional[Union[List[str], str]] = None
+    metadata: Optional[Union[Dict[str, Any], str]] = None
 
 class KnowledgeFileCreate(KnowledgeFileBase):
     pass
@@ -161,9 +164,9 @@ class KnowledgeFileUpdate(BaseModel):
     file_name: Optional[str] = None
     file_type: Optional[str] = None
     content: Optional[str] = None
-    tags: Optional[List[str]] = None
     category: Optional[str] = None
-    metadata: Optional[Dict[str, Any]] = None
+    tags: Optional[Union[List[str], str]] = None
+    metadata: Optional[Union[Dict[str, Any], str]] = None
 
 class SubscriptionFeatureBase(BaseModel):
     name: str

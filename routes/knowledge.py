@@ -53,7 +53,7 @@ def get_knowledge_files():
     
     try:
         # Get files without content for listing (to save bandwidth)
-        query = supabase.table('knowledge_files').select('id,user_id,file_name,file_size,file_type,created_at').eq('user_id', user['id'])
+        query = supabase.table('knowledge_files').select('id,user_id,file_name,file_size,file_type,created_at,updated_at,category,tags,metadata').eq('user_id', user['id'])
         
         # Add pagination
         query = query.order('created_at', desc=True).range(offset, offset + limit - 1)

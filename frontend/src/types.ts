@@ -63,6 +63,39 @@ export interface KnowledgeFile {
   metadata?: Record<string, any> | string;
 }
 
+export interface KnowledgeFileWithContent extends KnowledgeFile {
+  content: string;
+  parsed_metadata?: {
+    author?: string;
+    title?: string;
+    created_date?: string;
+    modified_date?: string;
+    pages?: number;
+    [key: string]: any;
+  };
+}
+
+export interface KnowledgeSearchResult {
+  id: string;
+  file_name: string;
+  file_type: string;
+  category?: string;
+  tags?: string[];
+  created_at: string;
+  snippets?: string[];
+  relevance?: number;
+}
+
+export interface KnowledgeCategory {
+  name: string;
+  count?: number;
+}
+
+export interface KnowledgeTag {
+  name: string;
+  count?: number;
+}
+
 export interface Integration {
   id: string;
   user_id: string;
