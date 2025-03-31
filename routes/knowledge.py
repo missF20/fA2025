@@ -120,15 +120,27 @@ def get_knowledge_file(file_id):
     
     try:
         # Determine what fields to select
-        select_fields = '*' if not exclude_content else 'id,user_id,file_name,file_size,file_type,created_at,updated_at,tags,category,metadata'
+        if exclude_content:
+            select_sql = """
+            SELECT id, user_id, file_name, file_size, file_type, created_at, updated_at, 
+                   category, tags, metadata
+            FROM knowledge_files 
+            WHERE id = %s AND user_id = %s
+            """
+        else:
+            select_sql = """
+            SELECT * 
+            FROM knowledge_files 
+            WHERE id = %s AND user_id = %s
+            """
         
-        # Get file
-        file_result = supabase.table('knowledge_files').select(select_fields).eq('id', file_id).eq('user_id', user['id']).execute()
+        params = (file_id, user['id'])
+        result = query_sql(select_sql, params)
         
-        if not file_result.data:
+        if not result:
             return jsonify({'error': 'File not found'}), 404
         
-        return jsonify(file_result.data[0]), 200
+        return jsonify(result[0]), 200
         
     except Exception as e:
         logger.error(f"Error getting knowledge file: {str(e)}", exc_info=True)
@@ -173,23 +185,51 @@ def update_knowledge_file(file_id):
     data = request.json
     
     try:
-        # Check if file exists and belongs to user
-        verify_result = supabase.table('knowledge_files').select('id').eq('id', file_id).eq('user_id', user['id']).execute()
+        # Check if file exists and belongs to user using direct SQL
+        verify_sql = """
+        SELECT id FROM knowledge_files 
+        WHERE id = %s AND user_id = %s
+        """
+        verify_params = (file_id, user['id'])
+        verify_result = query_sql(verify_sql, verify_params)
         
-        if not verify_result.data:
+        if not verify_result:
             return jsonify({'error': 'File not found'}), 404
         
         # Add update timestamp
         update_data = {k: v for k, v in data.items() if v is not None}
         update_data['updated_at'] = datetime.now().isoformat()
         
-        # Update file
-        update_result = supabase.table('knowledge_files').update(update_data).eq('id', file_id).execute()
+        # Convert tags to string if it's a list
+        if 'tags' in update_data and isinstance(update_data['tags'], list):
+            update_data['tags'] = json.dumps(update_data['tags'])
         
-        if not update_result.data:
+        # Prepare update SQL
+        update_fields = []
+        update_values = []
+        
+        for key, value in update_data.items():
+            update_fields.append(f"{key} = %s")
+            update_values.append(value)
+        
+        # Add WHERE clause parameters
+        update_values.extend([file_id, user['id']])
+        
+        # Create UPDATE statement
+        update_sql = f"""
+        UPDATE knowledge_files 
+        SET {', '.join(update_fields)} 
+        WHERE id = %s AND user_id = %s
+        RETURNING id, user_id, file_name, file_type, file_size, created_at, updated_at, category, tags, metadata
+        """
+        
+        # Execute update
+        update_result = query_sql(update_sql, tuple(update_values))
+        
+        if not update_result:
             return jsonify({'error': 'Failed to update file'}), 500
         
-        updated_file = update_result.data[0]
+        updated_file = update_result[0]
         
         # Don't include content in the response
         if 'content' in updated_file:
@@ -360,14 +400,28 @@ def delete_knowledge_file(file_id):
     user = get_user_from_token(request)
     
     try:
-        # Verify file belongs to user
-        verify_result = supabase.table('knowledge_files').select('id').eq('id', file_id).eq('user_id', user['id']).execute()
+        # Verify file belongs to user using direct SQL
+        verify_sql = """
+        SELECT id FROM knowledge_files 
+        WHERE id = %s AND user_id = %s
+        """
+        verify_params = (file_id, user['id'])
+        verify_result = query_sql(verify_sql, verify_params)
         
-        if not verify_result.data:
+        if not verify_result:
             return jsonify({'error': 'File not found'}), 404
         
-        # Delete file
-        supabase.table('knowledge_files').delete().eq('id', file_id).execute()
+        # Delete file with direct SQL
+        delete_sql = """
+        DELETE FROM knowledge_files 
+        WHERE id = %s AND user_id = %s
+        RETURNING id
+        """
+        delete_params = (file_id, user['id'])
+        delete_result = query_sql(delete_sql, delete_params)
+        
+        if not delete_result:
+            return jsonify({'error': 'Failed to delete file'}), 500
         
         # Emit socket event
         socketio.emit('knowledge_file_deleted', {
@@ -451,100 +505,122 @@ def search_knowledge_base():
         return jsonify({'error': 'query parameter is required'}), 400
     
     try:
-        # Build base query to get all user's files
-        base_query = supabase.table('knowledge_files').select('id,file_name,file_type,category,tags,metadata,created_at,updated_at').eq('user_id', user['id'])
+        # Build SQL query based on filters
+        sql_params = [user['id'], f"%{query.lower()}%", f"%{query.lower()}%"]
         
-        # Apply filters if provided
+        # Start building the WHERE clause with required user_id condition
+        where_conditions = ["user_id = %s", "(LOWER(content) LIKE %s OR LOWER(file_name) LIKE %s)"]
+        
+        # Add category filter if provided
         if category:
-            base_query = base_query.eq('category', category)
+            where_conditions.append("category = %s")
+            sql_params.append(category)
         
+        # Add file_type filter if provided
         if file_type:
-            base_query = base_query.eq('file_type', file_type)
-            
-        # Execute the query to get the filtered files
-        files_result = base_query.execute()
+            where_conditions.append("file_type = %s")
+            sql_params.append(file_type)
         
-        # Get content for all files for searching
-        content_result = supabase.table('knowledge_files').select('id,content').eq('user_id', user['id']).execute()
+        # Combine all conditions with AND
+        where_clause = " AND ".join(where_conditions)
         
+        # Build the complete query
+        if include_snippets:
+            # If we need snippets, we need to include content
+            select_sql = f"""
+            SELECT id, file_name, file_type, category, tags, metadata, created_at, updated_at, content
+            FROM knowledge_files
+            WHERE {where_clause}
+            ORDER BY updated_at DESC
+            LIMIT %s
+            """
+        else:
+            # Otherwise, exclude content for efficiency
+            select_sql = f"""
+            SELECT id, file_name, file_type, category, tags, metadata, created_at, updated_at
+            FROM knowledge_files
+            WHERE {where_clause}
+            ORDER BY updated_at DESC
+            LIMIT %s
+            """
+        
+        # Add limit parameter
+        sql_params.append(limit)
+        
+        # Execute query
+        files_result = query_sql(select_sql, tuple(sql_params))
+        
+        # Process results
         matches = []
-        for file in files_result.data:
-            # Skip files with no matching tags if tags filter is provided
-            if tags and file.get('tags'):
-                # Make sure tags is a list
-                if isinstance(file['tags'], str):
-                    try:
-                        file_tags = json.loads(file['tags'])
-                    except:
-                        file_tags = [file['tags']]
-                else:
-                    file_tags = file['tags']
-                
-                # Check if any of the requested tags match
-                if not any(tag in file_tags for tag in tags):
-                    continue
-            
-            # Find corresponding content
-            content_file = next((item for item in content_result.data if item['id'] == file['id']), None)
-            if content_file:
-                content = content_file.get('content', '')
-                
-                # Check if query matches file name or content
-                if query.lower() in content.lower() or query.lower() in file['file_name'].lower():
-                    result = {
-                        'id': file['id'],
-                        'file_name': file['file_name'],
-                        'file_type': file['file_type'],
-                        'category': file.get('category'),
-                        'tags': file.get('tags'),
-                        'created_at': file.get('created_at'),
-                        'updated_at': file.get('updated_at')
-                    }
+        if files_result:
+            for file in files_result:
+                # Check tags filter if provided
+                if tags and file.get('tags'):
+                    # Make sure tags is a list
+                    if isinstance(file['tags'], str):
+                        try:
+                            file_tags = json.loads(file['tags'])
+                        except:
+                            file_tags = [file['tags']]
+                    else:
+                        file_tags = file['tags']
                     
-                    # Include snippets if requested
-                    if include_snippets:
-                        # Find the context around the match
-                        snippets = []
-                        query_lower = query.lower()
-                        content_lower = content.lower()
+                    # Skip if none of the requested tags match
+                    if not any(tag in file_tags for tag in tags):
+                        continue
+                
+                # Prepare result object
+                result = {
+                    'id': file['id'],
+                    'file_name': file['file_name'],
+                    'file_type': file['file_type'],
+                    'category': file.get('category'),
+                    'tags': file.get('tags'),
+                    'created_at': file.get('created_at'),
+                    'updated_at': file.get('updated_at')
+                }
+                
+                # Include snippets if requested
+                if include_snippets and 'content' in file:
+                    content = file.get('content', '')
+                    # Find the context around the match
+                    snippets = []
+                    query_lower = query.lower()
+                    content_lower = content.lower()
+                    
+                    # Find all occurrences of the query in the content
+                    start_pos = 0
+                    while start_pos < len(content_lower):
+                        pos = content_lower.find(query_lower, start_pos)
+                        if pos == -1:
+                            break
+                            
+                        # Get context (100 chars before and after)
+                        snippet_start = max(0, pos - 100)
+                        snippet_end = min(len(content), pos + len(query) + 100)
                         
-                        # Find all occurrences of the query in the content
-                        start_pos = 0
-                        while start_pos < len(content_lower):
-                            pos = content_lower.find(query_lower, start_pos)
-                            if pos == -1:
-                                break
-                                
-                            # Get context (100 chars before and after)
-                            snippet_start = max(0, pos - 100)
-                            snippet_end = min(len(content), pos + len(query) + 100)
+                        # Extract snippet and highlight the query
+                        snippet = content[snippet_start:snippet_end]
+                        
+                        # Add ellipsis if snippet is cut
+                        if snippet_start > 0:
+                            snippet = "..." + snippet
+                        if snippet_end < len(content):
+                            snippet = snippet + "..."
                             
-                            # Extract snippet and highlight the query
-                            snippet = content[snippet_start:snippet_end]
+                        snippets.append(snippet)
+                        
+                        # Move to next occurrence
+                        start_pos = pos + len(query)
+                        
+                        # Limit to 3 snippets max
+                        if len(snippets) >= 3:
+                            break
                             
-                            # Add ellipsis if snippet is cut
-                            if snippet_start > 0:
-                                snippet = "..." + snippet
-                            if snippet_end < len(content):
-                                snippet = snippet + "..."
-                                
-                            snippets.append(snippet)
-                            
-                            # Move to next occurrence
-                            start_pos = pos + len(query)
-                            
-                            # Limit to 3 snippets max
-                            if len(snippets) >= 3:
-                                break
-                                
-                        result['snippets'] = snippets
-                    
-                    # Add to matches
-                    matches.append(result)
-                    
-                    # Limit results
-                    if len(matches) >= limit:
-                        break
+                    result['snippets'] = snippets
+                
+                # Add to matches
+                matches.append(result)
         
         return jsonify({
             'query': query,
