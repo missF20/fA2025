@@ -7,7 +7,9 @@ This module provides API routes for connecting to and interacting with email ser
 import os
 import json
 import logging
+import random
 from flask import Blueprint, request, jsonify, current_app, g
+from werkzeug.security import generate_password_hash
 from utils.auth import token_required, validate_user_access
 from utils.rate_limiter import rate_limit
 from models import IntegrationType, IntegrationStatus
@@ -128,6 +130,45 @@ def sync_email(user_id, integration_id):
         logger.error(f"Error syncing with email: {str(e)}")
         return False, f"Failed to sync with email: {str(e)}", 500
 
+def get_or_create_user(supabase_user_email):
+    """
+    Get a user from the database based on email, or create one if it doesn't exist
+    
+    Args:
+        supabase_user_email: Email from the Supabase token
+        
+    Returns:
+        User: User model instance if found or created, None if error
+    """
+    user = User.query.filter_by(email=supabase_user_email).first()
+    if user:
+        return user
+    
+    try:
+        # Create a new user if one doesn't exist
+        logger.info(f"Creating new user for email: {supabase_user_email}")
+        
+        # Generate a random username based on the email
+        username = supabase_user_email.split('@')[0] + str(random.randint(1000, 9999))
+        
+        # Create the user
+        new_user = User(
+            email=supabase_user_email,
+            username=username,
+            password_hash=generate_password_hash("temporary_password"),  # They'll need to reset this
+            is_admin=False
+        )
+        
+        db.session.add(new_user)
+        db.session.commit()
+        logger.info(f"Created new user: {new_user.id} - {new_user.email}")
+        return new_user
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error creating user: {str(e)}")
+        return None
+
 def get_email_config_schema():
     """
     Get configuration schema for Email integration
@@ -183,13 +224,13 @@ def handle_connect_email():
     
     config = data.get('config', {})
     
-    # We need to get the real user ID from the database based on the email
-    user = User.query.filter_by(email=g.user.email).first()
+    # Get or create a user for the Supabase email
+    user = get_or_create_user(g.user.email)
     if not user:
         return jsonify({
             'success': False,
-            'message': 'User not found in database. Please log in again.'
-        }), 404
+            'message': 'Error creating user. Please try again later.'
+        }), 500
         
     user_id = user.id
     
@@ -209,13 +250,13 @@ def handle_disconnect_email():
     Returns:
         JSON response with disconnection status
     """
-    # Get the real user ID from the database based on the email
-    user = User.query.filter_by(email=g.user.email).first()
+    # Get or create a user for the Supabase email
+    user = get_or_create_user(g.user.email)
     if not user:
         return jsonify({
             'success': False,
-            'message': 'User not found in database. Please log in again.'
-        }), 404
+            'message': 'Error creating user. Please try again later.'
+        }), 500
         
     user_id = user.id
     
@@ -258,13 +299,13 @@ def handle_sync_email():
     Returns:
         JSON response with sync status
     """
-    # Get the real user ID from the database based on the email
-    user = User.query.filter_by(email=g.user.email).first()
+    # Get or create a user for the Supabase email
+    user = get_or_create_user(g.user.email)
     if not user:
         return jsonify({
             'success': False,
-            'message': 'User not found in database. Please log in again.'
-        }), 404
+            'message': 'Error creating user. Please try again later.'
+        }), 500
         
     user_id = user.id
     
@@ -315,13 +356,13 @@ def handle_send_email():
     """
     data = request.get_json()
     
-    # Get the real user ID from the database based on the email
-    user = User.query.filter_by(email=g.user.email).first()
+    # Get or create a user for the Supabase email
+    user = get_or_create_user(g.user.email)
     if not user:
         return jsonify({
             'success': False,
-            'message': 'User not found in database. Please log in again.'
-        }), 404
+            'message': 'Error creating user. Please try again later.'
+        }), 500
         
     user_id = user.id
     
