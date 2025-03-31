@@ -409,6 +409,15 @@ def init_app():
     # Initialize database
     init_db()
     
+    # Initialize database migrations
+    try:
+        from utils.init_db_migration import init_db_migrations
+        logger.info("Initializing database migration system")
+        migration_result = init_db_migrations()
+        logger.info("Database migration system initialized")
+    except ImportError as e:
+        logger.warning(f"Database migration system not available: {str(e)}")
+    
     # Register blueprints
     register_blueprints()
     
