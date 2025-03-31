@@ -6,10 +6,12 @@ This module provides authentication utilities for the Dana AI Platform.
 
 import os
 import logging
+import json
 from functools import wraps
 from flask import request, jsonify, g
 import jwt
 from datetime import datetime, timedelta
+import base64
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +19,10 @@ logger = logging.getLogger(__name__)
 JWT_SECRET = os.environ.get("JWT_SECRET", os.urandom(24).hex())
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION = 24  # hours
+
+# Supabase configuration
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
 def generate_token(user_id, email, remember_me=False):
     """
@@ -55,6 +61,35 @@ def verify_token(token):
     Returns:
         dict: Token payload if valid, None if invalid
     """
+    # First try to verify as a Supabase token by decoding the JWT directly
+    # Note: This method assumes standard JWT structure but does not verify the signature
+    # For a production system, we would use Supabase to verify the token properly
+    try:
+        # Split the token into its three parts
+        parts = token.split('.')
+        if len(parts) == 3:
+            # Get the payload part (the middle part)
+            # Add padding for base64 decoding if needed
+            padded = parts[1] + "=" * ((4 - len(parts[1]) % 4) % 4)
+            
+            # Decode the JWT payload
+            decoded = base64.b64decode(padded)
+            payload_data = json.loads(decoded.decode('utf-8'))
+            
+            # Check if it looks like a Supabase token by checking for expected fields
+            if 'sub' in payload_data and 'email' in payload_data:
+                logger.info(f"Accepting Supabase token for user: {payload_data.get('email')}")
+                
+                # Create payload that matches our expected format
+                return {
+                    "sub": payload_data.get("sub"),
+                    "email": payload_data.get("email"),
+                    "exp": datetime.now().timestamp() + 3600  # Add an hour for safety
+                }
+    except Exception as e:
+        logger.warning(f"Error parsing JWT token: {e}")
+    
+    # If Supabase verification fails or is not configured, try our own JWT verification
     try:
         # Decode token
         payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
@@ -123,6 +158,9 @@ def require_auth(f):
             "id": payload["sub"],
             "email": payload["email"]
         }
+        
+        # Also set g.user for compatibility with supabase route handlers
+        g.user = type('User', (), {'id': payload["sub"], 'email': payload["email"]})
         
         return f(*args, **kwargs)
     

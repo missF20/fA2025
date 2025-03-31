@@ -92,8 +92,20 @@ export const api = {
 
   integrations: {
     async getStatus() {
+      // Ensure we have a fresh token by refreshing the session
+      try {
+        await supabase.auth.refreshSession();
+      } catch (err) {
+        console.warn("Failed to refresh token:", err);
+      }
+      
       const { data: session } = await supabase.auth.getSession();
       const token = session.session?.access_token;
+      
+      if (!token) {
+        console.warn("No authentication token found");
+        return [];
+      }
 
       try {
         const response = await fetch('/api/integrations/status', {
@@ -102,9 +114,25 @@ export const api = {
             'Content-Type': 'application/json'
           }
         });
+        
+        console.log(`Response status for integrations status: ${response.status}, ${response.statusText}`);
 
         if (!response.ok) {
           const text = await response.text();
+          console.error(`Error response body: ${text}`);
+          
+          // Handle auth error
+          if (response.status === 401) {
+            // Try to sign in again if possible
+            const refreshResult = await supabase.auth.refreshSession();
+            if (refreshResult.error) {
+              console.error("Authentication failed. Please sign in again.");
+              return [];
+            }
+            // Retry with new token
+            return this.getStatus();
+          }
+          
           try {
             // Try to parse as JSON
             const errorData = JSON.parse(text);
@@ -125,8 +153,19 @@ export const api = {
     },
 
     async connect(integrationType: string, config: any) {
+      // Ensure we have a fresh token by refreshing the session
+      try {
+        await supabase.auth.refreshSession();
+      } catch (err) {
+        console.warn("Failed to refresh token:", err);
+      }
+      
       const { data: session } = await supabase.auth.getSession();
       const token = session.session?.access_token;
+      
+      if (!token) {
+        throw new Error("Authentication required. Please sign in again.");
+      }
 
       // Handle special case for email integration
       const endpoint = integrationType === 'email' 
@@ -150,6 +189,18 @@ export const api = {
         if (!response.ok) {
           const errorText = await response.text();
           console.error(`Error response body: ${errorText}`);
+          
+          // Handle auth error
+          if (response.status === 401) {
+            // Try to sign in again if possible
+            const refreshResult = await supabase.auth.refreshSession();
+            if (refreshResult.error) {
+              throw new Error("Authentication failed. Please sign in again.");
+            }
+            // Retry with new token
+            return this.connect(integrationType, config);
+          }
+          
           throw new Error(`Failed to connect ${integrationType}: ${response.status} ${response.statusText}`);
         }
 
@@ -161,8 +212,19 @@ export const api = {
     },
 
     async disconnect(integrationId: string) {
+      // Ensure we have a fresh token by refreshing the session
+      try {
+        await supabase.auth.refreshSession();
+      } catch (err) {
+        console.warn("Failed to refresh token:", err);
+      }
+      
       const { data: session } = await supabase.auth.getSession();
       const token = session.session?.access_token;
+      
+      if (!token) {
+        throw new Error("Authentication required. Please sign in again.");
+      }
 
       // Handle special case for email integration
       const endpoint = integrationId === 'email' 
@@ -185,6 +247,18 @@ export const api = {
         if (!response.ok) {
           const errorText = await response.text();
           console.error(`Error response body: ${errorText}`);
+          
+          // Handle auth error
+          if (response.status === 401) {
+            // Try to sign in again if possible
+            const refreshResult = await supabase.auth.refreshSession();
+            if (refreshResult.error) {
+              throw new Error("Authentication failed. Please sign in again.");
+            }
+            // Retry with new token
+            return this.disconnect(integrationId);
+          }
+          
           throw new Error(`Failed to disconnect ${integrationId}: ${response.status} ${response.statusText}`);
         }
 
@@ -196,8 +270,19 @@ export const api = {
     },
 
     async sync(integrationId: string) {
+      // Ensure we have a fresh token by refreshing the session
+      try {
+        await supabase.auth.refreshSession();
+      } catch (err) {
+        console.warn("Failed to refresh token:", err);
+      }
+      
       const { data: session } = await supabase.auth.getSession();
       const token = session.session?.access_token;
+      
+      if (!token) {
+        throw new Error("Authentication required. Please sign in again.");
+      }
 
       // Handle special case for email integration
       const endpoint = integrationId === 'email' 
@@ -220,6 +305,18 @@ export const api = {
         if (!response.ok) {
           const errorText = await response.text();
           console.error(`Error response body: ${errorText}`);
+          
+          // Handle auth error
+          if (response.status === 401) {
+            // Try to sign in again if possible
+            const refreshResult = await supabase.auth.refreshSession();
+            if (refreshResult.error) {
+              throw new Error("Authentication failed. Please sign in again.");
+            }
+            // Retry with new token
+            return this.sync(integrationId);
+          }
+          
           throw new Error(`Failed to sync ${integrationId}: ${response.status} ${response.statusText}`);
         }
 
