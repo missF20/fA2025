@@ -12,6 +12,7 @@ class Platform(str, Enum):
     INSTAGRAM = "instagram"
     WHATSAPP = "whatsapp"
     SLACK = "slack"
+    EMAIL = "email"
     
 class MessageSenderType(str, Enum):
     USER = "user"

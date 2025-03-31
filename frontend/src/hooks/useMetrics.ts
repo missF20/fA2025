@@ -123,9 +123,22 @@ export function useMetrics(session: any) {
               name: t.client_name,
               company: t.client_company
             },
-            timestamp: t.created_at
+            timestamp: t.created_at,
+            platform: t.platform,
+            priority: t.priority || 'medium'
           })) || [],
-          escalatedTasks: [],
+          escalatedTasks: tasks?.filter(t => t.priority === 'high' && t.status !== 'completed').map(t => ({
+            id: t.id,
+            task: t.description,
+            client: {
+              name: t.client_name,
+              company: t.client_company
+            },
+            timestamp: t.created_at,
+            platform: t.platform,
+            priority: t.priority || 'high',
+            reason: t.escalation_reason || 'High priority task'
+          })) || [],
           totalChats: interactions?.length || 0,
           chatsBreakdown: {
             facebook: interactions?.filter(i => i.platform === 'facebook').length || 0,
@@ -139,7 +152,7 @@ export function useMetrics(session: any) {
             name: i.client_name,
             company: i.client_company,
             timestamp: i.created_at,
-            type: i.platform
+            platform: i.platform
           })) || [],
           responseTime: '1m 30s',
           topIssues: [],

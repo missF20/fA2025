@@ -152,7 +152,19 @@ export function MetricCard({
               <div className="text-xs text-gray-500 mt-1">
                 <span className="font-medium">{task.client.name}</span> from {task.client.company}
               </div>
-              <div className="text-xs text-gray-400 mt-1">{task.timestamp}</div>
+              <div className="text-xs text-gray-400 mt-1">
+                <span className={`px-2 py-0.5 rounded-full mr-1 text-xs ${
+                  task.platform === 'facebook' ? 'bg-blue-100 text-blue-700' : 
+                  task.platform === 'instagram' ? 'bg-pink-100 text-pink-700' : 
+                  task.platform === 'whatsapp' ? 'bg-green-100 text-green-700' : 
+                  task.platform === 'slack' ? 'bg-purple-100 text-purple-700' :
+                  task.platform === 'email' ? 'bg-cyan-100 text-cyan-700' :
+                  'bg-gray-100 text-gray-700'
+                }`}>
+                  {task.platform}
+                </span>
+                {task.timestamp}
+              </div>
             </motion.div>
           ))}
         </motion.div>
@@ -190,7 +202,19 @@ export function MetricCard({
               <div className="text-xs mt-1">
                 <span className="font-medium">{task.client.name}</span> from {task.client.company}
               </div>
-              <div className="text-xs opacity-70 mt-1">{new Date(task.timestamp).toLocaleString()}</div>
+              <div className="flex items-center text-xs opacity-70 mt-1">
+                <span className={`px-2 py-0.5 rounded-full mr-1 text-xs ${
+                  task.platform === 'facebook' ? 'bg-blue-100 text-blue-700' : 
+                  task.platform === 'instagram' ? 'bg-pink-100 text-pink-700' : 
+                  task.platform === 'whatsapp' ? 'bg-green-100 text-green-700' : 
+                  task.platform === 'slack' ? 'bg-purple-100 text-purple-700' :
+                  task.platform === 'email' ? 'bg-cyan-100 text-cyan-700' :
+                  'bg-gray-100 text-gray-700'
+                }`}>
+                  {task.platform}
+                </span>
+                {new Date(task.timestamp).toLocaleString()}
+              </div>
             </motion.div>
           ))}
         </motion.div>
@@ -213,8 +237,18 @@ export function MetricCard({
             >
               <div className="text-sm font-medium text-gray-900">{interaction.name}</div>
               <div className="text-xs text-gray-500 mt-1">{interaction.company}</div>
-              <div className="text-xs text-gray-400 mt-1">
-                {interaction.type} • {interaction.timestamp}
+              <div className="text-xs text-gray-400 mt-1 flex items-center">
+                <span className={`px-2 py-0.5 rounded-full mr-1 text-xs ${
+                  interaction.platform === 'facebook' ? 'bg-blue-100 text-blue-700' : 
+                  interaction.platform === 'instagram' ? 'bg-pink-100 text-pink-700' : 
+                  interaction.platform === 'whatsapp' ? 'bg-green-100 text-green-700' : 
+                  interaction.platform === 'slack' ? 'bg-purple-100 text-purple-700' :
+                  interaction.platform === 'email' ? 'bg-cyan-100 text-cyan-700' :
+                  'bg-gray-100 text-gray-700'
+                }`}>
+                  {interaction.platform}
+                </span>
+                {interaction.timestamp}
               </div>
             </motion.div>
           ))}

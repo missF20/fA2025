@@ -178,6 +178,8 @@ export interface PendingTask {
   client_name: string;
   priority: 'low' | 'medium' | 'high';
   due_date: string;
+  platform: Platform;
+  client_company?: string;
 }
 
 export interface EscalatedTask {
@@ -186,6 +188,9 @@ export interface EscalatedTask {
   client_name: string;
   reason: string;
   timestamp: string;
+  platform: Platform;
+  priority: 'low' | 'medium' | 'high';
+  client_company?: string;
 }
 
 // Support and Feedback Types
@@ -264,8 +269,21 @@ export interface ChatMetrics {
       company?: string;
     };
     timestamp: string;
+    platform: Platform;
+    priority: 'low' | 'medium' | 'high';
   }>;
-  escalatedTasks: Array<any>;
+  escalatedTasks: Array<{
+    id: string;
+    task: string;
+    client: {
+      name: string;
+      company?: string;
+    };
+    timestamp: string;
+    platform: Platform;
+    priority: 'low' | 'medium' | 'high';
+    reason: string;
+  }>;
   totalChats: number;
   chatsBreakdown: {
     facebook: number;
@@ -279,7 +297,7 @@ export interface ChatMetrics {
     name: string;
     company?: string;
     timestamp: string;
-    type: string;
+    platform: Platform;
   }>;
   responseTime: string;
   topIssues: Array<any>;
