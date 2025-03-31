@@ -21,6 +21,9 @@ import { useMetrics } from './hooks/useMetrics';
 import { MessageSquare, CheckCircle, Clock, Users, AlertTriangle, Activity } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { AuthFormData } from './types';
+import { ThemeProvider } from './context/ThemeContext';
+// Import theme CSS
+import './styles/theme.css';
 // Used to track the platforms the user is allowed to access based on their subscription
 
 function App() {
@@ -281,7 +284,7 @@ function App() {
           <motion.div
             animate={{ rotate: 360 }}
             transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-            className="rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"
+            className="rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 dark:border-blue-400"
           />
         </div>
       );
@@ -293,7 +296,7 @@ function App() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-red-50 text-red-600 p-4 rounded-lg"
+            className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-4 rounded-lg"
           >
             Error loading dashboard data: {error}
           </motion.div>
@@ -307,7 +310,7 @@ function App() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-yellow-50 text-yellow-600 p-4 rounded-lg"
+            className="bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400 p-4 rounded-lg"
           >
             No metrics data available. Please check your database connection.
           </motion.div>
@@ -336,7 +339,7 @@ function App() {
               <motion.h1 
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="text-2xl font-bold text-gray-900 mb-6"
+                className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6"
               >
                 Dashboard Overview
               </motion.h1>
@@ -407,7 +410,7 @@ function App() {
               <motion.h1 
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="text-2xl font-bold text-gray-900 mb-6"
+                className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6"
               >
                 Conversations
               </motion.h1>
@@ -428,11 +431,11 @@ function App() {
   // Show loading indicator while checking session
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gradient-to-br from-blue-50 to-purple-50">
+      <div className="flex items-center justify-center h-screen bg-gradient-to-br from-blue-50 to-purple-50 dark:from-gray-900 dark:to-blue-950">
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-          className="rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"
+          className="rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 dark:border-blue-400"
         />
       </div>
     );
@@ -445,22 +448,22 @@ function App() {
 
   // If session exists, show dashboard
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 dark:from-gray-900 dark:to-blue-950 flex">
       <Sidebar currentSection={currentSection} onSectionChange={setCurrentSection} />
-      <div className="flex-1 ml-64 bg-gray-50/50 backdrop-blur-sm">
+      <div className="flex-1 ml-64 bg-gray-50/50 dark:bg-gray-900/50 backdrop-blur-sm">
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="p-4 bg-white/90 backdrop-blur-sm border-b border-gray-200/50 flex items-center justify-between"
+          className="p-4 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border-b border-gray-200/50 dark:border-gray-700/50 flex items-center justify-between"
         >
           <div className="flex items-center">
             <motion.div
               whileHover={{ scale: 1.1, rotate: 360 }}
               transition={{ duration: 0.5 }}
             >
-              <Activity className="text-blue-600 h-6 w-6 mr-2" />
+              <Activity className="text-blue-600 dark:text-blue-400 h-6 w-6 mr-2" />
             </motion.div>
-            <h1 className="text-xl font-bold text-gray-900">DANA AI by Hartford Tech</h1>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">DANA AI by Hartford Tech</h1>
           </div>
           <ProfileMenu onSectionChange={setCurrentSection} />
         </motion.div>
@@ -477,4 +480,13 @@ function App() {
   );
 }
 
-export default App;
+// Wrap App with ThemeProvider
+const AppWithTheme = () => {
+  return (
+    <ThemeProvider>
+      <App />
+    </ThemeProvider>
+  );
+};
+
+export default AppWithTheme;
