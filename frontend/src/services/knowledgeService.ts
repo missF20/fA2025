@@ -102,35 +102,64 @@ export const uploadKnowledgeFile = async (
     
     if (!session || !user) throw new Error('Not authenticated');
 
-    // Read file as binary data
-    const fileBuffer = await file.arrayBuffer();
-    
-    // Use API only
-    const fileData = {
-      user_id: user.id,
-      file_name: file.name,
-      file_size: file.size,
-      file_type: file.type,
-      content: fileBuffer,
-      category,
-      tags
-    };
-
-    const response = await fetch('/api/knowledge/files/binary', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`
-      },
-      body: JSON.stringify(fileData)
+    // Convert file to base64 instead of using ArrayBuffer
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      
+      reader.onload = async (event) => {
+        try {
+          if (!event.target || !event.target.result) {
+            throw new Error('Failed to read file');
+          }
+          
+          // Get base64 data
+          const base64Content = event.target.result as string;
+          
+          // Prepare tags as string if they exist
+          const tagString = tags && tags.length > 0 ? JSON.stringify(tags) : undefined;
+          
+          // Use API only
+          const fileData = {
+            user_id: user.id,
+            file_name: file.name,
+            file_size: file.size,
+            file_type: file.type,
+            content: base64Content,
+            category,
+            tags: tagString
+          };
+          
+          console.log(`Uploading file ${file.name} (${file.size} bytes, type: ${file.type})`);
+          
+          const response = await fetch('/api/knowledge/files', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify(fileData)
+          });
+          
+          if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`API upload failed with status: ${response.status}, ${errorText}`);
+          }
+          
+          const data = await response.json();
+          resolve(data.file);
+        } catch (err) {
+          console.error('Upload processing error:', err);
+          reject(err);
+        }
+      };
+      
+      reader.onerror = () => {
+        reject(new Error('Failed to read file'));
+      };
+      
+      // Read file as data URL (base64)
+      reader.readAsDataURL(file);
     });
-
-    if (!response.ok) {
-      throw new Error(`API upload failed with status: ${response.status}`);
-    }
-    
-    const data = await response.json();
-    return data.file;
   } catch (error) {
     console.error('Error uploading knowledge file:', error);
     throw error;

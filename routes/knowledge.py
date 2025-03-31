@@ -280,6 +280,9 @@ def create_knowledge_file():
     user = get_user_from_token(request)
     data = request.json
     
+    # Enhanced logging for debugging
+    logger.info(f"Starting file upload process. File name: {data.get('file_name', 'unknown')}")
+    
     # Ensure user_id is set to authenticated user
     data['user_id'] = user['id']
     
@@ -293,6 +296,16 @@ def create_knowledge_file():
         category = data.get('category', '')
         tags = data.get('tags', [])
         
+        # Validate required fields
+        if not file_name:
+            return jsonify({'error': 'File name is required'}), 400
+            
+        if not file_content:
+            return jsonify({'error': 'File content is required'}), 400
+        
+        file_size = len(file_content) if isinstance(file_content, str) else data.get('file_size', 0)
+        logger.debug(f"Processing file upload: name={file_name}, type={file_type}, size={file_size}, is_base64={is_base64}")
+        
         # If we have a file extension or type and content, try to parse it
         if (file_name or file_type) and file_content:
             # Determine file extension from name if not provided in type
@@ -300,22 +313,35 @@ def create_knowledge_file():
                 # Extract extension from filename
                 _, ext = os.path.splitext(file_name)
                 file_type = ext[1:] if ext else ''
+                logger.debug(f"Extracted file type from name: {file_type}")
                 
             # Parse file if it's base64 encoded
             if is_base64 and file_type:
                 try:
-                    # Parse file to extract content and metadata
-                    extracted_text, metadata = FileParser.parse_base64_file(file_content, file_type)
-                    
-                    # Update data with parsed content if extraction was successful
-                    if extracted_text:
-                        data['content'] = extracted_text
-                    
-                    # Extract metadata if available
-                    if metadata:
-                        data['metadata'] = json.dumps(metadata)
+                    # Check if the content is a base64 data URL
+                    if isinstance(file_content, str) and (file_content.startswith('data:') or file_content.startswith('data:')):
+                        logger.debug("Content is a data URL, attempting to parse")
                         
-                    logger.info(f"Successfully parsed {file_type} file: {file_name}")
+                        # Parse file to extract content and metadata
+                        try:
+                            extracted_text, metadata = FileParser.parse_base64_file(file_content, file_type)
+                            
+                            # Update data with parsed content if extraction was successful
+                            if extracted_text:
+                                data['content'] = extracted_text
+                                logger.debug(f"Successfully extracted text, length: {len(extracted_text)}")
+                            
+                            # Extract metadata if available
+                            if metadata:
+                                data['metadata'] = json.dumps(metadata)
+                                logger.debug(f"Extracted metadata: {list(metadata.keys())}")
+                                
+                            logger.info(f"Successfully parsed {file_type} file: {file_name}")
+                        except Exception as parse_err:
+                            logger.error(f"Error parsing file {file_name}: {str(parse_err)}", exc_info=True)
+                            # Keep original content if parsing fails
+                    else:
+                        logger.warning(f"File content is not in expected base64 data URL format")
                 except Exception as e:
                     logger.error(f"Error parsing file {file_name}: {str(e)}", exc_info=True)
                     # Keep original content if parsing fails
@@ -328,6 +354,11 @@ def create_knowledge_file():
         # Convert tags to JSON string if they're a list
         if isinstance(tags, list):
             data['tags'] = json.dumps(tags)
+            logger.debug(f"Converted tags list to JSON string: {data['tags']}")
+        
+        # Set file size if not already set
+        if 'file_size' not in data or not data['file_size']:
+            data['file_size'] = file_size
         
         # Use direct SQL to insert the file to avoid Supabase schema cache issues
         insert_sql = """
@@ -340,7 +371,7 @@ def create_knowledge_file():
             data['user_id'],
             data['file_name'],
             data['file_type'],
-            data.get('file_size', 0),
+            data['file_size'],
             data.get('content', ''),
             data['created_at'],
             data['updated_at'],
@@ -349,17 +380,30 @@ def create_knowledge_file():
             data.get('metadata')
         )
         
-        result = query_sql(insert_sql, params)
+        logger.debug(f"Executing SQL to insert file: user_id={data['user_id']}, file_name={data['file_name']}")
+        try:
+            result = query_sql(insert_sql, params)
+            logger.debug(f"SQL insert result: {result}")
+        except Exception as sql_err:
+            logger.error(f"SQL error during file upload: {str(sql_err)}", exc_info=True)
+            return jsonify({'error': f'Database error: {str(sql_err)}'}), 500
         
         if not result:
-            return jsonify({'error': 'Failed to upload file'}), 500
+            logger.error("SQL insert returned no results")
+            return jsonify({'error': 'Failed to upload file: No result returned from database'}), 500
         
         new_file = result[0]
+        logger.info(f"File uploaded successfully with ID: {new_file.get('id')}")
         
         # Emit socket event
-        socketio.emit('new_knowledge_file', {
-            'file': new_file
-        }, room=user['id'])
+        try:
+            socketio.emit('new_knowledge_file', {
+                'file': new_file
+            }, room=user['id'])
+            logger.debug(f"Socket event emitted for file: {new_file.get('id')}")
+        except Exception as socket_err:
+            logger.warning(f"Failed to emit socket event: {str(socket_err)}")
+            # Continue even if socket emit fails
         
         return jsonify({
             'message': 'File uploaded successfully',
@@ -368,7 +412,7 @@ def create_knowledge_file():
         
     except Exception as e:
         logger.error(f"Error uploading knowledge file: {str(e)}", exc_info=True)
-        return jsonify({'error': 'Error uploading knowledge file'}), 500
+        return jsonify({'error': f'Error uploading knowledge file: {str(e)}'}), 500
 
 @knowledge_bp.route('/files/<file_id>', methods=['DELETE'])
 @require_auth

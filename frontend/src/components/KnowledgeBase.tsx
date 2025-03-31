@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   FileText, Folder, Tag, Upload, Search, Trash2, Filter,
   PlusCircle, Loader2, AlertCircle, X, CheckCircle, 
@@ -38,6 +38,7 @@ export function KnowledgeBase() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   
   // State for filters
   const [categories, setCategories] = useState<KnowledgeCategory[]>([]);
@@ -117,38 +118,20 @@ export function KnowledgeBase() {
     }
   };
 
-  // Handle file upload
+  // Handle file upload from input element
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
     
-    setIsUploading(true);
-    setUploadProgress(0);
-    setUploadError(null);
+    // Convert FileList to array for processing
+    const filesArray = Array.from(files);
     
-    try {
-      // Process each file
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        await uploadKnowledgeFile(file, selectedCategory, selectedTags);
-        
-        // Update progress
-        setUploadProgress(Math.round(((i + 1) / files.length) * 100));
-      }
-      
-      // Refresh file list
-      fetchFiles();
-    } catch (err) {
-      console.error('Upload error:', err);
-      setUploadError('Failed to upload one or more files. Please try again.');
-    } finally {
-      setIsUploading(false);
-      setUploadProgress(0);
-      
-      // Reset file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+    // Process files using the common upload handler
+    await handleUploadFiles(filesArray);
+    
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
@@ -298,6 +281,114 @@ export function KnowledgeBase() {
     setFiles(files.map(file => 
       file.id === updatedFile.id ? updatedFile : file
     ));
+  };
+  
+  // Drag and drop handlers
+  const handleDragEnter = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isDragging) {
+      setIsDragging(true);
+    }
+  }, [isDragging]);
+
+  const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      console.log(`${e.dataTransfer.files.length} files dropped`);
+      
+      // Convert FileList to array for processing
+      const filesArray = Array.from(e.dataTransfer.files);
+      
+      // Process dropped files
+      handleUploadFiles(filesArray);
+    }
+  }, [selectedCategory, selectedTags]);
+  
+  // Process multiple files for upload
+  const handleUploadFiles = async (filesToUpload: File[]) => {
+    if (!filesToUpload || filesToUpload.length === 0) return;
+    
+    setIsUploading(true);
+    setUploadProgress(0);
+    setUploadError(null);
+    
+    try {
+      // Process each file
+      const totalFiles = filesToUpload.length;
+      let successCount = 0;
+      let errorFiles: string[] = [];
+      
+      for (let i = 0; i < totalFiles; i++) {
+        const file = filesToUpload[i];
+        
+        try {
+          console.log(`Uploading file ${i+1}/${totalFiles}: ${file.name} (${file.size} bytes, type: ${file.type})`);
+          
+          // Check file type support
+          const fileType = file.type.toLowerCase();
+          const isSupported = 
+            fileType.includes('pdf') || 
+            fileType.includes('word') || 
+            fileType.includes('docx') ||
+            fileType.includes('text/plain') ||
+            fileType.includes('text/markdown') ||
+            fileType.includes('text/html') ||
+            file.name.endsWith('.md') ||
+            file.name.endsWith('.txt') ||
+            file.name.endsWith('.docx') ||
+            file.name.endsWith('.pdf');
+          
+          if (!isSupported) {
+            console.warn(`File type ${fileType} may not be fully supported`);
+          }
+          
+          // Upload the file
+          await uploadKnowledgeFile(file, selectedCategory, selectedTags);
+          successCount++;
+        } catch (fileErr) {
+          console.error(`Error uploading ${file.name}:`, fileErr);
+          errorFiles.push(file.name);
+          // Continue with next file despite error
+        }
+        
+        // Update progress
+        setUploadProgress(Math.round(((i + 1) / totalFiles) * 100));
+      }
+      
+      // Refresh file list
+      fetchFiles();
+      
+      // Show result message
+      if (errorFiles.length > 0) {
+        if (successCount > 0) {
+          setUploadError(`Successfully uploaded ${successCount} files, but failed to upload: ${errorFiles.join(', ')}`);
+        } else {
+          setUploadError(`Failed to upload files: ${errorFiles.join(', ')}`);
+        }
+      }
+    } catch (err) {
+      console.error('Upload error:', err);
+      setUploadError('Failed to upload one or more files. Please try again.');
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+    }
   };
 
   // Render toolbar
@@ -834,37 +925,34 @@ export function KnowledgeBase() {
   };
 
   // Render error message
-  const renderError = () => {
-    if (!error) return null;
-    
-    return (
-      <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 flex items-center">
-        <AlertCircle size={20} className="mr-2 text-red-500" />
-        {error}
-      </div>
-    );
   };
 
-  // Render upload error message
-  const renderUploadError = () => {
-    if (!uploadError) return null;
+
+  
+  // Render drag overlay
+  const renderDragOverlay = () => {
+    if (!isDragging) return null;
     
     return (
-      <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 flex items-center">
-        <AlertCircle size={20} className="mr-2 text-red-500" />
-        {uploadError}
-        <button
-          onClick={() => setUploadError(null)}
-          className="ml-auto text-red-500 hover:text-red-700"
-        >
-          <X size={18} />
-        </button>
+      <div className="fixed inset-0 bg-blue-600 bg-opacity-30 flex items-center justify-center z-50 pointer-events-none">
+        <div className="bg-white p-8 rounded-lg shadow-lg text-center">
+          <Upload size={48} className="mx-auto text-blue-600 mb-4" />
+          <h3 className="text-xl font-medium text-gray-900 mb-2">Drop files to upload</h3>
+          <p className="text-gray-600">Release to upload your files to the knowledge base</p>
+        </div>
       </div>
     );
   };
 
   return (
-    <div className="container mx-auto p-4">
+    <div 
+      className="container mx-auto p-4"
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {renderDragOverlay()}
       {renderToolbar()}
       {renderError()}
       {renderUploadError()}
@@ -884,20 +972,24 @@ export function KnowledgeBase() {
               <Loader2 size={48} className="animate-spin text-blue-500" />
             </div>
           ) : files.length === 0 ? (
-            <div className="text-center py-12 border border-dashed border-gray-300 rounded-lg">
-              <FileText size={48} className="mx-auto text-gray-400 mb-2" />
+            <div 
+              className="text-center py-12 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 transition-colors duration-200 hover:bg-gray-100 hover:border-blue-300"
+              onClick={() => fileInputRef.current?.click()}
+              style={{ cursor: 'pointer' }}
+            >
+              <Upload size={48} className="mx-auto text-gray-400 mb-2" />
               <h3 className="text-lg font-medium text-gray-800">No files found</h3>
               <p className="text-gray-500 mt-1">
                 {selectedCategory || selectedTags.length > 0
                   ? 'Try removing filters or'
                   : 'Get started by'}
                 {' '}
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="text-blue-600 hover:text-blue-800 font-medium"
-                >
-                  uploading a file
-                </button>
+                <span className="text-blue-600 font-medium">
+                  clicking to upload files
+                </span>
+              </p>
+              <p className="text-gray-500 mt-2 text-sm">
+                or drag and drop files here
               </p>
             </div>
           ) : (

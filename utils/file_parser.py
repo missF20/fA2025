@@ -251,36 +251,91 @@ class FileParser:
         Parse a base64-encoded file
         
         Args:
-            base64_data: Base64-encoded file data
-            file_type: Type of file (pdf, docx, txt)
+            base64_data: Base64-encoded file data or data URL
+            file_type: Type of file (pdf, docx, txt) or MIME type
             
         Returns:
             Tuple of (extracted_text, metadata)
         """
         try:
-            # Try to decode the base64 data
-            # Remove data URL prefix if present (e.g., "data:application/pdf;base64,")
-            if ';base64,' in base64_data:
-                base64_data = base64_data.split(';base64,')[1]
+            logger.debug(f"Parsing base64 file of type: {file_type}")
+            
+            # Normalize file_type to handle MIME types
+            normalized_type = file_type.lower()
+            if '/' in normalized_type:
+                # It's likely a MIME type (e.g., application/pdf)
+                mime_parts = normalized_type.split('/')
+                if len(mime_parts) == 2:
+                    main_type, sub_type = mime_parts
+                    if main_type == 'application':
+                        if sub_type in ['pdf', 'vnd.openxmlformats-officedocument.wordprocessingml.document']:
+                            normalized_type = 'pdf' if sub_type == 'pdf' else 'docx'
+                    elif main_type == 'text':
+                        normalized_type = 'txt'
+            elif normalized_type.startswith('.'):
+                normalized_type = normalized_type[1:]  # Remove leading dot
+                
+            # Handle file extensions
+            if normalized_type in ['doc', 'docx', 'word']:
+                normalized_type = 'docx'
+            elif normalized_type in ['pdf']:
+                normalized_type = 'pdf'
+            elif normalized_type in ['txt', 'text', 'plain', 'md', 'markdown']:
+                normalized_type = 'txt'
+                
+            logger.debug(f"Normalized file type: {normalized_type}")
+            
+            # Check if input is a data URL
+            if isinstance(base64_data, str) and base64_data.startswith('data:'):
+                # Extract the base64 part
+                try:
+                    # Format: data:[<MIME-type>][;charset=<encoding>][;base64],<data>
+                    parts = base64_data.split(',', 1)
+                    if len(parts) != 2:
+                        raise ValueError("Invalid data URL format")
+                        
+                    # Get the base64 data part
+                    base64_data = parts[1]
+                    
+                    # Also try to extract MIME type if file_type is not specific
+                    if not normalized_type or normalized_type == 'unknown':
+                        header = parts[0].lower()
+                        if 'application/pdf' in header:
+                            normalized_type = 'pdf'
+                        elif 'wordprocessingml' in header or 'msword' in header:
+                            normalized_type = 'docx'
+                        elif 'text/' in header:
+                            normalized_type = 'txt'
+                            
+                    logger.debug(f"Extracted base64 data from data URL, detected type: {normalized_type}")
+                except Exception as e:
+                    logger.error(f"Error parsing data URL: {str(e)}")
             
             # Convert base64 to bytes
-            file_bytes = base64.b64decode(base64_data)
+            try:
+                file_bytes = base64.b64decode(base64_data)
+                logger.debug(f"Successfully decoded base64 data, size: {len(file_bytes)} bytes")
+            except Exception as e:
+                logger.error(f"Base64 decoding error: {str(e)}")
+                return "", {}
             
-            # Parse the file
-            result = FileParser.parse_file(file_bytes, file_type)
+            # Parse the file based on normalized type
+            result = FileParser.parse_file(file_bytes, normalized_type)
             
             if not result.get('success', False):
-                logger.error(f"Error parsing base64 file: {result.get('error', 'Unknown error')}")
+                error_msg = result.get('error', 'Unknown error')
+                logger.error(f"Error parsing base64 file: {error_msg}")
                 return "", {}
             
             # Return extracted text and metadata
             extracted_text = result.get('content', '')
             metadata = result.get('metadata', {})
             
+            logger.debug(f"Successfully parsed file. Text length: {len(extracted_text)}, metadata keys: {list(metadata.keys())}")
             return extracted_text, metadata
             
         except Exception as e:
-            logger.error(f"Error parsing base64 file: {str(e)}")
+            logger.error(f"Error parsing base64 file: {str(e)}", exc_info=True)
             return "", {}
     
     @staticmethod
