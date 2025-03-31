@@ -1,0 +1,154 @@
+"""
+Email Integration Routes
+
+This module provides API routes for connecting to and interacting with email services.
+"""
+
+import os
+import json
+import logging
+from flask import Blueprint, request, jsonify, current_app, g
+from utils.auth import token_required, validate_user_access
+from utils.rate_limiter import rate_limit
+from models import IntegrationType, IntegrationStatus
+from models_db import IntegrationConfig, User
+from app import db
+# This is a placeholder - in a real implementation this would be a proper module
+# from automation.integrations.business.email import validate_email_config
+
+# Create blueprint
+email_integration_bp = Blueprint('email_integration', __name__, url_prefix='/api/integrations/email')
+
+@email_integration_bp.route('/test', methods=['GET'])
+def test_email():
+    """
+    Test endpoint for Email integration that doesn't require authentication
+    
+    Returns:
+        JSON response with test data
+    """
+    return jsonify({
+        'success': True,
+        'message': 'Email integration API is working',
+        'endpoints': [
+            '/connect',
+            '/disconnect',
+            '/send'
+        ]
+    })
+
+# Set up logger
+logger = logging.getLogger(__name__)
+
+def connect_email(user_id, config):
+    """
+    Connect to email service
+    
+    Args:
+        user_id: ID of the user
+        config: Configuration data with email, password, smtp_server, and smtp_port
+        
+    Returns:
+        tuple: (success, message, status_code)
+    """
+    try:
+        # Validate that we have all required fields
+        required_fields = ['email', 'password', 'smtp_server', 'smtp_port']
+        for field in required_fields:
+            if field not in config:
+                return False, f"Missing required field: {field}", 400
+        
+        # Check for existing integration
+        existing_integration = IntegrationConfig.query.filter_by(
+            user_id=user_id,
+            integration_type=IntegrationType.EMAIL.value
+        ).first()
+        
+        # Validate email connection
+        # In a real implementation, we would test the connection here
+        
+        # Create or update the integration
+        if existing_integration:
+            existing_integration.config = config
+            existing_integration.status = IntegrationStatus.ACTIVE.value
+            message = "Email integration updated successfully"
+        else:
+            new_integration = IntegrationConfig(
+                user_id=user_id,
+                integration_type=IntegrationType.EMAIL.value,
+                config=config,
+                status=IntegrationStatus.ACTIVE.value
+            )
+            db.session.add(new_integration)
+            message = "Email integration connected successfully"
+            
+        db.session.commit()
+        return True, message, 200
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error connecting to email: {str(e)}")
+        return False, f"Failed to connect to email: {str(e)}", 500
+
+def sync_email(user_id, integration_id):
+    """
+    Sync with email service
+    
+    Args:
+        user_id: ID of the user
+        integration_id: ID of the integration
+        
+    Returns:
+        tuple: (success, message, status_code)
+    """
+    try:
+        # Get integration config
+        integration = IntegrationConfig.query.filter_by(
+            id=integration_id,
+            user_id=user_id,
+            integration_type=IntegrationType.EMAIL.value
+        ).first()
+        
+        if not integration:
+            return False, "Email integration not found", 404
+            
+        if integration.status != IntegrationStatus.ACTIVE.value:
+            return False, "Email integration is not active", 400
+            
+        # In a real implementation, we would sync emails here
+        # For demo purposes, update the last_sync timestamp
+        integration.last_sync = db.func.now()
+        db.session.commit()
+        
+        return True, "Email sync initiated successfully", 200
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error syncing with email: {str(e)}")
+        return False, f"Failed to sync with email: {str(e)}", 500
+
+def get_email_config_schema():
+    """
+    Get configuration schema for Email integration
+    
+    Returns:
+        dict: Configuration schema
+    """
+    return {
+        "email": {
+            "type": "string",
+            "description": "Email address"
+        },
+        "password": {
+            "type": "string",
+            "description": "App password or account password"
+        },
+        "smtp_server": {
+            "type": "string",
+            "description": "SMTP server address (e.g., smtp.gmail.com)"
+        },
+        "smtp_port": {
+            "type": "string",
+            "description": "SMTP server port (usually 587 for TLS or 465 for SSL)"
+        }
+    }

@@ -18,6 +18,7 @@ from routes.integrations.shopify import connect_shopify, sync_shopify
 from routes.integrations.slack import connect_slack, sync_slack, post_message, get_channel_history
 from routes.integrations.hubspot import connect_hubspot, sync_hubspot, hubspot_bp
 from routes.integrations.salesforce import connect_salesforce, sync_salesforce, salesforce_bp
+from routes.integrations.email import connect_email, sync_email, email_integration_bp
 from routes.integrations.config_schemas import validate_config
 
 # Set up logger
@@ -182,6 +183,9 @@ def connect_integration(integration_type):
         elif integration_type == 'salesforce':
             success, message, status_code = connect_salesforce(g.user.id, config)
             response = {'success': success, 'message': message}
+        elif integration_type == 'email':
+            success, message, status_code = connect_email(g.user.id, config)
+            response = {'success': success, 'message': message}
         else:
             return jsonify({
                 'success': False,
@@ -264,6 +268,9 @@ def sync_integration(integration_id):
             result = {'success': success, 'message': message}
         elif integration_id == 'salesforce':
             success, message, status_code = sync_salesforce(g.user.id, integration_id)
+            result = {'success': success, 'message': message}
+        elif integration_id == 'email':
+            success, message, status_code = sync_email(g.user.id, integration_id)
             result = {'success': success, 'message': message}
         else:
             return jsonify({
