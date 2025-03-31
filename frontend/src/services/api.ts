@@ -128,7 +128,14 @@ export const api = {
       const { data: session } = await supabase.auth.getSession();
       const token = session.session?.access_token;
 
-      const response = await fetch(`/api/integrations/connect/${integrationType}`, {
+      // Handle special case for email integration
+      const endpoint = integrationType === 'email' 
+        ? `/api/integrations/email/connect`
+        : `/api/integrations/connect/${integrationType}`;
+      
+      console.log(`Connecting to ${integrationType} using endpoint: ${endpoint}`);
+      
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -148,7 +155,14 @@ export const api = {
       const { data: session } = await supabase.auth.getSession();
       const token = session.session?.access_token;
 
-      const response = await fetch(`/api/integrations/disconnect/${integrationId}`, {
+      // Handle special case for email integration
+      const endpoint = integrationId === 'email' 
+        ? `/api/integrations/email/disconnect`
+        : `/api/integrations/disconnect/${integrationId}`;
+      
+      console.log(`Disconnecting from ${integrationId} using endpoint: ${endpoint}`);
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -167,7 +181,14 @@ export const api = {
       const { data: session } = await supabase.auth.getSession();
       const token = session.session?.access_token;
 
-      const response = await fetch(`/api/integrations/sync/${integrationId}`, {
+      // Handle special case for email integration
+      const endpoint = integrationId === 'email' 
+        ? `/api/integrations/email/sync`
+        : `/api/integrations/sync/${integrationId}`;
+      
+      console.log(`Syncing ${integrationId} using endpoint: ${endpoint}`);
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

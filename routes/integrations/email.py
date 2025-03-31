@@ -33,6 +33,7 @@ def test_email():
         'endpoints': [
             '/connect',
             '/disconnect',
+            '/sync',
             '/send'
         ]
     })
@@ -229,6 +230,45 @@ def handle_disconnect_email():
         return jsonify({
             'success': False,
             'message': f'Failed to disconnect from email: {str(e)}'
+        }), 500
+
+@email_integration_bp.route('/sync', methods=['POST'])
+@token_required
+def handle_sync_email():
+    """
+    Sync with email service
+    
+    Returns:
+        JSON response with sync status
+    """
+    user_id = g.user.id
+    
+    try:
+        # Get integration config
+        integration = IntegrationConfig.query.filter_by(
+            user_id=user_id,
+            integration_type=IntegrationType.EMAIL.value,
+            status=IntegrationStatus.ACTIVE.value
+        ).first()
+        
+        if not integration:
+            return jsonify({
+                'success': False,
+                'message': 'Active email integration not found. Please connect your email first.'
+            }), 404
+        
+        success, message, status_code = sync_email(user_id, integration.id)
+        
+        return jsonify({
+            'success': success,
+            'message': message
+        }), status_code
+        
+    except Exception as e:
+        logger.error(f"Error syncing email: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Failed to sync email: {str(e)}'
         }), 500
 
 @email_integration_bp.route('/send', methods=['POST'])
