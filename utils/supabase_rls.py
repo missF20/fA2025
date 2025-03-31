@@ -298,25 +298,25 @@ def setup_integration_configs_rls():
     # Create policies
     success = success and create_select_policy(
         table_name,
-        "Users can view own integration configs",
+        "Users can view own integrations",
         "user_id::text = auth.uid()::text"
     )
     
     success = success and create_insert_policy(
         table_name,
-        "Users can insert own integration configs",
+        "Users can insert own integrations",
         "user_id::text = auth.uid()::text"
     )
     
     success = success and create_update_policy(
         table_name,
-        "Users can update own integration configs",
+        "Users can update own integrations",
         "user_id::text = auth.uid()::text"
     )
     
     success = success and create_delete_policy(
         table_name,
-        "Users can delete own integration configs",
+        "Users can delete own integrations",
         "user_id::text = auth.uid()::text"
     )
     
