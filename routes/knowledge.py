@@ -4,7 +4,7 @@ import base64
 import json
 import os
 from utils.validation import validate_request_json
-from utils.supabase import get_supabase_client
+from utils.supabase import get_supabase_client, refresh_supabase_client
 from utils.auth import get_user_from_token, require_auth
 from utils.file_parser import FileParser
 from models import KnowledgeFileCreate, KnowledgeFileUpdate
@@ -13,7 +13,8 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 knowledge_bp = Blueprint('knowledge', __name__)
-supabase = get_supabase_client()
+# Force refresh the Supabase client to ensure schema changes are recognized
+supabase = refresh_supabase_client()
 
 @knowledge_bp.route('/files', methods=['GET'])
 @require_auth

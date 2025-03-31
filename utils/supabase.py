@@ -5,12 +5,25 @@ from functools import lru_cache
 
 logger = logging.getLogger(__name__)
 
-@lru_cache(maxsize=1)
-def get_supabase_client() -> Client:
+# Keep track of client for forced refresh
+_supabase_client = None
+
+def get_supabase_client(force_refresh=False) -> Client:
     """
     Create and return a Supabase client instance.
-    Uses LRU cache to avoid creating multiple clients.
+    
+    Args:
+        force_refresh: If True, create a new client even if one exists
+        
+    Returns:
+        Client: Supabase client instance
     """
+    global _supabase_client
+    
+    # Return existing client if available and no refresh requested
+    if _supabase_client is not None and not force_refresh:
+        return _supabase_client
+    
     supabase_url = os.environ.get("SUPABASE_URL")
     supabase_key = os.environ.get("SUPABASE_KEY")
     
@@ -19,12 +32,23 @@ def get_supabase_client() -> Client:
         raise ValueError("Supabase URL and API Key must be set in environment variables")
     
     try:
-        client = create_client(supabase_url, supabase_key)
+        _supabase_client = create_client(supabase_url, supabase_key)
         logger.info("Supabase client initialized successfully")
-        return client
+        return _supabase_client
     except Exception as e:
         logger.error(f"Failed to initialize Supabase client: {str(e)}", exc_info=True)
         raise
+
+def refresh_supabase_client():
+    """
+    Force a refresh of the Supabase client.
+    This can be useful when schema changes have been made.
+    
+    Returns:
+        Client: Fresh Supabase client instance
+    """
+    logger.info("Forcing Supabase client refresh")
+    return get_supabase_client(force_refresh=True)
 
 def setup_rls_policies():
     """
