@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 import logging
 import base64
 import json
@@ -9,11 +9,10 @@ from utils.supabase_extension import query_sql, execute_sql
 from utils.auth import get_user_from_token, require_auth
 from utils.file_parser import FileParser
 from models import KnowledgeFileCreate, KnowledgeFileUpdate
-from app import socketio
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
-knowledge_bp = Blueprint('knowledge', __name__)
+knowledge_bp = Blueprint('knowledge', __name__, url_prefix='/api/knowledge')
 # Force refresh the Supabase client to ensure schema changes are recognized
 supabase = refresh_supabase_client()
 
@@ -235,10 +234,16 @@ def update_knowledge_file(file_id):
         if 'content' in updated_file:
             updated_file.pop('content', None)
         
-        # Emit socket event
-        socketio.emit('knowledge_file_updated', {
-            'file': updated_file
-        }, room=user['id'])
+        # Emit socket event if available
+        try:
+            if hasattr(current_app, 'socketio'):
+                current_app.socketio.emit('knowledge_file_updated', {
+                    'file': updated_file
+                }, room=user['id'])
+            else:
+                logger.debug("SocketIO not available, skipping emit")
+        except Exception as socket_err:
+            logger.warning(f"Failed to emit socket event: {str(socket_err)}")
         
         return jsonify({
             'message': 'File updated successfully',
@@ -395,12 +400,15 @@ def create_knowledge_file():
         new_file = result[0]
         logger.info(f"File uploaded successfully with ID: {new_file.get('id')}")
         
-        # Emit socket event
+        # Emit socket event if available
         try:
-            socketio.emit('new_knowledge_file', {
-                'file': new_file
-            }, room=user['id'])
-            logger.debug(f"Socket event emitted for file: {new_file.get('id')}")
+            if hasattr(current_app, 'socketio'):
+                current_app.socketio.emit('new_knowledge_file', {
+                    'file': new_file
+                }, room=user['id'])
+                logger.debug(f"Socket event emitted for file: {new_file.get('id')}")
+            else:
+                logger.debug("SocketIO not available, skipping emit")
         except Exception as socket_err:
             logger.warning(f"Failed to emit socket event: {str(socket_err)}")
             # Continue even if socket emit fails
@@ -467,10 +475,16 @@ def delete_knowledge_file(file_id):
         if not delete_result:
             return jsonify({'error': 'Failed to delete file'}), 500
         
-        # Emit socket event
-        socketio.emit('knowledge_file_deleted', {
-            'file_id': file_id
-        }, room=user['id'])
+        # Emit socket event if available
+        try:
+            if hasattr(current_app, 'socketio'):
+                current_app.socketio.emit('knowledge_file_deleted', {
+                    'file_id': file_id
+                }, room=user['id'])
+            else:
+                logger.debug("SocketIO not available, skipping emit")
+        except Exception as socket_err:
+            logger.warning(f"Failed to emit socket event: {str(socket_err)}")
         
         return jsonify({
             'message': 'File deleted successfully'
@@ -934,10 +948,16 @@ def upload_binary_file():
         
         # Content is not included in the returned fields
         
-        # Emit socket event
-        socketio.emit('new_knowledge_file', {
-            'file': new_file
-        }, room=user['id'])
+        # Emit socket event if available
+        try:
+            if hasattr(current_app, 'socketio'):
+                current_app.socketio.emit('new_knowledge_file', {
+                    'file': new_file
+                }, room=user['id'])
+            else:
+                logger.debug("SocketIO not available, skipping emit")
+        except Exception as socket_err:
+            logger.warning(f"Failed to emit socket event: {str(socket_err)}")
         
         return jsonify({
             'message': 'File uploaded successfully',

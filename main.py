@@ -4,7 +4,7 @@ Dana AI Platform - Main Entry Point
 This is the main entry point for running the Dana AI Platform.
 """
 
-from app import app
+from app import app, socketio
 import threading
 import logging
 import subprocess
@@ -87,6 +87,17 @@ except Exception as e:
     logger.error(f"Failed to start Simple API: {str(e)}")
 
 if __name__ == "__main__":
-    # Start the main application
-    logger.info("Starting main Dana AI Platform on port 5000...")
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    # Start the main application using SocketIO
+    logger.info("Starting main Dana AI Platform on port 5000 with SocketIO support...")
+    try:
+        socketio.run(
+            app, 
+            host="0.0.0.0", 
+            port=5000, 
+            debug=True,
+            allow_unsafe_werkzeug=True  # Required for newer versions of Flask-SocketIO
+        )
+    except TypeError as e:
+        # Fallback for older Flask-SocketIO versions
+        logger.warning(f"SocketIO error with allow_unsafe_werkzeug, trying without: {e}")
+        socketio.run(app, host="0.0.0.0", port=5000, debug=True)

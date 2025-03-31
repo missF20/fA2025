@@ -9,6 +9,7 @@ import logging
 from flask import Flask, jsonify, g, render_template
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
+from flask_socketio import SocketIO
 # Temporarily commented out due to installation issues
 # from flask_limiter import Limiter
 # from flask_limiter.util import get_remote_address
@@ -43,6 +44,11 @@ db.init_app(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = "auth.login"
+
+# Initialize Flask-SocketIO
+socketio = SocketIO(app, cors_allowed_origins="*")
+# Make socketio available to the app instance for direct access in routes
+app.socketio = socketio
 
 # Initialize rate limiter - Temporarily commented out
 # limiter = Limiter(
@@ -172,11 +178,14 @@ def register_blueprints():
         from routes.ai_test import ai_test_bp
         from routes.subscription_management import subscription_mgmt_bp
         from routes.pdf_analysis import pdf_analysis_bp
+        from routes.knowledge import knowledge_bp
         
         # Register existing blueprints
         app.register_blueprint(ai_test_bp)
         app.register_blueprint(subscription_mgmt_bp)
         app.register_blueprint(pdf_analysis_bp)
+        app.register_blueprint(knowledge_bp)
+        logger.info("Knowledge blueprint registered successfully")
         
         # Try to import and register additional blueprints
         try:

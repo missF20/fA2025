@@ -1,10 +1,9 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 import logging
 from utils.validation import validate_request_json
 from utils.supabase import get_supabase_client
 from utils.auth import get_user_from_token, require_auth
 from models import ConversationCreate, ConversationUpdate
-from app import socketio
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
@@ -189,10 +188,16 @@ def create_conversation():
         
         new_conversation = conversation_result.data[0]
         
-        # Emit socket event
-        socketio.emit('new_conversation', {
-            'conversation': new_conversation
-        }, room=user['id'])
+        # Emit socket event if available
+        try:
+            if hasattr(current_app, 'socketio'):
+                current_app.socketio.emit('new_conversation', {
+                    'conversation': new_conversation
+                }, room=user['id'])
+            else:
+                logger.debug("SocketIO not available, skipping emit")
+        except Exception as socket_err:
+            logger.warning(f"Failed to emit socket event: {str(socket_err)}")
         
         # Log interaction
         interaction_data = {
@@ -266,10 +271,16 @@ def update_conversation(conversation_id):
         
         updated_conversation = conversation_result.data[0]
         
-        # Emit socket event
-        socketio.emit('conversation_updated', {
-            'conversation': updated_conversation
-        }, room=user['id'])
+        # Emit socket event if available
+        try:
+            if hasattr(current_app, 'socketio'):
+                current_app.socketio.emit('conversation_updated', {
+                    'conversation': updated_conversation
+                }, room=user['id'])
+            else:
+                logger.debug("SocketIO not available, skipping emit")
+        except Exception as socket_err:
+            logger.warning(f"Failed to emit socket event: {str(socket_err)}")
         
         return jsonify({
             'message': 'Conversation updated successfully',
@@ -322,10 +333,16 @@ def delete_conversation(conversation_id):
         # Delete conversation
         supabase.table('conversations').delete().eq('id', conversation_id).execute()
         
-        # Emit socket event
-        socketio.emit('conversation_deleted', {
-            'conversation_id': conversation_id
-        }, room=user['id'])
+        # Emit socket event if available
+        try:
+            if hasattr(current_app, 'socketio'):
+                current_app.socketio.emit('conversation_deleted', {
+                    'conversation_id': conversation_id
+                }, room=user['id'])
+            else:
+                logger.debug("SocketIO not available, skipping emit")
+        except Exception as socket_err:
+            logger.warning(f"Failed to emit socket event: {str(socket_err)}")
         
         return jsonify({
             'message': 'Conversation deleted successfully'
@@ -380,10 +397,16 @@ def close_conversation(conversation_id):
         
         closed_conversation = conversation_result.data[0]
         
-        # Emit socket event
-        socketio.emit('conversation_closed', {
-            'conversation': closed_conversation
-        }, room=user['id'])
+        # Emit socket event if available
+        try:
+            if hasattr(current_app, 'socketio'):
+                current_app.socketio.emit('conversation_closed', {
+                    'conversation': closed_conversation
+                }, room=user['id'])
+            else:
+                logger.debug("SocketIO not available, skipping emit")
+        except Exception as socket_err:
+            logger.warning(f"Failed to emit socket event: {str(socket_err)}")
         
         return jsonify({
             'message': 'Conversation closed successfully',
