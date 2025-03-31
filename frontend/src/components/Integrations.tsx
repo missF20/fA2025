@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { 
@@ -22,6 +21,7 @@ import {
 import { motion } from 'framer-motion';
 import SlackDashboard from './SlackDashboard';
 import { IntegrationGuide } from './IntegrationGuide';
+import { EmailIntegrationForm } from './EmailIntegrationForm';
 
 interface Integration {
   id: string;
@@ -54,6 +54,7 @@ export default function Integrations() {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [showConnectionForm, setShowConnectionForm] = useState<string | null>(null);
+  const [showEmailForm, setShowEmailForm] = useState(false);
   const [formData, setFormData] = useState<IntegrationFormData>({});
   const [selectedIntegration, setSelectedIntegration] = useState<string | null>(null);
   const [integrations, setIntegrations] = useState<Integration[]>([]);
@@ -91,6 +92,7 @@ export default function Integrations() {
       
       setSuccessMessage(`Successfully connected to ${integrationType}`);
       setShowConnectionForm(null);
+      setShowEmailForm(false);
       setFormData({});
       
       // Refresh the integrations list
@@ -153,6 +155,33 @@ export default function Integrations() {
     });
   };
 
+  const handleEmailConnect = async (config: any) => {
+    try {
+      setConnecting('email');
+      setError(null);
+      setSuccessMessage(null);
+      
+      await api.integrations.connect('email', config);
+      
+      // Update the integration in the list
+      setIntegrations(prevIntegrations => 
+        prevIntegrations.map(integration => 
+          integration.id === 'email' ? { ...integration, status: 'active' } : integration
+        )
+      );
+      
+      setSuccessMessage('Successfully connected email');
+      setShowEmailForm(false);
+      
+      // Refresh the integrations list
+      fetchIntegrations();
+    } catch (err: any) {
+      setError(err.message || 'Failed to connect email');
+    } finally {
+      setConnecting(null);
+    }
+  };
+
   const renderConfigForm = (integrationType: string) => {
     let formFields: FormField[] = [];
 
@@ -170,13 +199,6 @@ export default function Integrations() {
         { name: 'client_id', label: 'Client ID', placeholder: 'salesforce_client_id' },
         { name: 'client_secret', label: 'Client Secret', placeholder: 'salesforce_client_secret' },
         { name: 'instance_url', label: 'Instance URL', placeholder: 'https://yourinstance.salesforce.com' }
-      ];
-    } else if (integrationType === 'email') {
-      formFields = [
-        { name: 'email', label: 'Email Address', placeholder: 'your@email.com' },
-        { name: 'password', label: 'App Password', placeholder: 'email_app_password' },
-        { name: 'smtp_server', label: 'SMTP Server', placeholder: 'smtp.gmail.com' },
-        { name: 'smtp_port', label: 'SMTP Port', placeholder: '587' }
       ];
     }
 
@@ -268,6 +290,13 @@ export default function Integrations() {
       </div>
     );
   }
+
+  // Function to handle clicking connect for email integration
+  const handleEmailFormToggle = () => {
+    setShowEmailForm(prev => !prev);
+    setShowConnectionForm(null);
+    setError(null);
+  };
 
   // Create a mapping of our API integration IDs to more user-friendly data
   const getDefaultIntegrations = () => {
@@ -470,6 +499,17 @@ export default function Integrations() {
               </div>
             )}
 
+            {/* Email Integration Form */}
+            {showEmailForm && (
+              <div className="mb-6">
+                <EmailIntegrationForm
+                  onSubmit={handleEmailConnect}
+                  onCancel={() => setShowEmailForm(false)}
+                  isLoading={connecting === 'email'}
+                />
+              </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {loading ? (
                 <div className="col-span-3 flex justify-center items-center py-12">
@@ -509,123 +549,100 @@ export default function Integrations() {
                     
                     <p className="text-sm text-gray-600 mb-4">{integration.description}</p>
                     
-                    {integration.lastSync && (
-                      <p className="text-xs text-gray-500 mb-4">
-                        Last synced: {new Date(integration.lastSync).toLocaleDateString()}
-                      </p>
-                    )}
-
-                    {/* Integration Configuration Details */}
-                    {integration.config && Object.keys(integration.config).length > 0 && (
-                      <div className="mb-4 bg-gray-50 p-3 rounded text-xs">
-                        {Object.entries(integration.config).map(([key, value]) => {
-                          // Don't show empty arrays or sensitive information
-                          if (Array.isArray(value) && value.length === 0) return null;
-                          if (key.includes('token') || key.includes('password') || key.includes('secret')) {
-                            return (
-                              <div key={key} className="flex justify-between">
-                                <span className="font-medium">{key}:</span>
-                                <span>••••••••</span>
-                              </div>
-                            );
+                    {integration.id === 'email' ? (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (integration.status === 'active') {
+                            handleDisconnect('email');
+                          } else {
+                            handleEmailFormToggle();
                           }
-                          return (
-                            <div key={key} className="flex justify-between">
-                              <span className="font-medium">{key}:</span>
-                              <span>{String(value)}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    <div onClick={(e) => e.stopPropagation()}>
-                      {integration.status === 'active' ? (
-                        <div className="flex gap-2 mt-4">
-                          <button
-                            onClick={() => handleSync(integration.id)}
-                            disabled={syncing === integration.id}
-                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
-                          >
-                            {syncing === integration.id ? (
-                              <>
-                                <Loader2 size={16} className="animate-spin" />
-                                Syncing...
-                              </>
-                            ) : (
-                              <>
-                                <RefreshCw size={16} />
-                                Sync
-                              </>
-                            )}
-                          </button>
-                          <button
-                            onClick={() => handleDisconnect(integration.id)}
-                            disabled={disconnecting === integration.id}
-                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-red-50 text-red-700 hover:bg-red-100 transition-colors"
-                          >
-                            {disconnecting === integration.id ? (
-                              <>
-                                <Loader2 size={16} className="animate-spin" />
-                                Disconnecting...
-                              </>
-                            ) : (
-                              <>
-                                <X size={16} />
-                                Disconnect
-                              </>
-                            )}
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => setShowConnectionForm(integration.id)}
-                          disabled={connecting === integration.id}
-                          className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors"
-                        >
-                          {connecting === integration.id ? (
-                            <>
-                              <Loader2 size={16} className="animate-spin" />
-                              Connecting...
-                            </>
+                        }}
+                        disabled={connecting === 'email' || disconnecting === 'email'}
+                        className={`w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          integration.status === 'active'
+                            ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            : 'bg-blue-600 text-white hover:bg-blue-700'
+                        }`}
+                      >
+                        {connecting === 'email' ? (
+                          <>
+                            <Loader2 size={16} className="animate-spin" />
+                            Connecting...
+                          </>
+                        ) : disconnecting === 'email' ? (
+                          <>
+                            <Loader2 size={16} className="animate-spin" />
+                            Disconnecting...
+                          </>
+                        ) : integration.status === 'active' ? (
+                          'Disconnect'
+                        ) : (
+                          <>
+                            <Mail size={16} />
+                            Connect Email
+                          </>
+                        )}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (integration.status === 'active') {
+                            if (integration.id === 'slack') {
+                              handleIntegrationClick(integration);
+                            } else {
+                              handleSync(integration.id);
+                            }
+                          } else {
+                            if (showConnectionForm === integration.id) {
+                              setShowConnectionForm(null);
+                            } else {
+                              setShowConnectionForm(integration.id);
+                              setShowEmailForm(false);
+                            }
+                          }
+                        }}
+                        disabled={connecting === integration.id || syncing === integration.id}
+                        className={`w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          integration.status === 'active'
+                            ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            : 'bg-blue-600 text-white hover:bg-blue-700'
+                        }`}
+                      >
+                        {connecting === integration.id ? (
+                          <>
+                            <Loader2 size={16} className="animate-spin" />
+                            Connecting...
+                          </>
+                        ) : syncing === integration.id ? (
+                          <>
+                            <RefreshCw size={16} className="animate-spin" />
+                            Syncing...
+                          </>
+                        ) : integration.status === 'active' ? (
+                          integration.id === 'slack' ? (
+                            'Manage Connection'
                           ) : (
                             <>
-                              <Link2 size={16} />
-                              Connect
+                              <RefreshCw size={16} />
+                              Sync Now
                             </>
-                          )}
-                        </button>
-                      )}
-                    </div>
-
-                    {showConnectionForm === integration.id && (
-                      <div onClick={(e) => e.stopPropagation()}>
-                        {renderConfigForm(integration.id)}
-                      </div>
+                          )
+                        ) : (
+                          <>
+                            <Link2 size={16} />
+                            Connect
+                          </>
+                        )}
+                      </button>
                     )}
-
-                    {integration.status === 'active' && integration.id === 'slack' && (
-                      <div className="mt-4 text-sm text-center text-blue-600">
-                        Click to access Slack dashboard
-                      </div>
-                    )}
+                    
+                    {showConnectionForm === integration.id && renderConfigForm(integration.id)}
                   </div>
                 ))
               )}
-            </div>
-
-            <div className="bg-blue-50 rounded-xl p-6 mt-8 border border-blue-100">
-              <h3 className="text-lg font-semibold text-blue-900 mb-2">Need a custom integration?</h3>
-              <p className="text-blue-700 mb-4">
-                Don't see the tool you're looking for? We can build custom integrations for your specific needs.
-              </p>
-              <a 
-                href="mailto:support@hartford-tech.com" 
-                className="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium"
-              >
-                Contact us for custom integrations
-                <ExternalLink size={16} className="ml-1" />
-              </a>
             </div>
 
             <IntegrationGuide />
