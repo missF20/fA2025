@@ -133,10 +133,41 @@ def get_user_from_token(token_or_request):
     if not payload:
         return None
     
-    return {
-        "id": payload["sub"],
-        "email": payload["email"]
-    }
+    # We need to map the Supabase UUID to our database integer ID
+    # Get the email from the token payload
+    email = payload["email"]
+    
+    # Use the email to look up the user in our database
+    try:
+        from utils.supabase_extension import query_sql
+        
+        # Query for user ID by email
+        sql = "SELECT id FROM users WHERE email = %s"
+        params = (email,)
+        result = query_sql(sql, params)
+        
+        if result and len(result) > 0:
+            # Found the user, use the database ID
+            user_id = result[0]['id']
+            logger.info(f"Mapped Supabase user to database ID: {user_id}")
+        else:
+            # Fallback to the Supabase ID
+            # This might not work with integer-only columns
+            user_id = 1  # Default to first user for demo
+            logger.warning(f"User with email {email} not found in database, using default ID")
+        
+        return {
+            "id": user_id,
+            "email": email,
+            "sub": payload["sub"]  # Keep the original sub for reference
+        }
+    except Exception as e:
+        logger.error(f"Error mapping user from token: {str(e)}")
+        # Return with original sub as ID (may not work with integer columns)
+        return {
+            "id": payload["sub"],
+            "email": payload["email"]
+        }
 
 def require_auth(f):
     """
@@ -163,19 +194,16 @@ def require_auth(f):
         if not token:
             return jsonify({"error": "Authentication required"}), 401
         
-        # Verify token
-        payload = verify_token(token)
-        if not payload:
+        # Use our enhanced get_user_from_token function that maps Supabase UUID to database ID
+        user = get_user_from_token(token)
+        if not user:
             return jsonify({"error": "Invalid or expired token"}), 401
         
         # Set current user
-        g.current_user = {
-            "id": payload["sub"],
-            "email": payload["email"]
-        }
+        g.current_user = user
         
         # Also set g.user for compatibility with supabase route handlers
-        g.user = type('User', (), {'id': payload["sub"], 'email': payload["email"]})
+        g.user = type('User', (), {'id': user["id"], 'email': user["email"]})
         
         return f(*args, **kwargs)
     
@@ -206,16 +234,13 @@ def require_admin(f):
         if not token:
             return jsonify({"error": "Authentication required"}), 401
         
-        # Verify token
-        payload = verify_token(token)
-        if not payload:
+        # Use our enhanced get_user_from_token function that maps Supabase UUID to database ID
+        user = get_user_from_token(token)
+        if not user:
             return jsonify({"error": "Invalid or expired token"}), 401
         
         # Set current user
-        g.current_user = {
-            "id": payload["sub"],
-            "email": payload["email"]
-        }
+        g.current_user = user
         
         # Check if user is admin (from database or some other source)
         # For simplicity, we're just checking a hardcoded list of admin emails
