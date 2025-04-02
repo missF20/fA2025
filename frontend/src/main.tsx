@@ -9,6 +9,8 @@ import * as Sentry from '@sentry/react';
 import { AppErrorBoundary } from './components/ErrorBoundary';
 import App from './App';
 import './index.css';
+// Import Bootstrap CSS
+import 'bootstrap/dist/css/bootstrap.min.css';
 import { reportWebVitals } from './reportWebVitals';
 
 // Initialize Sentry
