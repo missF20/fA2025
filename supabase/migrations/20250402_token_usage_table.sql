@@ -4,13 +4,13 @@
 -- Create the token_usage table if it doesn't exist
 CREATE TABLE IF NOT EXISTS token_usage (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER NOT NULL,
-    request_tokens INTEGER NOT NULL,
-    response_tokens INTEGER NOT NULL,
+    user_id UUID NOT NULL,
+    request_tokens INTEGER NOT NULL DEFAULT 0,
+    response_tokens INTEGER NOT NULL DEFAULT 0,
     total_tokens INTEGER NOT NULL,
     model VARCHAR(50) NOT NULL,
     timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    endpoint VARCHAR(100) NOT NULL
+    endpoint VARCHAR(100) NOT NULL DEFAULT 'api'
 );
 
 -- Create indexes for better query performance
@@ -23,12 +23,12 @@ ALTER TABLE token_usage ENABLE ROW LEVEL SECURITY;
 -- Policy: Users can see their own token usage
 CREATE POLICY user_token_usage_policy ON token_usage
     FOR SELECT
-    USING (auth.uid() = user_id);
+    USING (user_id::text = auth.uid()::text);
 
 -- Policy: Only auth users can insert their own token usage
 CREATE POLICY user_token_usage_insert_policy ON token_usage
     FOR INSERT
-    WITH CHECK (auth.uid() = user_id);
+    WITH CHECK (user_id::text = auth.uid()::text);
 
 -- Policy: Admin can see all token usage
 CREATE POLICY admin_token_usage_policy ON token_usage
@@ -36,6 +36,6 @@ CREATE POLICY admin_token_usage_policy ON token_usage
     USING (
         EXISTS (
             SELECT 1 FROM admin_users 
-            WHERE admin_users.user_id = auth.uid()
+            WHERE admin_users.user_id::text = auth.uid()::text
         )
     );

@@ -41,7 +41,8 @@ def main():
     # Define the migration files in order of execution
     migrations = [
         'supabase/migrations/20250331_fix_integrations_table.sql',
-        'supabase/migrations/20250331_fix_integer_ids.sql'
+        'supabase/migrations/20250331_fix_integer_ids.sql',
+        'supabase/migrations/20250402_token_usage_table.sql'
     ]
     
     # Apply each migration

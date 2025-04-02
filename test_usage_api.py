@@ -1,189 +1,209 @@
 """
-Test Usage API Routes
+Token Usage API Test
 
-This script tests the usage blueprint using Flask's test client, including mocked authentication.
+A simple script to test the token usage API functionality.
 """
 import os
+import time
 import json
-import functools
-from flask import Flask, g
-from routes.usage import usage_bp
+import logging
+import datetime
+from typing import Dict, Any, Optional
 
-# Mock the require_auth decorator
-def mock_require_auth(f):
-    @functools.wraps(f)
-    def decorated_function(*args, **kwargs):
-        # Set a mock current user
-        g.current_user = {
-            'id': 'test-user-id',
-            'email': 'test@example.com',
-            'is_admin': False
-        }
-        return f(*args, **kwargs)
-    return decorated_function
+import jwt
+import requests
+from flask import Flask, jsonify
 
-# Create a patched module for imports
-import sys
-from types import ModuleType
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-class MockAuthModule(ModuleType):
-    require_auth = mock_require_auth
-    require_admin = mock_require_auth
+# Secret key for JWT tokens (should match auth.py)
+JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', os.urandom(24).hex())
+
+def generate_mock_token():
+    """Generate a mock JWT token for testing"""
+    now = datetime.datetime.utcnow()
     
-    @staticmethod
-    def get_user_id_from_token(*args, **kwargs):
-        return 'test-user-id'
-
-# Create and install the mock module
-mock_auth = MockAuthModule('utils.auth')
-sys.modules['utils.auth'] = mock_auth
-
-# Create a mock token management module
-class MockTokenManagementModule(ModuleType):
-    @staticmethod
-    def get_user_token_usage(user_id, start_date=None, end_date=None):
-        return {
-            'total_tokens': 50000,
-            'tokens_used': 25000,
-            'tokens_remaining': 25000,
-            'usage_period': {
-                'start': '2024-04-01T00:00:00Z',
-                'end': '2024-04-30T23:59:59Z'
-            },
-            'usage_percentage': 50.0
-        }
+    # Create token payload
+    payload = {
+        'sub': "test_user_123",
+        'email': "test@example.com",
+        'is_admin': True,
+        'iat': now,
+        'exp': now + datetime.timedelta(hours=1)
+    }
     
-    @staticmethod
-    def get_user_limits(user_id):
-        return {
-            'monthly_token_limit': 100000,
-            'max_tokens_per_request': 1500,
-            'subscription_tier': 'pro'
-        }
-    
-    @staticmethod
-    def update_user_token_limit(user_id, limit_type=None, value=None):
-        # Update specific limit type with value
-        return True
-    
-    @staticmethod
-    def get_subscription_token_limits(user_id=None):
-        return {
-            'free': {'monthly_token_limit': 50000, 'max_tokens_per_request': 1000},
-            'pro': {'monthly_token_limit': 500000, 'max_tokens_per_request': 2000},
-            'enterprise': {'monthly_token_limit': 5000000, 'max_tokens_per_request': 4000}
-        }
-    
-    @staticmethod
-    def check_token_limit(user_id, model, estimated_tokens):
-        return True, "Token request approved"
+    # Generate and return token
+    return jwt.encode(payload, JWT_SECRET_KEY, algorithm='HS256')
 
-# Install mock modules
-mock_token_management = MockTokenManagementModule('utils.token_management')
-sys.modules['utils.token_management'] = mock_token_management
+def record_token_usage(user_id, model, total_tokens, prompt_tokens=0, completion_tokens=0):
+    """Record token usage for a user"""
+    url = "http://localhost:5000/api/usage/record"
+    
+    # Create request data
+    data = {
+        "model": model,
+        "total_tokens": total_tokens,
+        "prompt_tokens": prompt_tokens,
+        "completion_tokens": completion_tokens
+    }
+    
+    # Create headers with authorization
+    headers = {
+        "Authorization": f"Bearer {generate_mock_token()}",
+        "Content-Type": "application/json"
+    }
+    
+    # Send request
+    response = requests.post(url, json=data, headers=headers)
+    
+    # Log response
+    if response.status_code == 200:
+        logger.info(f"Successfully recorded {total_tokens} tokens for user {user_id}")
+    else:
+        logger.error(f"Failed to record token usage: {response.text}")
+        
+    return response.json()
 
-# Reload the usage module to use our mocks
-import importlib
-if 'routes.usage' in sys.modules:
-    importlib.reload(sys.modules['routes.usage'])
+def get_usage_stats(user_id, days=30):
+    """Get token usage statistics for a user"""
+    url = f"http://localhost:5000/api/usage/stats?days={days}"
+    
+    # Create headers with authorization
+    headers = {
+        "Authorization": f"Bearer {generate_mock_token()}",
+        "Content-Type": "application/json"
+    }
+    
+    # Send request
+    response = requests.get(url, headers=headers)
+    
+    # Log response
+    if response.status_code == 200:
+        logger.info(f"Successfully retrieved usage stats for user {user_id}")
+    else:
+        logger.error(f"Failed to get usage stats: {response.text}")
+        
+    return response.json()
 
-def create_test_app():
+def check_token_limit(user_id, model=None):
+    """Check if a user has exceeded their token limit"""
+    url = "http://localhost:5000/api/usage/check-limit"
+    
+    # Add model parameter if specified
+    if model:
+        url += f"?model={model}"
+    
+    # Create headers with authorization
+    headers = {
+        "Authorization": f"Bearer {generate_mock_token()}",
+        "Content-Type": "application/json"
+    }
+    
+    # Send request
+    response = requests.get(url, headers=headers)
+    
+    # Log response
+    if response.status_code == 200:
+        logger.info(f"Successfully checked token limit for user {user_id}")
+    else:
+        logger.error(f"Failed to check token limit: {response.text}")
+        
+    return response.json()
+
+def update_token_limit(user_id, token_limit, model=None):
+    """Update token limit for a user"""
+    url = "http://localhost:5000/api/usage/limit"
+    
+    # Create request data
+    data = {
+        "token_limit": token_limit
+    }
+    
+    # Add model if specified
+    if model:
+        data["model"] = model
+    
+    # Create headers with authorization
+    headers = {
+        "Authorization": f"Bearer {generate_mock_token()}",
+        "Content-Type": "application/json"
+    }
+    
+    # Send request
+    response = requests.post(url, json=data, headers=headers)
+    
+    # Log response
+    if response.status_code == 200:
+        logger.info(f"Successfully updated token limit for user {user_id} to {token_limit}")
+    else:
+        logger.error(f"Failed to update token limit: {response.text}")
+        
+    return response.json()
+
+def test_token_usage_api():
+    """Test all token usage API endpoints with sample data"""
+    user_id = "test_user_123"
+    logger.info(f"Testing token usage API for user {user_id}")
+    
+    # Step 1: Set a token limit
+    logger.info("Step 1: Setting token limit...")
+    update_token_limit(user_id, 10000)
+    
+    # Step 2: Record some token usage
+    logger.info("Step 2: Recording token usage...")
+    models = ["gpt-3.5-turbo", "gpt-4", "claude-2"]
+    for model in models:
+        record_token_usage(user_id, model, 1000, 500, 500)
+        
+    # Step 3: Get usage statistics
+    logger.info("Step 3: Getting usage statistics...")
+    stats = get_usage_stats(user_id)
+    
+    # Step 4: Check token limit
+    logger.info("Step 4: Checking token limit...")
+    limit_info = check_token_limit(user_id)
+    
+    # Step 5: Set a model-specific token limit
+    logger.info("Step 5: Setting model-specific token limit...")
+    update_token_limit(user_id, 5000, "gpt-4")
+    
+    # Step 6: Check model-specific token limit
+    logger.info("Step 6: Checking model-specific token limit...")
+    model_limit_info = check_token_limit(user_id, "gpt-4")
+    
+    # Log test results
+    logger.info("Test completed!")
+    logger.info(f"Usage statistics: {json.dumps(stats, indent=2)}")
+    logger.info(f"Limit information: {json.dumps(limit_info, indent=2)}")
+    logger.info(f"Model-specific limit information: {json.dumps(model_limit_info, indent=2)}")
+
+def create_test_endpoint():
+    """Create a simple Flask endpoint for testing the token usage API"""
     app = Flask(__name__)
-    app.secret_key = os.environ.get("SESSION_SECRET", "test_secret_key")
     
-    # Register the usage blueprint
-    app.register_blueprint(usage_bp)
-    
-    @app.route('/')
-    def index():
-        return {
-            "status": "ok",
-            "message": "Usage API test server running",
-            "endpoints": [
-                "/api/usage/stats",
-                "/api/usage/limits",
-                "/api/usage/subscription-tiers",
-                "/api/usage/check-limit"
-            ]
-        }
+    @app.route('/test')
+    def test_endpoint():
+        """Test the token usage API and return results"""
+        try:
+            # Test the API
+            test_token_usage_api()
+            
+            # Return success
+            return jsonify({
+                "status": "success",
+                "message": "Token usage API tests completed successfully"
+            })
+        except Exception as e:
+            # Return error
+            return jsonify({
+                "status": "error",
+                "message": f"Error testing token usage API: {str(e)}"
+            }), 500
     
     return app
 
-def test_usage_endpoints():
-    app = create_test_app()
-    client = app.test_client()
-    
-    # Configure app for testing
-    app.config['TESTING'] = True
-    
-    # Test the root endpoint
-    response = client.get('/')
-    print("Root endpoint response:", json.dumps(json.loads(response.data), indent=2))
-    
-    # Test the stats endpoint
-    response = client.get('/api/usage/stats')
-    print("\nStats endpoint response:", json.dumps(json.loads(response.data), indent=2))
-    
-    # Test the limits endpoint
-    response = client.get('/api/usage/limits')
-    print("\nLimits endpoint response:", json.dumps(json.loads(response.data), indent=2))
-    
-    # Test the subscription-tiers endpoint
-    response = client.get('/api/usage/subscription-tiers')
-    print("\nSubscription tiers endpoint response:", json.dumps(json.loads(response.data), indent=2))
-    
-    # Test updating limits
-    try:
-        # The limit update endpoint uses PUT method and expects limit_type and value
-        limit_update = {
-            "limit_type": "monthly_token_limit",
-            "value": 1000000
-        }
-        response = client.put('/api/usage/limits', 
-                             json=limit_update,
-                             content_type='application/json')
-        
-        if response.status_code == 200:
-            print("\nUpdate limits response:", json.dumps(json.loads(response.data), indent=2))
-        else:
-            print(f"\nUpdate limits response failed with status code: {response.status_code}")
-            print(f"Response: {response.data.decode('utf-8')}")
-        
-        # Test updating max tokens per request as well
-        limit_update = {
-            "limit_type": "max_tokens_per_request",
-            "value": 2000
-        }
-        response = client.put('/api/usage/limits', 
-                             json=limit_update,
-                             content_type='application/json')
-        
-        if response.status_code == 200:
-            print("\nUpdate max tokens per request response:", json.dumps(json.loads(response.data), indent=2))
-        else:
-            print(f"\nUpdate max tokens per request failed with status code: {response.status_code}")
-            print(f"Response: {response.data.decode('utf-8')}")
-    except Exception as e:
-        print(f"\nError testing update limits: {str(e)}")
-    
-    # Test the check-limit endpoint
-    try:
-        # The check-limit endpoint expects estimated_tokens and optionally model
-        check_data = {
-            "estimated_tokens": 100,
-            "model": "gpt-4"
-        }
-        response = client.post('/api/usage/check-limit', 
-                              json=check_data,
-                              content_type='application/json')
-        
-        if response.status_code == 200:
-            print("\nCheck limit response:", json.dumps(json.loads(response.data), indent=2))
-        else:
-            print(f"\nCheck limit response failed with status code: {response.status_code}")
-            print(f"Response: {response.data.decode('utf-8')}")
-    except Exception as e:
-        print(f"\nError testing check limit: {str(e)}")
-    
 if __name__ == "__main__":
-    test_usage_endpoints()
+    # Run the test
+    test_token_usage_api()
