@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dana AI - Usage Dashboard</title>
+    <link rel="stylesheet" href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css">
+    <style>
+        .progress {
+            height: 25px;
+            margin-bottom: 10px;
+        }
+        .card {
+            margin-bottom: 20px;
+        }
+        .usage-stat {
+            font-size: 1.1rem;
+            margin-bottom: 5px;
+        }
+        .tier-badge {
+            font-size: 1rem;
+            padding: 5px 10px;
+            border-radius: 15px;
+            display: inline-block;
+            margin-bottom: 10px;
+        }
+        .tier-free {
+            background-color: var(--bs-gray-700);
+        }
+        .tier-basic {
+            background-color: var(--bs-primary);
+        }
+        .tier-professional {
+            background-color: var(--bs-success);
+        }
+        .tier-enterprise {
+            background-color: var(--bs-warning);
+            color: var(--bs-dark);
+        }
+    </style>
+</head>
+<body>
+    <div class="container py-4">
+        <header class="pb-3 mb-4 border-bottom">
+            <div class="d-flex align-items-center text-body-emphasis text-decoration-none">
+                <span class="fs-4">Dana AI Platform</span>
+                <span class="ms-3 badge bg-primary">Usage Dashboard</span>
+            </div>
+        </header>
+
+        <div class="p-4 mb-4 bg-body-tertiary rounded-3">
+            <div class="container-fluid py-2">
+                <h1 class="display-5 fw-bold">Token Usage Dashboard</h1>
+                <p class="col-md-8 fs-5">Monitor your AI token usage and subscription limits.</p>
+                
+                <div class="row" id="usage-period-selector">
+                    <div class="col-md-4">
+                        <label for="period" class="form-label">View period:</label>
+                        <select id="period" class="form-select">
+                            <option value="day">Today</option>
+                            <option value="week">This Week</option>
+                            <option value="month" selected>This Month</option>
+                            <option value="year">This Year</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <button id="refresh-btn" class="btn btn-primary">Refresh Data</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Token Usage Summary</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="loading-indicator" class="text-center py-5">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2">Loading usage data...</p>
+                        </div>
+                        
+                        <div id="usage-content" style="display: none;">
+                            <div id="tier-display"></div>
+                            
+                            <h6>Total Token Usage</h6>
+                            <div class="progress mb-3">
+                                <div id="usage-progress" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                            </div>
+                            
+                            <div id="tokens-remaining" class="text-end mb-3 small"></div>
+                            
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <tbody>
+                                        <tr>
+                                            <td>Request Tokens:</td>
+                                            <td id="request-tokens" class="text-end">-</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Response Tokens:</td>
+                                            <td id="response-tokens" class="text-end">-</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Total Tokens:</td>
+                                            <td id="total-tokens" class="text-end">-</td>
+                                        </tr>
+                                        <tr>
+                                            <td>API Requests:</td>
+                                            <td id="request-count" class="text-end">-</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <div id="error-message" class="alert alert-danger" style="display: none;"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Rate Limits</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="rate-loading" class="text-center py-5">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2">Loading rate limit data...</p>
+                        </div>
+                        
+                        <div id="rate-content" style="display: none;">
+                            <h6>Current Rate</h6>
+                            <div class="progress mb-3">
+                                <div id="rate-progress" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                            </div>
+                            
+                            <div id="rate-details" class="mb-4"></div>
+                            
+                            <h6>Monthly Token Usage</h6>
+                            <div class="progress mb-3">
+                                <div id="monthly-progress" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                            </div>
+                            
+                            <div id="monthly-details" class="mb-4"></div>
+                        </div>
+                        
+                        <div id="rate-error" class="alert alert-danger" style="display: none;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-2">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Plan Comparison</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="plans-loading" class="text-center py-5">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2">Loading plan data...</p>
+                        </div>
+                        
+                        <div id="plans-content" class="table-responsive" style="display: none;">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Plan</th>
+                                        <th class="text-center">Monthly Token Limit</th>
+                                        <th class="text-center">Requests per Minute</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="plans-table-body">
+                                    <!-- Plan data will be inserted here -->
+                                </tbody>
+                            </table>
+                            
+                            <div class="text-center mt-4">
+                                <a href="/subscription" class="btn btn-success">Upgrade Plan</a>
+                            </div>
+                        </div>
+                        
+                        <div id="plans-error" class="alert alert-danger" style="display: none;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const periodSelector = document.getElementById('period');
+            const refreshBtn = document.getElementById('refresh-btn');
+            
+            // Initially load data
+            fetchUsageData();
+            fetchLimitsData();
+            fetchTierData();
+            
+            // Event listeners
+            periodSelector.addEventListener('change', fetchUsageData);
+            refreshBtn.addEventListener('click', function() {
+                fetchUsageData();
+                fetchLimitsData();
+                fetchTierData();
+            });
+            
+            function fetchUsageData() {
+                const period = periodSelector.value;
+                const loadingIndicator = document.getElementById('loading-indicator');
+                const usageContent = document.getElementById('usage-content');
+                const errorMessage = document.getElementById('error-message');
+                
+                // Show loading indicator
+                loadingIndicator.style.display = 'block';
+                usageContent.style.display = 'none';
+                errorMessage.style.display = 'none';
+                
+                fetch(`/api/usage/tokens?period=${period}`, {
+                    headers: {
+                        'Authorization': 'Bearer ' + getAuthToken()
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch usage data');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Hide loading indicator
+                    loadingIndicator.style.display = 'none';
+                    usageContent.style.display = 'block';
+                    
+                    // Update UI with data
+                    updateUsageUI(data);
+                })
+                .catch(error => {
+                    loadingIndicator.style.display = 'none';
+                    errorMessage.style.display = 'block';
+                    errorMessage.textContent = error.message;
+                    console.error('Error fetching usage data:', error);
+                });
+            }
+            
+            function fetchLimitsData() {
+                const rateLoading = document.getElementById('rate-loading');
+                const rateContent = document.getElementById('rate-content');
+                const rateError = document.getElementById('rate-error');
+                
+                // Show loading indicator
+                rateLoading.style.display = 'block';
+                rateContent.style.display = 'none';
+                rateError.style.display = 'none';
+                
+                fetch('/api/usage/limits', {
+                    headers: {
+                        'Authorization': 'Bearer ' + getAuthToken()
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch limits data');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Hide loading indicator
+                    rateLoading.style.display = 'none';
+                    rateContent.style.display = 'block';
+                    
+                    // Update UI with data
+                    updateLimitsUI(data);
+                })
+                .catch(error => {
+                    rateLoading.style.display = 'none';
+                    rateError.style.display = 'block';
+                    rateError.textContent = error.message;
+                    console.error('Error fetching limits data:', error);
+                });
+            }
+            
+            function fetchTierData() {
+                const plansLoading = document.getElementById('plans-loading');
+                const plansContent = document.getElementById('plans-content');
+                const plansError = document.getElementById('plans-error');
+                
+                // Show loading indicator
+                plansLoading.style.display = 'block';
+                plansContent.style.display = 'none';
+                plansError.style.display = 'none';
+                
+                fetch('/api/usage/tiers', {
+                    headers: {
+                        'Authorization': 'Bearer ' + getAuthToken()
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch tier data');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Hide loading indicator
+                    plansLoading.style.display = 'none';
+                    plansContent.style.display = 'block';
+                    
+                    // Update UI with data
+                    updateTierUI(data);
+                })
+                .catch(error => {
+                    plansLoading.style.display = 'none';
+                    plansError.style.display = 'block';
+                    plansError.textContent = error.message;
+                    console.error('Error fetching tier data:', error);
+                });
+            }
+            
+            function updateUsageUI(data) {
+                // Update progress bar
+                const usageProgress = document.getElementById('usage-progress');
+                const percentage = data.percentage_used || 0;
+                usageProgress.style.width = percentage + '%';
+                usageProgress.textContent = Math.round(percentage) + '%';
+                
+                // Set progress bar color based on usage
+                if (percentage < 50) {
+                    usageProgress.className = 'progress-bar bg-success';
+                } else if (percentage < 80) {
+                    usageProgress.className = 'progress-bar bg-warning';
+                } else {
+                    usageProgress.className = 'progress-bar bg-danger';
+                }
+                
+                // Update tokens remaining
+                document.getElementById('tokens-remaining').textContent = 
+                    formatNumber(data.remaining) + ' tokens remaining';
+                
+                // Update token counts
+                document.getElementById('request-tokens').textContent = 
+                    formatNumber(data.usage.request_tokens);
+                document.getElementById('response-tokens').textContent = 
+                    formatNumber(data.usage.response_tokens);
+                document.getElementById('total-tokens').textContent = 
+                    formatNumber(data.usage.total_tokens);
+                document.getElementById('request-count').textContent = 
+                    formatNumber(data.usage.request_count);
+                
+                // Update tier display
+                const tierDisplay = document.getElementById('tier-display');
+                const tierName = getTierDisplayName(data.tier);
+                tierDisplay.innerHTML = `<span class="tier-badge tier-${data.tier}">${tierName}</span>`;
+            }
+            
+            function updateLimitsUI(data) {
+                const tokenUsage = data.token_usage;
+                const rateLimit = data.rate_limit;
+                
+                // Update rate limit progress
+                const ratePercentage = (rateLimit.current_rate / rateLimit.limit) * 100;
+                const rateProgress = document.getElementById('rate-progress');
+                rateProgress.style.width = ratePercentage + '%';
+                rateProgress.textContent = Math.round(ratePercentage) + '%';
+                
+                // Set rate progress bar color
+                if (ratePercentage < 50) {
+                    rateProgress.className = 'progress-bar bg-success';
+                } else if (ratePercentage < 80) {
+                    rateProgress.className = 'progress-bar bg-warning';
+                } else {
+                    rateProgress.className = 'progress-bar bg-danger';
+                }
+                
+                // Update rate details
+                document.getElementById('rate-details').textContent = 
+                    `${rateLimit.current_rate} / ${rateLimit.limit} requests per minute`;
+                
+                // Update monthly token usage progress
+                const monthlyPercentage = tokenUsage.percentage_used;
+                const monthlyProgress = document.getElementById('monthly-progress');
+                monthlyProgress.style.width = monthlyPercentage + '%';
+                monthlyProgress.textContent = Math.round(monthlyPercentage) + '%';
+                
+                // Set monthly progress bar color
+                if (monthlyPercentage < 50) {
+                    monthlyProgress.className = 'progress-bar bg-success';
+                } else if (monthlyPercentage < 80) {
+                    monthlyProgress.className = 'progress-bar bg-warning';
+                } else {
+                    monthlyProgress.className = 'progress-bar bg-danger';
+                }
+                
+                // Update monthly details
+                document.getElementById('monthly-details').textContent = 
+                    `${formatNumber(tokenUsage.current_usage)} / ${formatNumber(tokenUsage.limit)} tokens used this month`;
+            }
+            
+            function updateTierUI(data) {
+                const tokenLimits = data.token_limits;
+                const rateLimits = data.rate_limits;
+                const tableBody = document.getElementById('plans-table-body');
+                
+                // Clear existing rows
+                tableBody.innerHTML = '';
+                
+                // Add rows for each tier
+                for (const [tier, limit] of Object.entries(tokenLimits)) {
+                    const row = document.createElement('tr');
+                    
+                    // Tier name cell
+                    const nameCell = document.createElement('td');
+                    nameCell.innerHTML = `<strong>${getTierDisplayName(tier)}</strong>`;
+                    row.appendChild(nameCell);
+                    
+                    // Token limit cell
+                    const tokenCell = document.createElement('td');
+                    tokenCell.className = 'text-center';
+                    tokenCell.textContent = formatNumber(limit);
+                    row.appendChild(tokenCell);
+                    
+                    // Rate limit cell
+                    const rateCell = document.createElement('td');
+                    rateCell.className = 'text-center';
+                    rateCell.textContent = rateLimits[tier];
+                    row.appendChild(rateCell);
+                    
+                    tableBody.appendChild(row);
+                }
+            }
+            
+            function getTierDisplayName(tier) {
+                switch (tier) {
+                    case 'free':
+                        return 'Free Tier';
+                    case 'basic':
+                        return 'Basic Tier';
+                    case 'professional':
+                        return 'Professional Tier';
+                    case 'enterprise':
+                        return 'Enterprise Tier';
+                    default:
+                        return tier.charAt(0).toUpperCase() + tier.slice(1);
+                }
+            }
+            
+            function formatNumber(num) {
+                return new Intl.NumberFormat().format(num);
+            }
+            
+            function getAuthToken() {
+                // In a real application, you would get this from localStorage, cookies, etc.
+                // For demo purposes, you might hardcode a token or get it from a global variable
+                return localStorage.getItem('authToken') || 'demo_token';
+            }
+        });
+    </script>
+</body>
+</html>

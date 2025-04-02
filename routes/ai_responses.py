@@ -1,331 +1,349 @@
 """
-AI Response Generation API Routes
+AI Response Generation Routes
 
-This module provides API endpoints for generating AI responses for various purposes.
+This module provides API endpoints for generating AI responses.
 """
 
-import logging
+import os
 import json
-import base64
-from typing import Dict, List, Any, Optional, Tuple
-
+import logging
+import requests
 from flask import Blueprint, request, jsonify, g
-from sqlalchemy import func
+from utils.auth import require_auth, get_user_from_token
+from utils.ai_limiter import limit_ai_usage
+from utils.token_estimation import (
+    calculate_openai_tokens,
+    calculate_anthropic_tokens
+)
+from utils.token_management import optimize_prompt
 
-from app import db
-from models_db import User, Response
-from utils.auth import token_required, validate_user_access
-from utils.rate_limiter import rate_limit
-from automation.ai.response_generator import response_generator
-
-# Configure logging
 logger = logging.getLogger(__name__)
 
-# Create blueprint
-ai_response_bp = Blueprint('ai_responses', __name__, url_prefix='/api/ai/responses')
+ai_response_bp = Blueprint('ai_responses', __name__, url_prefix='/api/ai')
 
-@ai_response_bp.route('/generate', methods=['POST'])
-@token_required
-@rate_limit('heavy')
-def generate_response():
+@ai_response_bp.route('/completion', methods=['POST'])
+@require_auth
+@limit_ai_usage
+def ai_completion():
     """
-    Generate AI response based on prompt and conversation history
-    
-    Request body should be a JSON object with:
-    - prompt: User prompt/query (required)
-    - conversation_history: Previous conversation context (optional)
-    - max_tokens: Maximum tokens in response (optional, default: 1000)
-    - temperature: Creativity parameter 0.0-1.0 (optional, default: 0.7)
-    - format_json: Whether to return response in JSON format (optional, default: false)
+    Generate an AI completion
+    ---
+    parameters:
+      - name: Authorization
+        in: header
+        type: string
+        required: true
+        description: Bearer token
+      - name: body
+        in: body
+        required: true
+        description: Request body
+        schema:
+          type: object
+          properties:
+            messages:
+              type: array
+              items:
+                type: object
+                properties:
+                  role:
+                    type: string
+                  content:
+                    type: string
+            model:
+              type: string
+            max_tokens:
+              type: integer
+            temperature:
+              type: number
+    responses:
+      200:
+        description: AI completion
+      401:
+        description: Unauthorized
+      429:
+        description: Rate limit or token limit exceeded
+      500:
+        description: Server error
     """
     try:
-        # Get user ID
-        user_id = g.user.get('user_id')
+        user = get_user_from_token(request)
+        if not user:
+            return jsonify({"error": "Unauthorized"}), 401
         
         # Get request data
         data = request.get_json()
+        if not data:
+            return jsonify({"error": "Invalid request"}), 400
         
-        # Validate required fields
-        if not data or 'prompt' not in data:
-            return jsonify({"error": "Missing required field: prompt"}), 400
-            
-        # Get optional parameters
-        conversation_history = data.get('conversation_history', [])
-        max_tokens = min(data.get('max_tokens', 1000), 4000)  # Cap at 4000 tokens
-        temperature = min(max(data.get('temperature', 0.7), 0.0), 1.0)  # Ensure between 0 and 1
-        format_json = data.get('format_json', False)
+        messages = data.get('messages', [])
+        model = data.get('model', 'gpt-4o')
+        max_tokens = data.get('max_tokens', 1000)
+        temperature = data.get('temperature', 0.7)
         
-        # Generate response
-        result = response_generator.generate_response(
-            prompt=data['prompt'],
-            conversation_history=conversation_history,
-            max_tokens=max_tokens,
-            temperature=temperature,
-            format_json=format_json,
-            user_id=str(user_id)
+        # Ensure at least one message is provided
+        if not messages:
+            return jsonify({"error": "No messages provided"}), 400
+        
+        # Perform prompt optimization if needed
+        # This will reduce the token count while maintaining quality
+        if 'claude' in model.lower():
+            # Check for token count
+            token_estimate = calculate_anthropic_tokens(messages, model)
+            # If token count is high, optimize the prompt
+            if token_estimate > max_tokens * 0.8:  # If we're using more than 80% of max tokens
+                # Optimize the user message
+                user_messages = [m for m in messages if m.get('role') == 'user']
+                if user_messages:
+                    last_user_message = user_messages[-1]
+                    original_content = last_user_message.get('content', '')
+                    optimized_content = optimize_prompt(original_content)
+                    last_user_message['content'] = optimized_content
+        else:
+            # Check for token count for OpenAI models
+            token_estimate = calculate_openai_tokens(messages, model)
+            # If token count is high, optimize the prompt
+            if token_estimate > max_tokens * 0.8:  # If we're using more than 80% of max tokens
+                # Optimize the user message
+                user_messages = [m for m in messages if m.get('role') == 'user']
+                if user_messages:
+                    last_user_message = user_messages[-1]
+                    original_content = last_user_message.get('content', '')
+                    optimized_content = optimize_prompt(original_content)
+                    last_user_message['content'] = optimized_content
+        
+        # Prepare OpenAI API call
+        if 'claude' in model.lower():
+            # Handle Anthropic Claude API call
+            response = generate_anthropic_response(messages, model, max_tokens, temperature)
+        else:
+            # Handle OpenAI API call
+            response = generate_openai_response(messages, model, max_tokens, temperature)
+        
+        return jsonify(response), 200
+    
+    except Exception as e:
+        logger.error(f"Error in AI completion: {str(e)}")
+        return jsonify({"error": "Internal server error"}), 500
+
+def generate_openai_response(messages, model='gpt-4o', max_tokens=1000, temperature=0.7):
+    """
+    Generate a response from OpenAI API
+    
+    Args:
+        messages: List of message dictionaries
+        model: OpenAI model
+        max_tokens: Maximum tokens
+        temperature: Temperature
+    
+    Returns:
+        dict: API response
+    """
+    openai_api_key = os.environ.get('OPENAI_API_KEY')
+    if not openai_api_key:
+        logger.error("OpenAI API key not found in environment")
+        return {"error": "OpenAI API key not configured"}
+    
+    try:
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {openai_api_key}"
+        }
+        
+        data = {
+            "model": model,
+            "messages": messages,
+            "max_tokens": max_tokens,
+            "temperature": temperature
+        }
+        
+        response = requests.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers=headers,
+            data=json.dumps(data)
         )
         
-        # Store response in database
-        if result.get('success'):
-            response = Response(
-                user_id=user_id,
-                content=result.get('content', ''),
-                platform='web',
-                used=True
-            )
-            
-            db.session.add(response)
-            db.session.commit()
-            
-            # Add response ID to result
-            result['response_id'] = response.id
-            
-        return jsonify(result), 200
-        
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error generating AI response: {str(e)}")
-        return jsonify({
-            "error": "Failed to generate AI response",
-            "details": str(e),
-            "success": False
-        }), 500
-
-@ai_response_bp.route('/summarize-conversation', methods=['POST'])
-@token_required
-@rate_limit('standard')
-def summarize_conversation():
-    """
-    Generate a summary of a conversation
+        if response.status_code == 200:
+            return response.json()
+        else:
+            logger.error(f"OpenAI API error: {response.text}")
+            return {"error": f"OpenAI API error: {response.status_code}"}
     
-    Request body should be a JSON object with:
-    - conversation: List of message dictionaries with sender and content
-    """
-    try:
-        # Get request data
-        data = request.get_json()
-        
-        # Validate required fields
-        if not data or 'conversation' not in data:
-            return jsonify({"error": "Missing required field: conversation"}), 400
-            
-        # Get conversation data
-        conversation = data.get('conversation', [])
-        
-        # Validate conversation format
-        if not isinstance(conversation, list) or not all(
-            isinstance(msg, dict) and 'sender' in msg and 'content' in msg 
-            for msg in conversation
-        ):
-            return jsonify({"error": "Invalid conversation format"}), 400
-            
-        # Generate summary
-        summary = response_generator.generate_conversation_summary(conversation)
-        
-        return jsonify({
-            "summary": summary,
-            "success": True
-        }), 200
-        
     except Exception as e:
-        logger.error(f"Error summarizing conversation: {str(e)}")
-        return jsonify({
-            "error": "Failed to summarize conversation",
-            "details": str(e),
-            "success": False
-        }), 500
+        logger.error(f"Error calling OpenAI API: {str(e)}")
+        return {"error": f"Error calling OpenAI API: {str(e)}"}
 
-@ai_response_bp.route('/analyze-sentiment', methods=['POST'])
-@token_required
-@rate_limit('standard')
-def analyze_sentiment():
+def generate_anthropic_response(messages, model='claude-3-5-sonnet-20241022', max_tokens=1000, temperature=0.7):
     """
-    Analyze sentiment of text
+    Generate a response from Anthropic API
     
-    Request body should be a JSON object with:
-    - text: Text to analyze
-    """
-    try:
-        # Get request data
-        data = request.get_json()
-        
-        # Validate required fields
-        if not data or 'text' not in data:
-            return jsonify({"error": "Missing required field: text"}), 400
-            
-        # Analyze sentiment
-        result = response_generator.analyze_sentiment(data['text'])
-        
-        return jsonify(result), 200
-        
-    except Exception as e:
-        logger.error(f"Error analyzing sentiment: {str(e)}")
-        return jsonify({
-            "error": "Failed to analyze sentiment",
-            "details": str(e),
-            "success": False
-        }), 500
-
-@ai_response_bp.route('/extract-entities', methods=['POST'])
-@token_required
-@rate_limit('standard')
-def extract_entities():
-    """
-    Extract named entities from text
+    Args:
+        messages: List of message dictionaries
+        model: Anthropic model
+        max_tokens: Maximum tokens
+        temperature: Temperature
     
-    Request body should be a JSON object with:
-    - text: Text to analyze
+    Returns:
+        dict: API response
     """
-    try:
-        # Get request data
-        data = request.get_json()
-        
-        # Validate required fields
-        if not data or 'text' not in data:
-            return jsonify({"error": "Missing required field: text"}), 400
-            
-        # Extract entities
-        result = response_generator.extract_entities(data['text'])
-        
-        return jsonify(result), 200
-        
-    except Exception as e:
-        logger.error(f"Error extracting entities: {str(e)}")
-        return jsonify({
-            "error": "Failed to extract entities",
-            "details": str(e),
-            "success": False
-        }), 500
-
-@ai_response_bp.route('/analyze-image', methods=['POST'])
-@token_required
-@rate_limit('heavy')
-def analyze_image():
-    """
-    Analyze image content
+    anthropic_api_key = os.environ.get('ANTHROPIC_API_KEY')
+    if not anthropic_api_key:
+        logger.error("Anthropic API key not found in environment")
+        return {"error": "Anthropic API key not configured"}
     
-    Request body should be a JSON object with:
-    - image_data: Image data as base64 string
-    """
     try:
-        # Get request data
-        data = request.get_json()
+        headers = {
+            "Content-Type": "application/json",
+            "x-api-key": anthropic_api_key,
+            "anthropic-version": "2023-06-01"
+        }
         
-        # Validate required fields
-        if not data or 'image_data' not in data:
-            return jsonify({"error": "Missing required field: image_data"}), 400
+        # Convert messages format to Anthropic format
+        anthropic_messages = []
+        for message in messages:
+            role = message.get('role', '')
+            content = message.get('content', '')
             
-        # Analyze image
-        result = response_generator.analyze_image(data['image_data'])
+            if role == 'system':
+                # System messages go into the system field
+                system = content
+            else:
+                anthropic_role = 'assistant' if role == 'assistant' else 'user'
+                anthropic_messages.append({
+                    "role": anthropic_role,
+                    "content": content
+                })
         
-        return jsonify(result), 200
+        data = {
+            "model": model,
+            "messages": anthropic_messages,
+            "max_tokens": max_tokens,
+            "temperature": temperature
+        }
         
-    except Exception as e:
-        logger.error(f"Error analyzing image: {str(e)}")
-        return jsonify({
-            "error": "Failed to analyze image",
-            "details": str(e),
-            "success": False
-        }), 500
-
-@ai_response_bp.route('/generate-social', methods=['POST'])
-@token_required
-@rate_limit('standard')
-def generate_social_media_content():
-    """
-    Generate social media content
-    
-    Request body should be a JSON object with:
-    - topic: Content topic (required)
-    - platform: Social media platform (optional, default: 'linkedin')
-    - tone: Content tone (optional, default: 'professional')
-    """
-    try:
-        # Get request data
-        data = request.get_json()
+        if 'system' in locals():
+            data["system"] = system
         
-        # Validate required fields
-        if not data or 'topic' not in data:
-            return jsonify({"error": "Missing required field: topic"}), 400
-            
-        # Get optional parameters
-        platform = data.get('platform', 'linkedin')
-        tone = data.get('tone', 'professional')
-        
-        # Validate platform
-        valid_platforms = ['linkedin', 'twitter', 'instagram', 'facebook']
-        if platform not in valid_platforms:
-            return jsonify({
-                "error": f"Invalid platform. Must be one of: {', '.join(valid_platforms)}"
-            }), 400
-            
-        # Validate tone
-        valid_tones = ['professional', 'casual', 'friendly', 'enthusiastic']
-        if tone not in valid_tones:
-            return jsonify({
-                "error": f"Invalid tone. Must be one of: {', '.join(valid_tones)}"
-            }), 400
-            
-        # Generate social media content
-        result = response_generator.generate_social_media_content(
-            topic=data['topic'],
-            platform=platform,
-            tone=tone
+        response = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers=headers,
+            data=json.dumps(data)
         )
         
-        return jsonify(result), 200
+        if response.status_code == 200:
+            # Convert Anthropic response to OpenAI-like format for consistency
+            anthropic_response = response.json()
+            openai_format_response = {
+                "id": anthropic_response.get("id", ""),
+                "object": "chat.completion",
+                "created": anthropic_response.get("created_at", 0),
+                "model": model,
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {
+                            "role": "assistant",
+                            "content": anthropic_response.get("content", [{}])[0].get("text", "")
+                        },
+                        "finish_reason": anthropic_response.get("stop_reason", "stop")
+                    }
+                ],
+                "usage": {
+                    "prompt_tokens": anthropic_response.get("usage", {}).get("input_tokens", 0),
+                    "completion_tokens": anthropic_response.get("usage", {}).get("output_tokens", 0),
+                    "total_tokens": (
+                        anthropic_response.get("usage", {}).get("input_tokens", 0) + 
+                        anthropic_response.get("usage", {}).get("output_tokens", 0)
+                    )
+                }
+            }
+            return openai_format_response
+        else:
+            logger.error(f"Anthropic API error: {response.text}")
+            return {"error": f"Anthropic API error: {response.status_code}"}
+    
+    except Exception as e:
+        logger.error(f"Error calling Anthropic API: {str(e)}")
+        return {"error": f"Error calling Anthropic API: {str(e)}"}
+
+@ai_response_bp.route('/models', methods=['GET'])
+@require_auth
+def get_available_models():
+    """
+    Get available AI models
+    ---
+    parameters:
+      - name: Authorization
+        in: header
+        type: string
+        required: true
+        description: Bearer token
+    responses:
+      200:
+        description: List of available models
+      401:
+        description: Unauthorized
+      500:
+        description: Server error
+    """
+    try:
+        # Get models based on available API keys
+        models = []
         
+        # OpenAI models
+        if os.environ.get('OPENAI_API_KEY'):
+            models.extend([
+                {
+                    "id": "gpt-4o",
+                    "name": "GPT-4o",
+                    "provider": "OpenAI",
+                    "description": "Latest and most capable OpenAI model",
+                    "max_tokens": 8192
+                },
+                {
+                    "id": "gpt-3.5-turbo",
+                    "name": "GPT-3.5 Turbo",
+                    "provider": "OpenAI",
+                    "description": "Fast and efficient GPT model",
+                    "max_tokens": 4096
+                }
+            ])
+        
+        # Anthropic models
+        if os.environ.get('ANTHROPIC_API_KEY'):
+            models.extend([
+                {
+                    "id": "claude-3-5-sonnet-20241022",
+                    "name": "Claude 3.5 Sonnet",
+                    "provider": "Anthropic",
+                    "description": "Latest and most capable Anthropic model",
+                    "max_tokens": 8192
+                },
+                {
+                    "id": "claude-3-opus-20240229",
+                    "name": "Claude 3 Opus",
+                    "provider": "Anthropic",
+                    "description": "Most precise and highest capability Claude model",
+                    "max_tokens": 8192
+                },
+                {
+                    "id": "claude-3-sonnet-20240229",
+                    "name": "Claude 3 Sonnet",
+                    "provider": "Anthropic",
+                    "description": "Excellent balance of intelligence and speed",
+                    "max_tokens": 8192
+                },
+                {
+                    "id": "claude-3-haiku-20240307",
+                    "name": "Claude 3 Haiku",
+                    "provider": "Anthropic",
+                    "description": "Fastest Claude model for responsive experiences",
+                    "max_tokens": 4096
+                }
+            ])
+        
+        return jsonify({"models": models}), 200
+    
     except Exception as e:
-        logger.error(f"Error generating social media content: {str(e)}")
-        return jsonify({
-            "error": "Failed to generate social media content",
-            "details": str(e),
-            "success": False
-        }), 500
-from flask import Blueprint, request, jsonify
-from utils.ai_client import analyze_sentiment, extract_entities
-from utils.auth import require_auth
-
-ai_responses_bp = Blueprint('ai_responses', __name__)
-
-@ai_responses_bp.route('/api/ai/responses/analyze-sentiment', methods=['POST'])
-@require_auth
-def analyze_text_sentiment():
-    """Analyze text sentiment"""
-    try:
-        data = request.get_json()
-        text = data.get('text')
-        if not text:
-            return jsonify({"success": False, "message": "Text is required"}), 400
-            
-        sentiment = analyze_sentiment(text)
-        return jsonify({
-            "success": True,
-            "sentiment": sentiment
-        }), 200
-    except Exception as e:
-        return jsonify({
-            "success": False,
-            "message": str(e)
-        }), 500
-
-@ai_responses_bp.route('/api/ai/responses/extract-entities', methods=['POST'])
-@require_auth
-def extract_text_entities():
-    """Extract entities from text"""
-    try:
-        data = request.get_json()
-        text = data.get('text')
-        if not text:
-            return jsonify({"success": False, "message": "Text is required"}), 400
-            
-        entities = extract_entities(text)
-        return jsonify({
-            "success": True,
-            "entities": entities
-        }), 200
-    except Exception as e:
-        return jsonify({
-            "success": False,
-            "message": str(e)
-        }), 500
+        logger.error(f"Error getting available models: {str(e)}")
+        return jsonify({"error": "Internal server error"}), 500

@@ -134,6 +134,11 @@ def payment_setup():
     
     return render_template("payment_setup.html", status=status, app_url=app_url)
 
+@app.route("/usage")
+def usage_dashboard():
+    """Token usage dashboard UI"""
+    return render_template("usage_dashboard.html")
+
 @app.route("/api")
 def api_index():
     """API root endpoint"""
@@ -293,6 +298,13 @@ def register_blueprints():
             logger.info("Batch blueprint registered successfully")
         except ImportError as e:
             logger.warning(f"Could not register batch blueprint: {e}")
+
+        try:
+            from routes.usage import usage_bp
+            app.register_blueprint(usage_bp)
+            logger.info("Usage management blueprint registered successfully")
+        except ImportError as e:
+            logger.warning(f"Could not register usage management blueprint: {e}")
             
         try:
             from routes.email import email_bp
@@ -385,6 +397,19 @@ def init_rate_limiting():
     except Exception as e:
         logger.error(f"Error initializing rate limiting: {str(e)}", exc_info=True)
 
+# Initialize token tracking system
+def init_token_tracking():
+    """Initialize token tracking system for AI usage"""
+    try:
+        from utils.token_management import ensure_token_tracking_table
+        
+        # Ensure token usage table exists
+        ensure_token_tracking_table()
+        
+        logger.info("Token tracking system initialized")
+    except Exception as e:
+        logger.error(f"Error initializing token tracking system: {str(e)}", exc_info=True)
+
 # Check for PesaPal configuration
 def check_pesapal_config():
     """Check if PesaPal is properly configured"""
@@ -426,6 +451,9 @@ def init_app():
     
     # Initialize rate limiting - Temporarily commented out
     # init_rate_limiting()
+    
+    # Initialize token tracking system
+    init_token_tracking()
     
     # Initialize automation system
     init_automation()
