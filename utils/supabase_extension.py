@@ -1,216 +1,237 @@
 """
-Supabase Extension Utilities
+Supabase Extension
 
-This module extends the Supabase client capabilities 
-to handle operations that aren't natively supported.
+This module provides extensions to the Supabase Python client to support direct SQL execution
+and other advanced features needed by the application.
 """
-
-import logging
 import os
-import urllib.parse
+import json
+import traceback
+from typing import Any, Dict, List, Optional, Tuple, Union
+
 import psycopg2
-import psycopg2.extras
-from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
+from psycopg2 import pool
+from psycopg2.extras import RealDictCursor
 
-logger = logging.getLogger(__name__)
+from utils.logger import logger
 
-def get_direct_db_connection():
-    """
-    Create a direct PostgreSQL database connection using psycopg2.
-    This is used for operations that the Supabase client doesn't support.
+# Connection pool for PostgreSQL
+PG_CONN_POOL = None
+MAX_POOL_SIZE = 10
+
+
+def init_connection_pool():
+    """Initialize the PostgreSQL connection pool"""
+    global PG_CONN_POOL
     
-    Returns:
-        Connection: PostgreSQL connection object or None if unsuccessful
-    """
-    try:
-        # Get database connection parameters from environment
-        db_url = os.environ.get('DATABASE_URL')
-        db_host = os.environ.get('PGHOST')
-        db_port = os.environ.get('PGPORT')
-        db_name = os.environ.get('PGDATABASE')
-        db_user = os.environ.get('PGUSER')
-        db_password = os.environ.get('PGPASSWORD')
-        
-        # Try connecting with DATABASE_URL first
-        if db_url:
-            connection = psycopg2.connect(db_url)
-        # Otherwise use individual connection parameters
-        elif db_host and db_port and db_name and db_user and db_password:
-            connection = psycopg2.connect(
-                host=db_host,
-                port=db_port,
-                dbname=db_name,
-                user=db_user,
-                password=db_password
-            )
-        else:
-            logger.error("No database connection parameters available")
-            return None
-            
-        # Set autocommit mode for DDL operations
-        connection.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
-        logger.info("Direct database connection established successfully")
-        return connection
-    except Exception as e:
-        logger.error(f"Failed to create direct database connection: {str(e)}", exc_info=True)
-        return None
-
-def execute_sql(sql_statements, params=None, ignore_errors=True):
-    """
-    Execute SQL statements directly using psycopg2.
-    
-    Args:
-        sql_statements: SQL statements to execute (string or list)
-        params: Parameters for the SQL statements (if needed)
-        ignore_errors: Whether to continue execution if an error occurs
-        
-    Returns:
-        bool: True if successful, False otherwise
-    """
-    connection = None
-    cursor = None
-    success = True
+    if PG_CONN_POOL is not None:
+        return
     
     try:
-        connection = get_direct_db_connection()
-        if not connection:
-            return False
-            
-        cursor = connection.cursor()
+        # Get database connection details from environment variables
+        db_url = os.environ.get("DATABASE_URL")
         
-        # Helper function to execute with parameter conversion
-        def execute_with_params(sql, p=None):
-            if p:
-                # Replace $1, $2, etc. with %s for psycopg2
-                modified_sql = sql
-                for i in range(1, len(p) + 1):
-                    modified_sql = modified_sql.replace(f"${i}", "%s")
-                cursor.execute(modified_sql, p)
-            else:
-                cursor.execute(sql)
-        
-        # If a single statement is provided, execute it
-        if isinstance(sql_statements, str):
-            try:
-                # Skip ALTER DATABASE statements which require owner privileges
-                if sql_statements.strip().upper().startswith("ALTER DATABASE"):
-                    logger.info(f"Skipping privileged statement: {sql_statements[:50]}...")
-                else:
-                    execute_with_params(sql_statements, params)
-            except Exception as e:
-                logger.warning(f"Error executing SQL statement: {str(e)}")
-                if not ignore_errors:
-                    raise
-                success = False
-        # If a list of statements is provided, execute each one
-        elif isinstance(sql_statements, list):
-            for stmt in sql_statements:
-                if stmt.strip():
-                    try:
-                        # Skip ALTER DATABASE statements which require owner privileges
-                        if stmt.strip().upper().startswith("ALTER DATABASE"):
-                            logger.info(f"Skipping privileged statement: {stmt[:50]}...")
-                            continue
-                            
-                        execute_with_params(stmt, params)
-                    except Exception as e:
-                        logger.warning(f"Error executing SQL statement: {str(e)}")
-                        if not ignore_errors:
-                            raise
-                        success = False
-        else:
-            logger.error("Invalid SQL statement format")
-            return False
-            
-        if success:
-            logger.info("SQL statements executed successfully")
-        else:
-            logger.warning("Some SQL statements failed but execution continued")
-        return success
-    except Exception as e:
-        logger.error(f"Error executing SQL: {str(e)}", exc_info=True)
-        return False
-    finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
+        if not db_url:
+            logger.error("DATABASE_URL environment variable not found")
+            return
 
-def get_db_connection(supabase_url, supabase_key):
-    """
-    Create a direct PostgreSQL database connection using psycopg2 
-    with Supabase connection parameters extracted from URL.
-    
-    Args:
-        supabase_url: The Supabase URL
-        supabase_key: The Supabase key (service role key for admin operations)
-        
-    Returns:
-        Connection: PostgreSQL connection object or None if unsuccessful
-    """
-    try:
-        # Extract host from Supabase URL
-        # Example: https://project-ref.supabase.co -> project-ref.supabase.co
-        parsed_url = urllib.parse.urlparse(supabase_url)
-        db_host = parsed_url.netloc
-        
-        # Connect with default Supabase parameters
-        connection = psycopg2.connect(
-            host=db_host,
-            port="5432",  # Default Supabase PostgreSQL port
-            dbname="postgres",  # Default Supabase database name
-            user="postgres",  # Default Supabase admin user
-            password=supabase_key  # Use service role key as password
+        # Create connection pool
+        PG_CONN_POOL = pool.ThreadedConnectionPool(
+            1, MAX_POOL_SIZE, 
+            db_url,
+            cursor_factory=RealDictCursor
         )
-            
-        # Set autocommit mode for DDL operations
-        connection.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
-        logger.info(f"Database connection established for {db_host} with service role key")
-        return connection
+        
+        logger.info("Connection pool initialized")
+        
     except Exception as e:
-        logger.error(f"Failed to create database connection with service role: {str(e)}", exc_info=True)
+        logger.error(f"Error initializing connection pool: {str(e)}")
+        logger.error(traceback.format_exc())
+
+
+def get_connection():
+    """Get a connection from the pool"""
+    global PG_CONN_POOL
+    
+    if PG_CONN_POOL is None:
+        init_connection_pool()
+        
+    if PG_CONN_POOL is None:
+        logger.error("Failed to initialize connection pool")
+        return None
+        
+    try:
+        return PG_CONN_POOL.getconn()
+    except Exception as e:
+        logger.error(f"Error getting connection from pool: {str(e)}")
         return None
 
-def query_sql(sql_query, params=None):
+
+def return_connection(conn):
+    """Return a connection to the pool"""
+    global PG_CONN_POOL
+    
+    if PG_CONN_POOL is None:
+        logger.error("Connection pool not initialized")
+        return
+        
+    try:
+        PG_CONN_POOL.putconn(conn)
+    except Exception as e:
+        logger.error(f"Error returning connection to pool: {str(e)}")
+
+
+def execute_sql(sql: str, params: Tuple = None, fetch_type: str = None) -> Optional[List[Dict]]:
     """
-    Execute a SQL query and return the results.
+    Execute raw SQL query with optional parameters
     
     Args:
-        sql_query: SQL query to execute
-        params: Parameters for the SQL query (if needed)
+        sql: SQL query to execute
+        params: Query parameters
+        fetch_type: Type of fetch ('one', 'all', None for no fetch)
         
     Returns:
-        list: Query results or None if unsuccessful
+        Query results (if fetch_type is specified) or None
     """
-    connection = None
-    cursor = None
+    conn = None
     
     try:
-        connection = get_direct_db_connection()
-        if not connection:
+        conn = get_connection()
+        if not conn:
+            logger.error("Failed to get database connection")
             return None
             
-        cursor = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        logger.info("Direct database connection established successfully")
         
-        # Convert $ parameters to psycopg2 % parameters format
-        if params:
-            # Replace $1, $2, etc. with %s
-            modified_query = sql_query
-            for i in range(1, len(params) + 1):
-                modified_query = modified_query.replace(f"${i}", "%s")
+        with conn.cursor() as cursor:
+            cursor.execute(sql, params)
             
-            cursor.execute(modified_query, params)
-        else:
-            cursor.execute(sql_query)
-        
-        results = cursor.fetchall()
-        logger.info(f"SQL query executed successfully, returned {len(results)} rows")
-        return results
+            result = None
+            if fetch_type == 'one':
+                result = cursor.fetchone()
+            elif fetch_type == 'all':
+                result = cursor.fetchall()
+                
+            conn.commit()
+            logger.info("SQL statements executed successfully")
+            
+            return result
+            
     except Exception as e:
-        logger.error(f"Error executing SQL query: {str(e)}", exc_info=True)
+        if conn:
+            conn.rollback()
+        logger.warning(f"Error executing SQL statement: {str(e)}")
+        logger.warning("Some SQL statements failed but execution continued")
         return None
+        
     finally:
-        if cursor:
-            cursor.close()
-        if connection:
-            connection.close()
+        if conn:
+            return_connection(conn)
+
+
+def execute_sql_fetchone(sql: str, params: Tuple = None) -> Optional[Tuple]:
+    """
+    Execute raw SQL query and fetch one result
+    
+    Args:
+        sql: SQL query to execute
+        params: Query parameters
+        
+    Returns:
+        Single row result or None
+    """
+    conn = None
+    
+    try:
+        conn = get_connection()
+        if not conn:
+            logger.error("Failed to get database connection")
+            return None
+            
+        with conn.cursor() as cursor:
+            cursor.execute(sql, params)
+            result = cursor.fetchone()
+            conn.commit()
+            return result
+            
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        logger.warning(f"Error executing SQL statement (fetchone): {str(e)}")
+        return None
+        
+    finally:
+        if conn:
+            return_connection(conn)
+
+
+def execute_sql_fetchall(sql: str, params: Tuple = None) -> Optional[List[Tuple]]:
+    """
+    Execute raw SQL query and fetch all results
+    
+    Args:
+        sql: SQL query to execute
+        params: Query parameters
+        
+    Returns:
+        List of row results or None
+    """
+    conn = None
+    
+    try:
+        conn = get_connection()
+        if not conn:
+            logger.error("Failed to get database connection")
+            return None
+            
+        with conn.cursor() as cursor:
+            cursor.execute(sql, params)
+            result = cursor.fetchall()
+            conn.commit()
+            return result
+            
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        logger.warning(f"Error executing SQL statement (fetchall): {str(e)}")
+        return None
+        
+    finally:
+        if conn:
+            return_connection(conn)
+
+
+def execute_transaction(statements: List[Tuple[str, Tuple]]) -> bool:
+    """
+    Execute multiple SQL statements in a single transaction
+    
+    Args:
+        statements: List of (sql, params) tuples
+        
+    Returns:
+        True if successful, False otherwise
+    """
+    conn = None
+    
+    try:
+        conn = get_connection()
+        if not conn:
+            logger.error("Failed to get database connection")
+            return False
+            
+        with conn.cursor() as cursor:
+            for sql, params in statements:
+                cursor.execute(sql, params)
+                
+            conn.commit()
+            return True
+            
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        logger.error(f"Error executing transaction: {str(e)}")
+        return False
+        
+    finally:
+        if conn:
+            return_connection(conn)

@@ -26,7 +26,12 @@ def setup_table_rls(table_name):
     """
     
     logger.info(f"Enabling RLS for table: {table_name}")
-    return execute_sql(sql, ignore_errors=True)
+    try:
+        execute_sql(sql)
+        return True
+    except Exception as e:
+        logger.warning(f"Error enabling RLS for {table_name}: {str(e)}")
+        return False
 
 def create_select_policy(table_name, policy_name, using_clause):
     """
@@ -47,7 +52,12 @@ def create_select_policy(table_name, policy_name, using_clause):
     """
     
     logger.info(f"Creating SELECT policy for table {table_name}: {policy_name}")
-    return execute_sql(sql, ignore_errors=True)
+    try:
+        execute_sql(sql)
+        return True
+    except Exception as e:
+        logger.warning(f"Error creating SELECT policy for {table_name}: {str(e)}")
+        return False
 
 def create_insert_policy(table_name, policy_name, check_clause):
     """
@@ -68,7 +78,12 @@ def create_insert_policy(table_name, policy_name, check_clause):
     """
     
     logger.info(f"Creating INSERT policy for table {table_name}: {policy_name}")
-    return execute_sql(sql, ignore_errors=True)
+    try:
+        execute_sql(sql)
+        return True
+    except Exception as e:
+        logger.warning(f"Error creating INSERT policy for {table_name}: {str(e)}")
+        return False
 
 def create_update_policy(table_name, policy_name, using_clause, check_clause=None):
     """

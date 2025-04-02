@@ -1,296 +1,564 @@
 """
-Token Usage Management
+Token Management Utility
 
-This module provides utilities for tracking and limiting token usage per user.
+This module provides functions for tracking and managing token usage in the application.
 """
-
-import logging
+import os
+import json
 import time
 from datetime import datetime, timedelta
-from utils.supabase import get_supabase_client
-from utils.supabase_extension import query_sql, execute_sql
+from typing import Dict, Any, Optional, List, Tuple, Union
 
-logger = logging.getLogger(__name__)
+from utils.supabase_extension import execute_sql, execute_sql_fetchone, execute_sql_fetchall
+from utils.logger import logger
 
-# Define token limits per tier
-TOKEN_LIMITS = {
-    'free': 50000,       # 50K tokens per month
-    'basic': 500000,     # 500K tokens per month
-    'professional': 2000000,  # 2M tokens per month
-    'enterprise': 10000000,   # 10M tokens per month
+# Default token limits
+DEFAULT_RESPONSE_TOKEN_LIMIT = 1000
+DEFAULT_DAILY_TOKEN_LIMIT = 10000
+DEFAULT_MONTHLY_TOKEN_LIMIT = 50000
+
+# Token cost multipliers per model
+TOKEN_COST_MULTIPLIERS = {
+    # OpenAI models
+    "gpt-3.5-turbo": {
+        "input": 0.0015,  # per 1K tokens
+        "output": 0.002,  # per 1K tokens
+    },
+    "gpt-4": {
+        "input": 0.03,    # per 1K tokens
+        "output": 0.06,   # per 1K tokens
+    },
+    "gpt-4o": {  # Latest model
+        "input": 0.01,    # per 1K tokens
+        "output": 0.03,   # per 1K tokens
+    },
+    # Anthropic models
+    "claude-3-opus": {
+        "input": 0.015,   # per 1K tokens
+        "output": 0.075,  # per 1K tokens
+    },
+    "claude-3-sonnet": {
+        "input": 0.003,   # per 1K tokens
+        "output": 0.015,  # per 1K tokens
+    },
+    "claude-3-5-sonnet-20241022": {  # Latest model
+        "input": 0.003,   # per 1K tokens
+        "output": 0.015,  # per 1K tokens
+    },
+    "claude-3-haiku": {
+        "input": 0.00025, # per 1K tokens
+        "output": 0.00125,# per 1K tokens
+    },
+    # Generic fallback
+    "default": {
+        "input": 0.005,   # per 1K tokens
+        "output": 0.015,  # per 1K tokens
+    }
 }
 
-# Define rate limits (requests per minute)
-RATE_LIMITS = {
-    'free': 20,          # 20 requests per minute
-    'basic': 60,         # 60 requests per minute 
-    'professional': 120, # 120 requests per minute
-    'enterprise': 240,   # 240 requests per minute
-}
+# Subscription tiers and their token limits
+SUBSCRIPTION_TIERS = [
+    {
+        "name": "Free",
+        "monthly_token_limit": 25000,
+        "daily_token_limit": 5000,
+        "response_token_limit": 1000,
+        "price": 0
+    },
+    {
+        "name": "Basic",
+        "monthly_token_limit": 100000,
+        "daily_token_limit": 20000, 
+        "response_token_limit": 2000,
+        "price": 1000  # Price in cents (10 USD)
+    },
+    {
+        "name": "Pro",
+        "monthly_token_limit": 500000,
+        "daily_token_limit": 50000,
+        "response_token_limit": 4000,
+        "price": 4000  # Price in cents (40 USD)
+    },
+    {
+        "name": "Enterprise",
+        "monthly_token_limit": 1000000,
+        "daily_token_limit": 100000,
+        "response_token_limit": 8000,
+        "price": 8000  # Price in cents (80 USD)
+    }
+]
 
-# Cache for rate limiting
-rate_limit_cache = {}
 
-def ensure_token_tracking_table():
+def ensure_token_tracking_table() -> bool:
     """
-    Ensure the token_usage table exists in the database
-    """
-    sql = """
-    CREATE TABLE IF NOT EXISTS token_usage (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER NOT NULL,
-        request_tokens INTEGER NOT NULL,
-        response_tokens INTEGER NOT NULL,
-        total_tokens INTEGER NOT NULL,
-        model VARCHAR(50) NOT NULL,
-        timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        endpoint VARCHAR(100) NOT NULL
-    );
-    CREATE INDEX IF NOT EXISTS token_usage_user_id_idx ON token_usage(user_id);
-    CREATE INDEX IF NOT EXISTS token_usage_timestamp_idx ON token_usage(timestamp);
-    """
+    Ensure the token usage tracking table exists
     
-    try:
-        result = execute_sql(sql)
-        if result:
-            logger.info("Token usage table created or already exists")
-        else:
-            logger.error("Failed to create token usage table")
-    except Exception as e:
-        logger.error(f"Error creating token usage table: {str(e)}")
-
-def track_token_usage(user_id, request_tokens, response_tokens, model, endpoint):
+    Returns:
+        bool: True if the table exists or was created, False otherwise
     """
-    Track token usage for a user
+    try:
+        # Check if token_usage table exists
+        sql = """
+        SELECT EXISTS (
+            SELECT FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+            AND table_name = 'token_usage'
+        );
+        """
+        result = execute_sql_fetchone(sql)
+        
+        if result and result.get('exists', False):
+            # Table already exists
+            return True
+            
+        # Create token_usage table
+        sql = """
+        CREATE TABLE IF NOT EXISTS token_usage (
+            id SERIAL PRIMARY KEY,
+            user_id VARCHAR(255) NOT NULL,
+            prompt_tokens INTEGER NOT NULL DEFAULT 0,
+            completion_tokens INTEGER NOT NULL DEFAULT 0,
+            total_tokens INTEGER NOT NULL DEFAULT 0,
+            model VARCHAR(255) NOT NULL,
+            request_type VARCHAR(100) NOT NULL DEFAULT 'general',
+            metadata JSONB,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            cost_usd NUMERIC(10, 6) DEFAULT 0
+        );
+        """
+        execute_sql(sql)
+        
+        # Create index on user_id
+        sql = """
+        CREATE INDEX IF NOT EXISTS idx_token_usage_user_id ON token_usage (user_id);
+        """
+        execute_sql(sql)
+        
+        # Create index on created_at
+        sql = """
+        CREATE INDEX IF NOT EXISTS idx_token_usage_created_at ON token_usage (created_at);
+        """
+        execute_sql(sql)
+        
+        # Create token_limits table
+        sql = """
+        CREATE TABLE IF NOT EXISTS token_limits (
+            id SERIAL PRIMARY KEY,
+            user_id VARCHAR(255) UNIQUE NOT NULL,
+            response_token_limit INTEGER NOT NULL DEFAULT 1000,
+            daily_token_limit INTEGER NOT NULL DEFAULT 10000,
+            monthly_token_limit INTEGER NOT NULL DEFAULT 50000,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        );
+        """
+        execute_sql(sql)
+        
+        # Create index on user_id for token_limits
+        sql = """
+        CREATE INDEX IF NOT EXISTS idx_token_limits_user_id ON token_limits (user_id);
+        """
+        execute_sql(sql)
+        
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error ensuring token usage table: {e}")
+        return False
+
+
+def update_token_usage(
+    user_id: str,
+    prompt_tokens: int,
+    completion_tokens: int,
+    model: str,
+    request_type: str = "general",
+    metadata: Dict[str, Any] = None
+) -> bool:
+    """
+    Update token usage for a user
     
     Args:
         user_id: User ID
-        request_tokens: Number of tokens in the request
-        response_tokens: Number of tokens in the response
-        model: Model name (e.g., 'gpt-4o', 'claude-3-5-sonnet-20241022')
-        endpoint: API endpoint used
-    
+        prompt_tokens: Number of tokens used in prompt
+        completion_tokens: Number of tokens used in completion
+        model: Model name (e.g., gpt-4, gpt-3.5-turbo)
+        request_type: Type of request (e.g., message, document, image)
+        metadata: Additional metadata
+        
     Returns:
         bool: True if successful, False otherwise
     """
-    total_tokens = request_tokens + response_tokens
-    
     try:
-        sql = """
-        INSERT INTO token_usage (user_id, request_tokens, response_tokens, total_tokens, model, endpoint)
-        VALUES (%s, %s, %s, %s, %s, %s)
-        """
-        params = (user_id, request_tokens, response_tokens, total_tokens, model, endpoint)
+        # Ensure metadata is valid JSON
+        metadata_json = {} if metadata is None else metadata
         
-        result = execute_sql(sql, params)
-        if result:
-            logger.info(f"Tracked {total_tokens} tokens for user {user_id}")
-            return True
-        else:
-            logger.error(f"Failed to track token usage for user {user_id}")
-            return False
+        # Calculate total tokens
+        total_tokens = prompt_tokens + completion_tokens
+        
+        # Calculate cost
+        model_costs = TOKEN_COST_MULTIPLIERS.get(model, TOKEN_COST_MULTIPLIERS["default"])
+        
+        prompt_cost = (prompt_tokens / 1000) * model_costs["input"]
+        completion_cost = (completion_tokens / 1000) * model_costs["output"]
+        total_cost = prompt_cost + completion_cost
+        
+        # Record token usage
+        sql = """
+        INSERT INTO token_usage (
+            user_id, prompt_tokens, completion_tokens, 
+            total_tokens, model, request_type, metadata, cost_usd
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        """
+        
+        params = (
+            user_id, prompt_tokens, completion_tokens, 
+            total_tokens, model, request_type, 
+            json.dumps(metadata_json), total_cost
+        )
+        
+        execute_sql(sql, params)
+        
+        return True
+        
     except Exception as e:
-        logger.error(f"Error tracking token usage: {str(e)}")
+        logger.error(f"Error updating token usage: {e}")
         return False
 
-def get_user_token_usage(user_id, period='month'):
+
+def get_user_token_usage(
+    user_id: str, 
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None
+) -> Dict[str, Any]:
     """
-    Get token usage for a user within a specified period
+    Get token usage for a user in a specified time range
     
     Args:
         user_id: User ID
-        period: Time period ('day', 'week', 'month', 'year')
-    
+        start_date: Start date (inclusive)
+        end_date: End date (inclusive)
+        
     Returns:
         dict: Token usage statistics
     """
-    time_filter = ""
-    if period == 'day':
-        time_filter = "timestamp >= NOW() - INTERVAL '1 day'"
-    elif period == 'week':
-        time_filter = "timestamp >= NOW() - INTERVAL '1 week'"
-    elif period == 'month':
-        time_filter = "timestamp >= NOW() - INTERVAL '1 month'"
-    elif period == 'year':
-        time_filter = "timestamp >= NOW() - INTERVAL '1 year'"
-    else:
-        time_filter = "timestamp >= NOW() - INTERVAL '1 month'"  # Default to month
-    
     try:
-        sql = f"""
-        SELECT 
-            SUM(request_tokens) as request_tokens,
-            SUM(response_tokens) as response_tokens,
-            SUM(total_tokens) as total_tokens,
-            COUNT(*) as request_count
-        FROM token_usage
-        WHERE user_id = %s AND {time_filter}
-        """
-        params = (user_id,)
+        # Set default date range if not provided
+        if not end_date:
+            end_date = datetime.now()
+            
+        if not start_date:
+            # Default to current month
+            start_date = end_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         
-        result = query_sql(sql, params)
-        if result and len(result) > 0:
-            usage = result[0]
-            return {
-                'request_tokens': usage['request_tokens'] or 0,
-                'response_tokens': usage['response_tokens'] or 0,
-                'total_tokens': usage['total_tokens'] or 0,
-                'request_count': usage['request_count'] or 0
-            }
-        else:
-            return {
-                'request_tokens': 0,
-                'response_tokens': 0,
-                'total_tokens': 0,
-                'request_count': 0
-            }
-    except Exception as e:
-        logger.error(f"Error getting token usage: {str(e)}")
-        return {
-            'request_tokens': 0,
-            'response_tokens': 0,
-            'total_tokens': 0,
-            'request_count': 0
-        }
-
-def get_user_subscription_tier(user_id):
-    """
-    Get the subscription tier for a user
-    
-    Args:
-        user_id: User ID
-    
-    Returns:
-        str: Subscription tier
-    """
-    try:
+        # Get token usage summary
         sql = """
-        SELECT st.name as tier_name
-        FROM user_subscriptions us
-        JOIN subscription_tiers st ON us.subscription_tier_id = st.id
-        WHERE us.user_id = %s AND us.status = 'active'
-        LIMIT 1
+        SELECT 
+            SUM(prompt_tokens) as prompt_tokens,
+            SUM(completion_tokens) as completion_tokens,
+            SUM(total_tokens) as total_tokens,
+            SUM(cost_usd) as total_cost
+        FROM token_usage
+        WHERE user_id = %s
+          AND created_at >= %s
+          AND created_at <= %s
         """
-        params = (user_id,)
         
-        result = query_sql(sql, params)
-        if result and len(result) > 0 and result[0]['tier_name']:
-            tier = result[0]['tier_name'].lower()
-            # Map the tier name to one of our standard tiers
-            if 'enterprise' in tier:
-                return 'enterprise'
-            elif 'professional' in tier or 'premium' in tier:
-                return 'professional'
-            elif 'basic' in tier or 'standard' in tier:
-                return 'basic'
-            else:
-                return 'free'
-        else:
-            return 'free'  # Default to free tier
-    except Exception as e:
-        logger.error(f"Error getting user subscription tier: {str(e)}")
-        return 'free'  # Default to free tier
-
-def check_token_limit(user_id):
-    """
-    Check if a user has exceeded their token limit
-    
-    Args:
-        user_id: User ID
-    
-    Returns:
-        tuple: (bool, dict) - (is_allowed, usage_stats)
-    """
-    # Get the user's subscription tier
-    tier = get_user_subscription_tier(user_id)
-    
-    # Get token limit for this tier
-    token_limit = TOKEN_LIMITS.get(tier, TOKEN_LIMITS['free'])
-    
-    # Get current usage
-    usage = get_user_token_usage(user_id, 'month')
-    
-    # Check if user has exceeded their limit
-    is_allowed = usage['total_tokens'] < token_limit
-    
-    # Prepare usage statistics
-    usage_stats = {
-        'current_usage': usage['total_tokens'],
-        'limit': token_limit,
-        'remaining': max(0, token_limit - usage['total_tokens']),
-        'percentage_used': min(100, (usage['total_tokens'] / token_limit) * 100 if token_limit > 0 else 100),
-        'tier': tier
-    }
-    
-    return is_allowed, usage_stats
-
-def check_rate_limit(user_id):
-    """
-    Check if a user has exceeded their rate limit
-    
-    Args:
-        user_id: User ID
-    
-    Returns:
-        tuple: (bool, dict) - (is_allowed, rate_limit_stats)
-    """
-    # Get the user's subscription tier
-    tier = get_user_subscription_tier(user_id)
-    
-    # Get rate limit for this tier
-    rate_limit = RATE_LIMITS.get(tier, RATE_LIMITS['free'])
-    
-    # Get current time
-    current_time = time.time()
-    
-    # Initialize or get the user's rate limit cache
-    if user_id not in rate_limit_cache:
-        rate_limit_cache[user_id] = {
-            'requests': [],
-            'tier': tier
+        params = (user_id, start_date, end_date)
+        result = execute_sql_fetchone(sql, params)
+        
+        if not result:
+            return {
+                "prompt_tokens": 0,
+                "completion_tokens": 0,
+                "total_tokens": 0,
+                "total_cost": 0.0,
+                "daily_average": 0,
+                "usage_by_model": [],
+                "usage_by_day": [],
+                "start_date": start_date.isoformat(),
+                "end_date": end_date.isoformat()
+            }
+            
+        # Get usage by model
+        sql = """
+        SELECT 
+            model,
+            SUM(total_tokens) as tokens,
+            SUM(cost_usd) as cost
+        FROM token_usage
+        WHERE user_id = %s
+          AND created_at >= %s
+          AND created_at <= %s
+        GROUP BY model
+        ORDER BY tokens DESC
+        """
+        
+        model_usage = execute_sql_fetchall(sql, params) or []
+        
+        # Get usage by day
+        sql = """
+        SELECT 
+            DATE_TRUNC('day', created_at) as date,
+            SUM(total_tokens) as tokens
+        FROM token_usage
+        WHERE user_id = %s
+          AND created_at >= %s
+          AND created_at <= %s
+        GROUP BY DATE_TRUNC('day', created_at)
+        ORDER BY date
+        """
+        
+        daily_usage = execute_sql_fetchall(sql, params) or []
+        
+        # Calculate daily average
+        days = (end_date - start_date).days + 1
+        total_tokens = result.get('total_tokens', 0) or 0
+        daily_average = total_tokens / days if days > 0 else 0
+        
+        # Format results
+        usage = {
+            "prompt_tokens": result.get('prompt_tokens', 0) or 0,
+            "completion_tokens": result.get('completion_tokens', 0) or 0,
+            "total_tokens": total_tokens,
+            "total_cost": float(result.get('total_cost', 0) or 0),
+            "daily_average": daily_average,
+            "usage_by_model": [dict(m) for m in model_usage],
+            "usage_by_day": [
+                {"date": d.get('date').isoformat(), "tokens": d.get('tokens')} 
+                for d in daily_usage
+            ],
+            "start_date": start_date.isoformat(),
+            "end_date": end_date.isoformat()
         }
-    
-    # Clean up old requests (older than 1 minute)
-    rate_limit_cache[user_id]['requests'] = [
-        req_time for req_time in rate_limit_cache[user_id]['requests']
-        if current_time - req_time < 60
-    ]
-    
-    # Count requests in the last minute
-    request_count = len(rate_limit_cache[user_id]['requests'])
-    
-    # Check if user has exceeded their rate limit
-    is_allowed = request_count < rate_limit
-    
-    # If allowed, add the current request to the cache
-    if is_allowed:
-        rate_limit_cache[user_id]['requests'].append(current_time)
-    
-    # Prepare rate limit statistics
-    rate_limit_stats = {
-        'current_rate': request_count,
-        'limit': rate_limit,
-        'remaining': max(0, rate_limit - request_count),
-        'tier': tier
-    }
-    
-    return is_allowed, rate_limit_stats
+        
+        return usage
+        
+    except Exception as e:
+        logger.error(f"Error getting user token usage: {e}")
+        return {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "total_cost": 0.0,
+            "daily_average": 0,
+            "usage_by_model": [],
+            "usage_by_day": [],
+            "error": str(e)
+        }
 
-def optimize_prompt(prompt, max_tokens=None):
+
+def get_user_limits(user_id: str) -> Dict[str, Any]:
     """
-    Optimize a prompt to reduce token usage
+    Get token limits for a user
     
     Args:
-        prompt: Original prompt
-        max_tokens: Maximum tokens allowed for the prompt
-    
+        user_id: User ID
+        
     Returns:
-        str: Optimized prompt
+        dict: Token limits
     """
-    # Simple prompt optimization - truncate if too long
-    if max_tokens and len(prompt.split()) > max_tokens:
-        words = prompt.split()
-        truncated = ' '.join(words[:max_tokens])
-        return truncated + "..."
+    try:
+        # Check if user has limits set
+        sql = """
+        SELECT 
+            response_token_limit,
+            daily_token_limit,
+            monthly_token_limit
+        FROM token_limits
+        WHERE user_id = %s
+        """
+        
+        result = execute_sql_fetchone(sql, (user_id,))
+        
+        if result:
+            return {
+                "response_token_limit": result.get('response_token_limit'),
+                "daily_token_limit": result.get('daily_token_limit'),
+                "monthly_token_limit": result.get('monthly_token_limit')
+            }
+            
+        # User doesn't have limits set, create default limits
+        sql = """
+        INSERT INTO token_limits (
+            user_id, 
+            response_token_limit,
+            daily_token_limit, 
+            monthly_token_limit
+        ) VALUES (%s, %s, %s, %s)
+        RETURNING 
+            response_token_limit,
+            daily_token_limit,
+            monthly_token_limit
+        """
+        
+        params = (
+            user_id, 
+            DEFAULT_RESPONSE_TOKEN_LIMIT,
+            DEFAULT_DAILY_TOKEN_LIMIT, 
+            DEFAULT_MONTHLY_TOKEN_LIMIT
+        )
+        
+        result = execute_sql_fetchone(sql, params)
+        
+        if result:
+            return {
+                "response_token_limit": result.get('response_token_limit'),
+                "daily_token_limit": result.get('daily_token_limit'),
+                "monthly_token_limit": result.get('monthly_token_limit')
+            }
+            
+        return {
+            "response_token_limit": DEFAULT_RESPONSE_TOKEN_LIMIT,
+            "daily_token_limit": DEFAULT_DAILY_TOKEN_LIMIT,
+            "monthly_token_limit": DEFAULT_MONTHLY_TOKEN_LIMIT
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting user token limits: {e}")
+        return {
+            "response_token_limit": DEFAULT_RESPONSE_TOKEN_LIMIT,
+            "daily_token_limit": DEFAULT_DAILY_TOKEN_LIMIT,
+            "monthly_token_limit": DEFAULT_MONTHLY_TOKEN_LIMIT,
+            "error": str(e)
+        }
+
+
+def update_user_token_limit(user_id: str, limit_type: str, value: int) -> bool:
+    """
+    Update a specific token limit for a user
     
-    return prompt
+    Args:
+        user_id: User ID
+        limit_type: Type of limit (response_token_limit, daily_token_limit, monthly_token_limit)
+        value: New limit value
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        # Validate limit type
+        valid_limit_types = ['response_token_limit', 'daily_token_limit', 'monthly_token_limit']
+        if limit_type not in valid_limit_types:
+            logger.error(f"Invalid limit type: {limit_type}")
+            return False
+            
+        # Upsert token limit
+        sql = f"""
+        INSERT INTO token_limits (user_id, {limit_type}, updated_at)
+        VALUES (%s, %s, NOW())
+        ON CONFLICT (user_id) 
+        DO UPDATE SET {limit_type} = %s, updated_at = NOW()
+        """
+        
+        params = (user_id, value, value)
+        execute_sql(sql, params)
+        
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error updating user token limit: {e}")
+        return False
+
+
+def get_subscription_token_limits(user_id: str) -> List[Dict[str, Any]]:
+    """
+    Get subscription tiers with token limits
+    
+    Args:
+        user_id: User ID to identify the current tier
+        
+    Returns:
+        list: List of subscription tiers with token limits
+    """
+    try:
+        # Get user's current subscription
+        limits = get_user_limits(user_id)
+        
+        # Determine current tier based on monthly limit
+        current_monthly_limit = limits.get('monthly_token_limit', DEFAULT_MONTHLY_TOKEN_LIMIT)
+        current_tier = "Free"
+        
+        for tier in SUBSCRIPTION_TIERS:
+            if tier["monthly_token_limit"] == current_monthly_limit:
+                current_tier = tier["name"]
+                break
+                
+        # Add current flag to tiers
+        tiers_with_current = []
+        for tier in SUBSCRIPTION_TIERS:
+            tier_copy = tier.copy()
+            tier_copy["current"] = tier["name"] == current_tier
+            tiers_with_current.append(tier_copy)
+            
+        return tiers_with_current
+        
+    except Exception as e:
+        logger.error(f"Error getting subscription token limits: {e}")
+        return SUBSCRIPTION_TIERS
+
+
+def check_token_limit(user_id: str, model: str, estimated_tokens: int) -> Tuple[bool, str]:
+    """
+    Check if a user has enough tokens available for a request
+    
+    Args:
+        user_id: User ID
+        model: Model name
+        estimated_tokens: Estimated total tokens for the request
+        
+    Returns:
+        tuple: (has_enough_tokens, message)
+    """
+    try:
+        # Get user's token limits
+        limits = get_user_limits(user_id)
+        
+        # Get today's usage
+        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        daily_usage = get_user_token_usage(user_id, today)
+        
+        # Get monthly usage
+        month_start = today.replace(day=1)
+        monthly_usage = get_user_token_usage(user_id, month_start)
+        
+        # Check daily limit
+        daily_limit = limits.get('daily_token_limit', DEFAULT_DAILY_TOKEN_LIMIT)
+        daily_used = daily_usage.get('total_tokens', 0)
+        daily_remaining = daily_limit - daily_used
+        
+        if estimated_tokens > daily_remaining:
+            return False, f"Daily token limit reached. Used {daily_used}/{daily_limit} tokens today."
+            
+        # Check monthly limit
+        monthly_limit = limits.get('monthly_token_limit', DEFAULT_MONTHLY_TOKEN_LIMIT)
+        monthly_used = monthly_usage.get('total_tokens', 0)
+        monthly_remaining = monthly_limit - monthly_used
+        
+        if estimated_tokens > monthly_remaining:
+            return False, f"Monthly token limit reached. Used {monthly_used}/{monthly_limit} tokens this month."
+            
+        return True, "Token limit check passed"
+        
+    except Exception as e:
+        logger.error(f"Error checking token limit: {e}")
+        # Allow the request to proceed in case of error
+        return True, f"Token limit check error: {e}"
+
+
+def get_response_token_limit(user_id: str) -> int:
+    """
+    Get the response token limit for a user
+    
+    Args:
+        user_id: User ID
+        
+    Returns:
+        int: Response token limit
+    """
+    try:
+        limits = get_user_limits(user_id)
+        return limits.get('response_token_limit', DEFAULT_RESPONSE_TOKEN_LIMIT)
+    except Exception as e:
+        logger.error(f"Error getting response token limit: {e}")
+        return DEFAULT_RESPONSE_TOKEN_LIMIT
