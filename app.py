@@ -145,7 +145,29 @@ def api_index():
     return jsonify({
         "name": "Dana AI API",
         "version": "1.0.0",
-        "status": "online"
+        "status": "online",
+        "endpoints": [
+            "/api/status",
+            "/api/routes",
+            "/api/auth",
+            "/api/integrations",
+            "/api/knowledge",
+            "/api/usage"
+        ]
+    })
+
+@app.route('/api/test-usage')
+def test_usage_api():
+    """Test endpoint for usage API"""
+    return jsonify({
+        "status": "ok",
+        "message": "Usage API test endpoint",
+        "endpoints": [
+            "/api/usage/stats",
+            "/api/usage/limits",
+            "/api/usage/subscription-tiers",
+            "/api/usage/check-limit"
+        ]
     })
 
 @app.route("/routes")
@@ -240,6 +262,7 @@ def register_blueprints():
         from routes.pdf_analysis import pdf_analysis_bp
         from routes.knowledge import knowledge_bp
         from routes.usage import usage_bp
+        from routes.auth import auth_bp
         
         # Register existing blueprints
         app.register_blueprint(ai_test_bp)
@@ -247,8 +270,10 @@ def register_blueprints():
         app.register_blueprint(pdf_analysis_bp)
         app.register_blueprint(knowledge_bp)
         app.register_blueprint(usage_bp)
+        app.register_blueprint(auth_bp)
         logger.info("Knowledge blueprint registered successfully")
         logger.info("Token usage blueprint registered successfully")
+        logger.info("Auth blueprint registered successfully")
         
         # Register payments blueprint - which depends on requests
         try:

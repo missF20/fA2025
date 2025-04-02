@@ -8,7 +8,7 @@ from utils.rate_limit import rate_limit_middleware
 from models import SignUp, Login, PasswordReset, PasswordChange
 
 logger = logging.getLogger(__name__)
-auth_bp = Blueprint('auth', __name__)
+auth_bp = Blueprint('auth', __name__, url_prefix='/api/auth')
 supabase = get_supabase_client()
 
 # Rate limit settings for authentication

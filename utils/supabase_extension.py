@@ -81,7 +81,7 @@ def return_connection(conn):
         logger.error(f"Error returning connection to pool: {str(e)}")
 
 
-def execute_sql(sql: str, params: Optional[Tuple] = None, fetch_type: Optional[str] = None) -> Optional[Union[List[Dict[str, Any]], Dict[str, Any], bool]]:
+def execute_sql(sql: str, params: Optional[Tuple] = None, fetch_type: Optional[str] = None, ignore_errors: bool = False) -> Optional[Union[List[Dict[str, Any]], Dict[str, Any], bool]]:
     """
     Execute raw SQL query with optional parameters
     
@@ -89,6 +89,7 @@ def execute_sql(sql: str, params: Optional[Tuple] = None, fetch_type: Optional[s
         sql: SQL query to execute
         params: Query parameters
         fetch_type: Type of fetch ('one', 'all', None for no fetch)
+        ignore_errors: If True, don't fail on SQL errors (useful for migrations)
         
     Returns:
         Query results (if fetch_type is specified) or True/False for success status
@@ -115,7 +116,7 @@ def execute_sql(sql: str, params: Optional[Tuple] = None, fetch_type: Optional[s
             conn.commit()
             logger.info("SQL statements executed successfully")
             
-            return result
+            return result if fetch_type else True
             
     except Exception as e:
         if conn:
@@ -129,6 +130,11 @@ def execute_sql(sql: str, params: Optional[Tuple] = None, fetch_type: Optional[s
         import traceback
         logger.warning(f"SQL Error details: {traceback.format_exc()}")
         
+        # Return True for migrations that want to ignore errors
+        if ignore_errors:
+            logger.warning("Ignoring SQL error as requested")
+            return True
+            
         return None
         
     finally:
@@ -206,6 +212,22 @@ def execute_sql_fetchall(sql: str, params: Optional[Tuple] = None) -> Optional[L
     finally:
         if conn:
             return_connection(conn)
+
+
+def query_sql(sql: str, params: Optional[Tuple] = None) -> Optional[List[Dict[str, Any]]]:
+    """
+    Execute a SQL query and return all results
+    
+    This is a convenience alias for execute_sql_fetchall
+    
+    Args:
+        sql: SQL query to execute
+        params: Query parameters
+        
+    Returns:
+        List of row results as dictionaries or None
+    """
+    return execute_sql_fetchall(sql, params)
 
 
 def execute_transaction(statements: List[Tuple[str, Tuple]]) -> bool:
