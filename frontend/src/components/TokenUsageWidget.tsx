@@ -1,7 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
 import { motion } from 'framer-motion';
 import { api } from '../utils/fetchApi';
+
+// Optional import to avoid errors when outside AuthProvider
+let useAuth: any;
+try {
+  useAuth = require('../contexts/AuthContext').useAuth;
+} catch (error) {
+  console.warn('AuthContext not available, using mock auth data');
+  useAuth = () => ({ user: null, token: null });
+}
 
 interface TokenUsageData {
   limit: number;
@@ -134,6 +142,22 @@ const TokenUsageWidget: React.FC = () => {
     return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   };
   
+  // Render a placeholder if not authenticated
+  if (!user || !token) {
+    return (
+      <div className="token-usage-widget">
+        <div className="bg-white rounded-lg shadow-sm p-4">
+          <div className="flex justify-between items-center mb-2">
+            <h6 className="text-sm font-semibold text-gray-700 m-0">Token Usage</h6>
+          </div>
+          <div className="text-xs text-gray-500 text-center py-2">
+            Sign in to view token usage
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="token-usage-widget">
       <div className="bg-white rounded-lg shadow-sm p-4">
