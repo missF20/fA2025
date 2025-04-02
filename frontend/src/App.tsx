@@ -21,6 +21,7 @@ import { useMetrics } from './hooks/useMetrics';
 import { MessageSquare, CheckCircle, Clock, Users, AlertTriangle, Activity } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { AuthFormData } from './types';
+import TokenUsageCard from './components/TokenUsageCard';
 // Used to track the platforms the user is allowed to access based on their subscription
 
 function App() {
@@ -412,6 +413,9 @@ function App() {
                 Conversations
               </motion.h1>
               <ConversationsList conversations={metrics.conversations} />
+              
+              {/* Token Usage Card below conversations */}
+              <TokenUsageCard />
             </div>
           )}
 

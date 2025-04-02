@@ -1,241 +1,262 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, ProgressBar, Modal, Form, OverlayTrigger, Tooltip } from 'react-bootstrap';
+import { Card, Button, ProgressBar, OverlayTrigger, Tooltip, Modal, Form } from 'react-bootstrap';
 import { FaCog, FaInfoCircle } from 'react-icons/fa';
-import { useAuth } from '../contexts/AuthContext';
-import axios from 'axios';
 
-interface TokenUsageData {
-  limit: number;
+// Define interfaces for token usage data
+interface TokenUsage {
   used: number;
-  remaining: number;
+  limit: number;
   percentage: number;
 }
 
-interface TokenLimits {
-  responseLimit: number;
-  dailyLimit: number;
-  monthlyLimit: number;
+interface TokenUsageByModel {
+  [key: string]: TokenUsage;
 }
 
-const DEFAULT_TOKEN_USAGE: TokenUsageData = {
-  limit: 50000,
-  used: 0,
-  remaining: 50000,
-  percentage: 0
-};
-
-const DEFAULT_TOKEN_LIMITS: TokenLimits = {
-  responseLimit: 1000,
-  dailyLimit: 10000,
-  monthlyLimit: 50000
-};
-
 /**
- * Token Usage Widget Component
+ * TokenUsageWidget Component
  * 
- * Displays the current token usage with a progress bar and settings modal
+ * A component that displays token usage statistics and allows
+ * configuration of token limits.
  */
 const TokenUsageWidget: React.FC = () => {
-  const { user, token } = useAuth();
-  const [tokenUsage, setTokenUsage] = useState<TokenUsageData>(DEFAULT_TOKEN_USAGE);
-  const [tokenLimits, setTokenLimits] = useState<TokenLimits>(DEFAULT_TOKEN_LIMITS);
-  const [showSettings, setShowSettings] = useState(false);
-  const [responseLimit, setResponseLimit] = useState(1000);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [totalUsage, setTotalUsage] = useState<TokenUsage>({
+    used: 0,
+    limit: 1000000,
+    percentage: 0
+  });
   
+  const [modelUsage, setModelUsage] = useState<TokenUsageByModel>({
+    'gpt-4': {
+      used: 0,
+      limit: 500000,
+      percentage: 0
+    },
+    'gpt-3.5-turbo': {
+      used: 0,
+      limit: 500000,
+      percentage: 0
+    }
+  });
+  
+  const [showConfigModal, setShowConfigModal] = useState(false);
+  const [selectedModel, setSelectedModel] = useState('total');
+  const [newLimit, setNewLimit] = useState('1000000');
+  
+  // Fetch token usage data from API
   useEffect(() => {
-    if (user && token) {
-      fetchUsageData();
-    }
-  }, [user, token]);
-  
-  const fetchUsageData = async () => {
-    if (!token) return;
-    
-    setLoading(true);
-    setError(null);
-    
-    try {
-      // Fetch token usage
-      const response = await axios.get('/api/usage/tokens?period=month', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      setTokenUsage({
-        limit: response.data.limit || DEFAULT_TOKEN_USAGE.limit,
-        used: response.data.usage?.total_tokens || 0,
-        remaining: response.data.remaining || DEFAULT_TOKEN_USAGE.limit,
-        percentage: response.data.percentage_used || 0
-      });
-      
-      // Fetch token limits
-      const limitsResponse = await axios.get('/api/usage/limits', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      setTokenLimits({
-        responseLimit: limitsResponse.data.response_token_limit || DEFAULT_TOKEN_LIMITS.responseLimit,
-        dailyLimit: limitsResponse.data.daily_token_limit || DEFAULT_TOKEN_LIMITS.dailyLimit,
-        monthlyLimit: limitsResponse.data.monthly_token_limit || DEFAULT_TOKEN_LIMITS.monthlyLimit
-      });
-      
-      setResponseLimit(limitsResponse.data.response_token_limit || DEFAULT_TOKEN_LIMITS.responseLimit);
-      
-    } catch (err) {
-      console.error('Error fetching token usage data:', err);
-      setError('Failed to load token usage data');
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  const updateResponseLimit = async () => {
-    if (!token) return;
-    
-    try {
-      await axios.post('/api/usage/limits/response', 
-        { limit: responseLimit },
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
+    const fetchTokenUsage = async () => {
+      try {
+        const response = await fetch('/api/usage/tokens');
+        const data = await response.json();
+        
+        if (data) {
+          // Update total usage
+          const total = {
+            used: data.total_tokens_used || 0,
+            limit: data.total_tokens_limit || 1000000,
+            percentage: data.total_tokens_used 
+              ? Math.min(100, (data.total_tokens_used / data.total_tokens_limit) * 100)
+              : 0
+          };
+          setTotalUsage(total);
+          
+          // Update model-specific usage
+          const models: TokenUsageByModel = {};
+          if (data.models) {
+            Object.keys(data.models).forEach(model => {
+              const modelData = data.models[model];
+              models[model] = {
+                used: modelData.tokens_used || 0,
+                limit: modelData.tokens_limit || 500000,
+                percentage: modelData.tokens_used
+                  ? Math.min(100, (modelData.tokens_used / modelData.tokens_limit) * 100)
+                  : 0
+              };
+            });
+            setModelUsage(models);
           }
         }
-      );
+      } catch (error) {
+        console.error('Error fetching token usage:', error);
+      }
+    };
+    
+    fetchTokenUsage();
+    // Refresh every 5 minutes
+    const interval = setInterval(fetchTokenUsage, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+  
+  const handleSaveLimit = async () => {
+    try {
+      const limitValue = parseInt(newLimit);
+      if (isNaN(limitValue) || limitValue <= 0) {
+        return;
+      }
       
-      setTokenLimits(prev => ({
-        ...prev,
-        responseLimit
-      }));
+      const response = await fetch('/api/usage/configure', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: selectedModel === 'total' ? null : selectedModel,
+          token_limit: limitValue
+        })
+      });
       
-      setShowSettings(false);
-      
-      // Save to local storage as well for persistence
-      localStorage.setItem('responseTokenLimit', responseLimit.toString());
-      
-    } catch (err) {
-      console.error('Error updating response token limit:', err);
-      setError('Failed to update response token limit');
+      if (response.ok) {
+        // Update the UI with new limit
+        if (selectedModel === 'total') {
+          setTotalUsage(prev => ({
+            ...prev,
+            limit: limitValue,
+            percentage: (prev.used / limitValue) * 100
+          }));
+        } else {
+          setModelUsage(prev => ({
+            ...prev,
+            [selectedModel]: {
+              ...prev[selectedModel],
+              limit: limitValue,
+              percentage: (prev[selectedModel].used / limitValue) * 100
+            }
+          }));
+        }
+        setShowConfigModal(false);
+      }
+    } catch (error) {
+      console.error('Error saving token limit:', error);
     }
   };
   
-  // Determine progress bar variant based on usage
+  // Helper function to determine progress bar variant based on percentage
   const getProgressVariant = (percentage: number) => {
-    if (percentage > 90) return 'danger';
-    if (percentage > 70) return 'warning';
+    if (percentage >= 90) return 'danger';
+    if (percentage >= 70) return 'warning';
     return 'success';
-  };
-  
-  // Format large numbers with commas
-  const formatNumber = (num: number) => {
-    return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   };
   
   return (
     <div className="token-usage-widget">
-      <Card className="shadow-sm">
-        <Card.Body>
-          <div className="d-flex justify-content-between align-items-center mb-2">
-            <h6 className="mb-0">Token Usage</h6>
-            <Button 
-              variant="link" 
-              size="sm" 
-              className="p-0 text-muted" 
-              onClick={() => setShowSettings(true)}
-              aria-label="Token settings"
-            >
-              <FaCog />
-            </Button>
-          </div>
-          
-          <div className="mb-2">
-            <div className="d-flex justify-content-between mb-1">
-              <div>
-                <small>{formatNumber(tokenUsage.used)} / {formatNumber(tokenUsage.limit)}</small>
-              </div>
-              <div>
-                <small>{tokenUsage.percentage.toFixed(1)}%</small>
-              </div>
-            </div>
-            <ProgressBar 
-              variant={getProgressVariant(tokenUsage.percentage)}
-              now={tokenUsage.percentage} 
-              min={0}
-              max={100}
-              style={{ height: '0.5rem' }}
-            />
-          </div>
-          
-          <div className="d-flex justify-content-between align-items-center">
-            <small>
-              Remaining: {formatNumber(tokenUsage.remaining)}
-            </small>
+      <div className="d-flex justify-content-between align-items-center mb-3">
+        <div>
+          <h5 className="mb-0">Token Usage</h5>
+          <p className="text-muted small">Current billing period</p>
+        </div>
+        <Button 
+          variant="outline-secondary" 
+          size="sm" 
+          onClick={() => {
+            setSelectedModel('total');
+            setNewLimit(totalUsage.limit.toString());
+            setShowConfigModal(true);
+          }}
+        >
+          <FaCog className="me-1" /> Configure
+        </Button>
+      </div>
+      
+      <div className="mb-4">
+        <div className="d-flex justify-content-between mb-1">
+          <span>Total Usage</span>
+          <span>
+            {totalUsage.used.toLocaleString()} / {totalUsage.limit.toLocaleString()} tokens
             <OverlayTrigger
-              placement="left"
+              placement="top"
               overlay={
-                <Tooltip id="token-usage-tooltip">
-                  Response Limit: {formatNumber(tokenLimits.responseLimit)} tokens
+                <Tooltip id="tooltip-total">
+                  {totalUsage.percentage.toFixed(1)}% of your total token allocation used
                 </Tooltip>
               }
             >
-              <small className="text-muted">
-                <FaInfoCircle />
-              </small>
+              <FaInfoCircle className="ms-2 text-muted" style={{ cursor: 'pointer' }} />
             </OverlayTrigger>
-          </div>
-        </Card.Body>
-      </Card>
+          </span>
+        </div>
+        <ProgressBar 
+          now={totalUsage.percentage} 
+          variant={getProgressVariant(totalUsage.percentage)}
+          style={{ height: '8px' }}
+        />
+      </div>
       
-      {/* Settings Modal */}
-      <Modal show={showSettings} onHide={() => setShowSettings(false)}>
+      {Object.keys(modelUsage).map(model => (
+        <div className="mb-3" key={model}>
+          <div className="d-flex justify-content-between mb-1">
+            <span>{model}</span>
+            <span>
+              {modelUsage[model].used.toLocaleString()} / {modelUsage[model].limit.toLocaleString()} tokens
+              <OverlayTrigger
+                placement="top"
+                overlay={
+                  <Tooltip id={`tooltip-${model}`}>
+                    {modelUsage[model].percentage.toFixed(1)}% of your {model} token allocation used
+                  </Tooltip>
+                }
+              >
+                <FaInfoCircle className="ms-2 text-muted" style={{ cursor: 'pointer' }} />
+              </OverlayTrigger>
+            </span>
+          </div>
+          <ProgressBar 
+            now={modelUsage[model].percentage} 
+            variant={getProgressVariant(modelUsage[model].percentage)}
+            style={{ height: '6px' }}
+          />
+        </div>
+      ))}
+      
+      <Modal show={showConfigModal} onHide={() => setShowConfigModal(false)}>
         <Modal.Header closeButton>
-          <Modal.Title>Token Settings</Modal.Title>
+          <Modal.Title>Configure Token Limits</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <p>Adjust your token usage settings to optimize AI responses.</p>
-          
           <Form>
             <Form.Group className="mb-3">
-              <Form.Label>Response Token Limit</Form.Label>
+              <Form.Label>Select Model</Form.Label>
               <Form.Select 
-                value={responseLimit}
-                onChange={(e) => setResponseLimit(parseInt(e.target.value))}
+                value={selectedModel}
+                onChange={(e) => {
+                  const model = e.target.value;
+                  setSelectedModel(model);
+                  if (model === 'total') {
+                    setNewLimit(totalUsage.limit.toString());
+                  } else {
+                    setNewLimit(modelUsage[model]?.limit.toString() || '500000');
+                  }
+                }}
               >
-                <option value="500">500 tokens - Very concise responses</option>
-                <option value="1000">1000 tokens - Standard responses</option>
-                <option value="2000">2000 tokens - Detailed responses</option>
-                <option value="4000">4000 tokens - Comprehensive responses</option>
-                <option value="8000">8000 tokens - Maximum detail (high token usage)</option>
+                <option value="total">Total (All Models)</option>
+                {Object.keys(modelUsage).map(model => (
+                  <option key={model} value={model}>{model}</option>
+                ))}
               </Form.Select>
               <Form.Text className="text-muted">
-                Controls the maximum size of AI responses. Higher limits allow for more detailed 
-                responses but consume more tokens from your quota.
+                Configure limits for specific models or set an overall total
               </Form.Text>
             </Form.Group>
             
-            <div className="mb-3">
-              <h6>Current Limits</h6>
-              <ul>
-                <li>Response Limit: {formatNumber(tokenLimits.responseLimit)} tokens</li>
-                <li>Daily Limit: {formatNumber(tokenLimits.dailyLimit)} tokens</li>
-                <li>Monthly Limit: {formatNumber(tokenLimits.monthlyLimit)} tokens</li>
-              </ul>
-              <small className="text-muted">
-                To increase your monthly token limits, please upgrade your subscription.
-              </small>
-            </div>
+            <Form.Group className="mb-3">
+              <Form.Label>Token Limit</Form.Label>
+              <Form.Control 
+                type="number" 
+                min="1000"
+                value={newLimit}
+                onChange={(e) => setNewLimit(e.target.value)}
+              />
+              <Form.Text className="text-muted">
+                Set the maximum number of tokens that can be used
+              </Form.Text>
+            </Form.Group>
           </Form>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowSettings(false)}>
+          <Button variant="secondary" onClick={() => setShowConfigModal(false)}>
             Cancel
           </Button>
-          <Button variant="primary" onClick={updateResponseLimit}>
+          <Button variant="primary" onClick={handleSaveLimit}>
             Save Changes
           </Button>
         </Modal.Footer>
