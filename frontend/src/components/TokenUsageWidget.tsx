@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import axiosInstance from '../utils/axiosConfig';
 import { motion } from 'framer-motion';
+import { api } from '../utils/fetchApi';
 
 interface TokenUsageData {
   limit: number;
@@ -14,6 +14,21 @@ interface TokenLimits {
   responseLimit: number;
   dailyLimit: number;
   monthlyLimit: number;
+}
+
+interface ApiTokenUsageResponse {
+  limit: number;
+  usage?: {
+    total_tokens: number;
+  };
+  remaining: number;
+  percentage_used: number;
+}
+
+interface ApiTokenLimitsResponse {
+  response_token_limit: number;
+  daily_token_limit: number;
+  monthly_token_limit: number;
 }
 
 const DEFAULT_TOKEN_USAGE: TokenUsageData = {
@@ -57,25 +72,25 @@ const TokenUsageWidget: React.FC = () => {
     
     try {
       // Fetch token usage
-      const response = await axiosInstance.get('/api/usage/tokens?period=month');
+      const data = await api.get<ApiTokenUsageResponse>('/api/usage/tokens?period=month');
       
       setTokenUsage({
-        limit: response.data.limit || DEFAULT_TOKEN_USAGE.limit,
-        used: response.data.usage?.total_tokens || 0,
-        remaining: response.data.remaining || DEFAULT_TOKEN_USAGE.limit,
-        percentage: response.data.percentage_used || 0
+        limit: data.limit || DEFAULT_TOKEN_USAGE.limit,
+        used: data.usage?.total_tokens || 0,
+        remaining: data.remaining || DEFAULT_TOKEN_USAGE.limit,
+        percentage: data.percentage_used || 0
       });
       
       // Fetch token limits
-      const limitsResponse = await axiosInstance.get('/api/usage/limits');
+      const limitsData = await api.get<ApiTokenLimitsResponse>('/api/usage/limits');
       
       setTokenLimits({
-        responseLimit: limitsResponse.data.response_token_limit || DEFAULT_TOKEN_LIMITS.responseLimit,
-        dailyLimit: limitsResponse.data.daily_token_limit || DEFAULT_TOKEN_LIMITS.dailyLimit,
-        monthlyLimit: limitsResponse.data.monthly_token_limit || DEFAULT_TOKEN_LIMITS.monthlyLimit
+        responseLimit: limitsData.response_token_limit || DEFAULT_TOKEN_LIMITS.responseLimit,
+        dailyLimit: limitsData.daily_token_limit || DEFAULT_TOKEN_LIMITS.dailyLimit,
+        monthlyLimit: limitsData.monthly_token_limit || DEFAULT_TOKEN_LIMITS.monthlyLimit
       });
       
-      setResponseLimit(limitsResponse.data.response_token_limit || DEFAULT_TOKEN_LIMITS.responseLimit);
+      setResponseLimit(limitsData.response_token_limit || DEFAULT_TOKEN_LIMITS.responseLimit);
       
     } catch (err) {
       console.error('Error fetching token usage data:', err);
@@ -89,9 +104,7 @@ const TokenUsageWidget: React.FC = () => {
     if (!token) return;
     
     try {
-      await axiosInstance.post('/api/usage/limits/response', { 
-        limit: responseLimit 
-      });
+      await api.post('/api/usage/limits/response', { limit: responseLimit });
       
       setTokenLimits(prev => ({
         ...prev,
@@ -135,36 +148,50 @@ const TokenUsageWidget: React.FC = () => {
           </button>
         </div>
         
-        <div className="mb-2">
-          <div className="flex justify-between mb-1">
-            <div>
-              <span className="text-xs text-gray-600">{formatNumber(tokenUsage.used)} / {formatNumber(tokenUsage.limit)}</span>
-            </div>
-            <div>
-              <span className="text-xs text-gray-600">{tokenUsage.percentage.toFixed(1)}%</span>
-            </div>
+        {error ? (
+          <div className="p-2 text-xs text-red-600 bg-red-50 rounded mb-2">
+            Error loading token data. Please try again.
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-1.5">
-            <div 
-              className={`${getProgressColor(tokenUsage.percentage)} h-1.5 rounded-full`}
-              style={{ width: `${tokenUsage.percentage}%` }}
-            ></div>
+        ) : loading ? (
+          <div className="animate-pulse mb-2">
+            <div className="h-4 bg-gray-200 rounded mb-1"></div>
+            <div className="h-2 bg-gray-200 rounded mb-3"></div>
+            <div className="h-4 bg-gray-200 rounded w-1/2"></div>
           </div>
-        </div>
-        
-        <div className="flex justify-between items-center">
-          <span className="text-xs text-gray-600">
-            Remaining: {formatNumber(tokenUsage.remaining)}
-          </span>
-          <div className="relative group">
-            <span className="text-gray-500 cursor-pointer">
-              <span className="text-sm">ℹ️</span>
-            </span>
-            <div className="absolute right-0 bottom-full mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded p-2 w-44">
-              Response Limit: {formatNumber(tokenLimits.responseLimit)} tokens
+        ) : (
+          <>
+            <div className="mb-2">
+              <div className="flex justify-between mb-1">
+                <div>
+                  <span className="text-xs text-gray-600">{formatNumber(tokenUsage.used)} / {formatNumber(tokenUsage.limit)}</span>
+                </div>
+                <div>
+                  <span className="text-xs text-gray-600">{tokenUsage.percentage.toFixed(1)}%</span>
+                </div>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-1.5">
+                <div 
+                  className={`${getProgressColor(tokenUsage.percentage)} h-1.5 rounded-full`}
+                  style={{ width: `${tokenUsage.percentage}%` }}
+                ></div>
+              </div>
             </div>
-          </div>
-        </div>
+            
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-gray-600">
+                Remaining: {formatNumber(tokenUsage.remaining)}
+              </span>
+              <div className="relative group">
+                <span className="text-gray-500 cursor-pointer">
+                  <span className="text-sm">ℹ️</span>
+                </span>
+                <div className="absolute right-0 bottom-full mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded p-2 w-44">
+                  Response Limit: {formatNumber(tokenLimits.responseLimit)} tokens
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </div>
       
       {/* Settings Modal */}
