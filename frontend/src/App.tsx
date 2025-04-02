@@ -8,7 +8,6 @@ import { MetricCard } from './components/MetricCard';
 import { TopIssuesCard } from './components/TopIssuesCard';
 import { InteractionChart } from './components/InteractionChart';
 import { ConversationsList } from './components/ConversationsList';
-import ConversationHeader from './components/ConversationHeader';
 import { RateUs } from './components/RateUs';
 import { Support } from './components/Support';
 import Integrations from './components/Integrations';
@@ -405,7 +404,13 @@ function App() {
 
           {currentSection === 'conversations' && (
             <div className="p-8">
-              <ConversationHeader title="Conversations" />
+              <motion.h1 
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-2xl font-bold text-gray-900 mb-6"
+              >
+                Conversations
+              </motion.h1>
               <ConversationsList conversations={metrics.conversations} />
             </div>
           )}
