@@ -113,7 +113,12 @@ def create_update_policy(table_name, policy_name, using_clause, check_clause=Non
         """
     
     logger.info(f"Creating UPDATE policy for table {table_name}: {policy_name}")
-    return execute_sql(sql, ignore_errors=True)
+    try:
+        execute_sql(sql)
+        return True
+    except Exception as e:
+        logger.warning(f"Error creating UPDATE policy for {table_name}: {str(e)}")
+        return False
 
 def create_delete_policy(table_name, policy_name, using_clause):
     """
@@ -134,7 +139,12 @@ def create_delete_policy(table_name, policy_name, using_clause):
     """
     
     logger.info(f"Creating DELETE policy for table {table_name}: {policy_name}")
-    return execute_sql(sql, ignore_errors=True)
+    try:
+        execute_sql(sql)
+        return True
+    except Exception as e:
+        logger.warning(f"Error creating DELETE policy for {table_name}: {str(e)}")
+        return False
 
 def drop_policy(table_name, policy_name):
     """
@@ -152,7 +162,12 @@ def drop_policy(table_name, policy_name):
     """
     
     logger.info(f"Dropping policy from table {table_name}: {policy_name}")
-    return execute_sql(sql, ignore_errors=True)
+    try:
+        execute_sql(sql)
+        return True
+    except Exception as e:
+        logger.warning(f"Error dropping policy from {table_name}: {str(e)}")
+        return False
 
 def setup_profile_rls():
     """
@@ -435,16 +450,15 @@ def set_admin_emails(admin_emails):
         WHERE email IN ({emails_list});
         """
         
-        result = execute_sql(sql, ignore_errors=False)
-        
-        if result:
+        try:
+            result = execute_sql(sql)
             logger.info(f"Successfully set up admin privileges for {len(admin_emails)} users")
             return {
                 "success": True,
                 "message": f"Set up admin privileges for {len(admin_emails)} users"
             }
-        else:
-            logger.error("Failed to set up admin privileges")
+        except Exception as e:
+            logger.error(f"Failed to set up admin privileges: {str(e)}")
             return {
                 "success": False,
                 "message": "Failed to set up admin privileges"

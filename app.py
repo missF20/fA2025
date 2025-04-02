@@ -239,13 +239,16 @@ def register_blueprints():
         from routes.subscription_management import subscription_mgmt_bp
         from routes.pdf_analysis import pdf_analysis_bp
         from routes.knowledge import knowledge_bp
+        from routes.usage import usage_bp
         
         # Register existing blueprints
         app.register_blueprint(ai_test_bp)
         app.register_blueprint(subscription_mgmt_bp)
         app.register_blueprint(pdf_analysis_bp)
         app.register_blueprint(knowledge_bp)
+        app.register_blueprint(usage_bp)
         logger.info("Knowledge blueprint registered successfully")
+        logger.info("Token usage blueprint registered successfully")
         
         # Register payments blueprint - which depends on requests
         try:
@@ -299,12 +302,7 @@ def register_blueprints():
         except ImportError as e:
             logger.warning(f"Could not register batch blueprint: {e}")
 
-        try:
-            from routes.usage import usage_bp
-            app.register_blueprint(usage_bp)
-            logger.info("Usage management blueprint registered successfully")
-        except ImportError as e:
-            logger.warning(f"Could not register usage management blueprint: {e}")
+        # Usage API blueprint is already imported and registered above
             
         try:
             from routes.email import email_bp

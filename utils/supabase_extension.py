@@ -81,7 +81,7 @@ def return_connection(conn):
         logger.error(f"Error returning connection to pool: {str(e)}")
 
 
-def execute_sql(sql: str, params: Tuple = None, fetch_type: str = None) -> Optional[List[Dict]]:
+def execute_sql(sql: str, params: Optional[Tuple] = None, fetch_type: Optional[str] = None) -> Optional[Union[List[Dict[str, Any]], Dict[str, Any], bool]]:
     """
     Execute raw SQL query with optional parameters
     
@@ -91,7 +91,7 @@ def execute_sql(sql: str, params: Tuple = None, fetch_type: str = None) -> Optio
         fetch_type: Type of fetch ('one', 'all', None for no fetch)
         
     Returns:
-        Query results (if fetch_type is specified) or None
+        Query results (if fetch_type is specified) or True/False for success status
     """
     conn = None
     
@@ -129,7 +129,7 @@ def execute_sql(sql: str, params: Tuple = None, fetch_type: str = None) -> Optio
             return_connection(conn)
 
 
-def execute_sql_fetchone(sql: str, params: Tuple = None) -> Optional[Tuple]:
+def execute_sql_fetchone(sql: str, params: Optional[Tuple] = None) -> Optional[Dict[str, Any]]:
     """
     Execute raw SQL query and fetch one result
     
@@ -138,7 +138,7 @@ def execute_sql_fetchone(sql: str, params: Tuple = None) -> Optional[Tuple]:
         params: Query parameters
         
     Returns:
-        Single row result or None
+        Single row result as a dictionary or None
     """
     conn = None
     
@@ -165,7 +165,7 @@ def execute_sql_fetchone(sql: str, params: Tuple = None) -> Optional[Tuple]:
             return_connection(conn)
 
 
-def execute_sql_fetchall(sql: str, params: Tuple = None) -> Optional[List[Tuple]]:
+def execute_sql_fetchall(sql: str, params: Optional[Tuple] = None) -> Optional[List[Dict[str, Any]]]:
     """
     Execute raw SQL query and fetch all results
     
@@ -174,7 +174,7 @@ def execute_sql_fetchall(sql: str, params: Tuple = None) -> Optional[List[Tuple]
         params: Query parameters
         
     Returns:
-        List of row results or None
+        List of row results as dictionaries or None
     """
     conn = None
     

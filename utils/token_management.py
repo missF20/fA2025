@@ -173,7 +173,7 @@ def update_token_usage(
     completion_tokens: int,
     model: str,
     request_type: str = "general",
-    metadata: Dict[str, Any] = None
+    metadata: Optional[Dict[str, Any]] = None
 ) -> bool:
     """
     Update token usage for a user
@@ -325,7 +325,7 @@ def get_user_token_usage(
             "daily_average": daily_average,
             "usage_by_model": [dict(m) for m in model_usage],
             "usage_by_day": [
-                {"date": d.get('date').isoformat(), "tokens": d.get('tokens')} 
+                {"date": d.get('date').isoformat() if d.get('date') is not None else None, "tokens": d.get('tokens', 0)} 
                 for d in daily_usage
             ],
             "start_date": start_date.isoformat(),

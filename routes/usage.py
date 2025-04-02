@@ -1,177 +1,227 @@
 """
-Token Usage Routes
+Token Usage API Routes
 
-This module provides API endpoints for token usage tracking and management.
+This module provides routes for tracking and managing token usage.
 """
-import json
-from datetime import datetime, timedelta
-from typing import Dict, Any, Optional
+import datetime
+from typing import Dict, Any, Optional, List
 
-from flask import Blueprint, request, jsonify
-from utils.auth import get_user_id_from_token, require_auth
-
+from flask import Blueprint, jsonify, request, current_app
+from utils.auth import get_user_id_from_token
+from utils.logger import logger
 from utils.token_management import (
+    get_user_token_usage,
     get_user_limits,
     update_user_token_limit,
-    update_token_usage,
-    get_user_token_usage,
-    get_subscription_token_limits
+    get_subscription_token_limits,
+    check_token_limit
 )
-from utils.logger import logger
 
-# Create a blueprint for token usage routes
+# Create a blueprint for the routes
 usage_bp = Blueprint('usage', __name__, url_prefix='/api/usage')
 
 
-@usage_bp.route('/tokens', methods=['GET'])
-@require_auth
-def get_token_usage():
-    """
-    Get token usage statistics for the authenticated user
-    
-    Query parameters:
-        period: 'day', 'week', 'month', 'year' (default: 'month')
-    """
-    user_id = get_user_id_from_token()
-    if not user_id:
-        return jsonify({"error": "Unauthorized"}), 401
-    
-    # Get period from query parameters (default to 'month')
-    period = request.args.get('period', 'month')
-    
-    # Calculate start date based on period
-    now = datetime.now()
-    start_date = None
-    
-    if period == 'day':
-        start_date = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    elif period == 'week':
-        start_date = now - timedelta(days=now.weekday())
-        start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-    elif period == 'month':
-        start_date = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    elif period == 'year':
-        start_date = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
-    
-    # Get token usage
-    usage = get_user_token_usage(user_id, start_date, now)
-    
-    # Get user limits
-    limits = get_user_limits(user_id)
-    
-    # Calculate remaining tokens
-    monthly_limit = limits.get('monthly_token_limit', 50000)
-    total_tokens = usage.get('total_tokens', 0)
-    remaining = max(0, monthly_limit - total_tokens)
-    percentage_used = min(100, (total_tokens / monthly_limit * 100)) if monthly_limit > 0 else 0
-    
-    return jsonify({
-        "period": period,
-        "start_date": start_date.isoformat() if start_date else None,
-        "end_date": now.isoformat(),
-        "usage": usage,
-        "limit": monthly_limit,
-        "remaining": remaining,
-        "percentage_used": percentage_used
-    })
+@usage_bp.route('/stats', methods=['GET'])
+def get_usage_stats():
+    """Get token usage statistics for the authenticated user"""
+    try:
+        # Get the user ID from the authentication token
+        user_id = get_user_id_from_token()
+        if not user_id:
+            return jsonify({
+                "success": False,
+                "message": "Authentication required"
+            }), 401
+            
+        # Get period from query parameters
+        period = request.args.get('period', 'month')
+        
+        # Determine date range
+        end_date = datetime.datetime.now()
+        
+        if period == 'day':
+            start_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        elif period == 'week':
+            start_date = end_date - datetime.timedelta(days=7)
+        elif period == 'month':
+            start_date = end_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        elif period == 'year':
+            start_date = end_date.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+        else:
+            # Default to month
+            start_date = end_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            
+        # Get token usage
+        usage_stats = get_user_token_usage(user_id, start_date, end_date)
+        
+        return jsonify({
+            "success": True,
+            "data": usage_stats,
+            "period": period
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting usage stats: {str(e)}", exc_info=True)
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        }), 500
 
 
 @usage_bp.route('/limits', methods=['GET'])
-@require_auth
 def get_limits():
     """Get token limits for the authenticated user"""
-    user_id = get_user_id_from_token()
-    if not user_id:
-        return jsonify({"error": "Unauthorized"}), 401
-    
-    limits = get_user_limits(user_id)
-    
-    return jsonify(limits)
-
-
-@usage_bp.route('/limits/response', methods=['POST'])
-@require_auth
-def update_response_limit():
-    """Update response token limit for the authenticated user"""
-    user_id = get_user_id_from_token()
-    if not user_id:
-        return jsonify({"error": "Unauthorized"}), 401
-    
-    data = request.json
-    if not data or 'limit' not in data:
-        return jsonify({"error": "Missing limit parameter"}), 400
-    
     try:
-        limit = int(data.get('limit'))
-        if limit < 100 or limit > 10000:
-            return jsonify({"error": "Limit must be between 100 and 10000"}), 400
+        # Get the user ID from the authentication token
+        user_id = get_user_id_from_token()
+        if not user_id:
+            return jsonify({
+                "success": False,
+                "message": "Authentication required"
+            }), 401
             
-        success = update_user_token_limit(user_id, 'response_token_limit', limit)
-        if not success:
-            return jsonify({"error": "Failed to update response token limit"}), 500
-            
-        return jsonify({"message": "Response token limit updated successfully", "limit": limit})
+        # Get token limits
+        limits = get_user_limits(user_id)
         
-    except (ValueError, TypeError):
-        return jsonify({"error": "Invalid limit value"}), 400
+        return jsonify({
+            "success": True,
+            "data": limits
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting token limits: {str(e)}", exc_info=True)
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        }), 500
 
 
-@usage_bp.route('/subscription/tiers', methods=['GET'])
-@require_auth
+@usage_bp.route('/limits', methods=['PUT'])
+def update_limits():
+    """Update token limits for the authenticated user"""
+    try:
+        # Get the user ID from the authentication token
+        user_id = get_user_id_from_token()
+        if not user_id:
+            return jsonify({
+                "success": False,
+                "message": "Authentication required"
+            }), 401
+            
+        # Get request data
+        data = request.json
+        if not data:
+            return jsonify({
+                "success": False,
+                "message": "No data provided"
+            }), 400
+            
+        # Extract limit values
+        limit_type = data.get('limit_type')
+        value = data.get('value')
+        
+        if not limit_type or not isinstance(value, int):
+            return jsonify({
+                "success": False,
+                "message": "Invalid data format. Required: limit_type, value (integer)"
+            }), 400
+            
+        # Update token limit
+        success = update_user_token_limit(user_id, limit_type, value)
+        
+        if success:
+            # Get updated limits
+            limits = get_user_limits(user_id)
+            
+            return jsonify({
+                "success": True,
+                "message": f"Token limit updated successfully",
+                "data": limits
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "message": "Failed to update token limit"
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Error updating token limits: {str(e)}", exc_info=True)
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        }), 500
+
+
+@usage_bp.route('/subscription-tiers', methods=['GET'])
 def get_subscription_tiers():
     """Get available subscription tiers with token limits"""
-    user_id = get_user_id_from_token()
-    if not user_id:
-        return jsonify({"error": "Unauthorized"}), 401
-    
-    tiers = get_subscription_token_limits(user_id)
-    return jsonify({"tiers": tiers})
-
-
-@usage_bp.route('/track', methods=['POST'])
-def track_token_usage():
-    """
-    Track token usage for an AI request
-    
-    This endpoint is intended for internal use by the AI service.
-    """
-    api_key = request.headers.get('X-Api-Key')
-    if not api_key or api_key != 'internal_api_key':  # This should be a proper secret
-        return jsonify({"error": "Unauthorized"}), 401
-    
-    data = request.json
-    if not data:
-        return jsonify({"error": "Missing request body"}), 400
-    
-    required_fields = ['user_id', 'prompt_tokens', 'completion_tokens', 'model']
-    if not all(field in data for field in required_fields):
-        return jsonify({"error": f"Missing required fields: {', '.join(required_fields)}"}), 400
-    
-    user_id = data.get('user_id')
-    prompt_tokens = data.get('prompt_tokens')
-    completion_tokens = data.get('completion_tokens')
-    model = data.get('model')
-    request_type = data.get('request_type', 'general')
-    metadata = data.get('metadata', {})
-    
-    # Ensure types are correct
     try:
-        prompt_tokens = int(prompt_tokens)
-        completion_tokens = int(completion_tokens)
-    except (ValueError, TypeError):
-        return jsonify({"error": "Invalid token values"}), 400
-    
-    # Track usage
-    success = update_token_usage(
-        user_id, 
-        prompt_tokens, 
-        completion_tokens, 
-        model, 
-        request_type,
-        metadata
-    )
-    
-    if not success:
-        return jsonify({"error": "Failed to track token usage"}), 500
-    
-    return jsonify({"message": "Token usage tracked successfully"})
+        # Get the user ID from the authentication token
+        user_id = get_user_id_from_token()
+        if not user_id:
+            return jsonify({
+                "success": False,
+                "message": "Authentication required"
+            }), 401
+            
+        # Get subscription tiers with token limits
+        tiers = get_subscription_token_limits(user_id)
+        
+        return jsonify({
+            "success": True,
+            "data": tiers
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting subscription tiers: {str(e)}", exc_info=True)
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        }), 500
+
+
+@usage_bp.route('/check-limit', methods=['POST'])
+def check_limit():
+    """Check if a user has enough tokens available for a request"""
+    try:
+        # Get the user ID from the authentication token
+        user_id = get_user_id_from_token()
+        if not user_id:
+            return jsonify({
+                "success": False,
+                "message": "Authentication required"
+            }), 401
+            
+        # Get request data
+        data = request.json
+        if not data:
+            return jsonify({
+                "success": False,
+                "message": "No data provided"
+            }), 400
+            
+        # Extract parameters
+        model = data.get('model', 'default')
+        estimated_tokens = data.get('estimated_tokens', 0)
+        
+        if not isinstance(estimated_tokens, int) or estimated_tokens <= 0:
+            return jsonify({
+                "success": False,
+                "message": "Invalid token estimate"
+            }), 400
+            
+        # Check token limit
+        has_tokens, message = check_token_limit(user_id, model, estimated_tokens)
+        
+        return jsonify({
+            "success": True,
+            "has_enough_tokens": has_tokens,
+            "message": message
+        })
+        
+    except Exception as e:
+        logger.error(f"Error checking token limit: {str(e)}", exc_info=True)
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        }), 500

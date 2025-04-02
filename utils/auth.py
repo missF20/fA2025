@@ -298,3 +298,32 @@ def admin_required(f):
             return jsonify({"message": f"Hello, admin {g.current_user['email']}!"})
     """
     return require_admin(f)
+
+
+def get_user_id_from_token():
+    """
+    Get the user ID from the auth token in the current request
+    
+    Returns:
+        str: User ID from the token, None if no valid token is found
+    """
+    # Check for token in headers
+    auth_header = request.headers.get("Authorization")
+    token = None
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header[7:]
+    
+    # Check for token in cookies
+    if not token and 'auth_token' in request.cookies:
+        token = request.cookies.get('auth_token')
+        
+    # Verify the token
+    if token:
+        payload = verify_token(token)
+        if payload and 'sub' in payload:
+            # Use our get_user_from_token to map the Supabase UUID to database ID
+            user = get_user_from_token(token)
+            if user and 'id' in user:
+                return user['id']
+            
+    return None
