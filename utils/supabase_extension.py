@@ -120,8 +120,15 @@ def execute_sql(sql: str, params: Optional[Tuple] = None, fetch_type: Optional[s
     except Exception as e:
         if conn:
             conn.rollback()
+        # Log the full error details for better debugging
         logger.warning(f"Error executing SQL statement: {str(e)}")
-        logger.warning("Some SQL statements failed but execution continued")
+        logger.warning(f"SQL: {sql}")
+        if params:
+            logger.warning(f"Params: {params}")
+        
+        import traceback
+        logger.warning(f"SQL Error details: {traceback.format_exc()}")
+        
         return None
         
     finally:

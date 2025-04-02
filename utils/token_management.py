@@ -97,6 +97,18 @@ def ensure_token_tracking_table() -> bool:
         bool: True if the table exists or was created, False otherwise
     """
     try:
+        # First verify database connection is working
+        from utils.supabase_extension import get_connection, return_connection
+        
+        conn = get_connection()
+        if not conn:
+            logger.error("Failed to get database connection for token usage table")
+            return False
+        
+        # Return connection to pool
+        return_connection(conn)
+        logger.info("Database connection verified for token usage table")
+        
         # Check if token_usage table exists
         sql = """
         SELECT EXISTS (
@@ -106,9 +118,11 @@ def ensure_token_tracking_table() -> bool:
         );
         """
         result = execute_sql_fetchone(sql)
+        logger.info(f"Token usage table check result: {result}")
         
         if result and result.get('exists', False):
             # Table already exists
+            logger.info("Token usage table already exists")
             return True
             
         # Create token_usage table
@@ -163,7 +177,10 @@ def ensure_token_tracking_table() -> bool:
         return True
         
     except Exception as e:
-        logger.error(f"Error ensuring token usage table: {e}")
+        logger.error(f"Error ensuring token usage table: {str(e)}")
+        # Add additional error context for debugging
+        import traceback
+        logger.error(f"Token tracking table error details: {traceback.format_exc()}")
         return False
 
 
