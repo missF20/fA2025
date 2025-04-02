@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { FaCog, FaInfoCircle } from 'react-icons/fa';
 import { useAuth } from '../contexts/AuthContext';
-import axios from 'axios';
+import axiosInstance from '../utils/axiosConfig';
 import { motion } from 'framer-motion';
 
 interface TokenUsageData {
@@ -58,11 +57,7 @@ const TokenUsageWidget: React.FC = () => {
     
     try {
       // Fetch token usage
-      const response = await axios.get('/api/usage/tokens?period=month', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await axiosInstance.get('/api/usage/tokens?period=month');
       
       setTokenUsage({
         limit: response.data.limit || DEFAULT_TOKEN_USAGE.limit,
@@ -72,11 +67,7 @@ const TokenUsageWidget: React.FC = () => {
       });
       
       // Fetch token limits
-      const limitsResponse = await axios.get('/api/usage/limits', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const limitsResponse = await axiosInstance.get('/api/usage/limits');
       
       setTokenLimits({
         responseLimit: limitsResponse.data.response_token_limit || DEFAULT_TOKEN_LIMITS.responseLimit,
@@ -98,15 +89,9 @@ const TokenUsageWidget: React.FC = () => {
     if (!token) return;
     
     try {
-      await axios.post('/api/usage/limits/response', 
-        { limit: responseLimit },
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+      await axiosInstance.post('/api/usage/limits/response', { 
+        limit: responseLimit 
+      });
       
       setTokenLimits(prev => ({
         ...prev,
@@ -146,7 +131,7 @@ const TokenUsageWidget: React.FC = () => {
             onClick={() => setShowSettings(true)}
             aria-label="Token settings"
           >
-            <FaCog />
+            <span className="text-sm">⚙️</span>
           </button>
         </div>
         
@@ -173,7 +158,7 @@ const TokenUsageWidget: React.FC = () => {
           </span>
           <div className="relative group">
             <span className="text-gray-500 cursor-pointer">
-              <FaInfoCircle />
+              <span className="text-sm">ℹ️</span>
             </span>
             <div className="absolute right-0 bottom-full mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded p-2 w-44">
               Response Limit: {formatNumber(tokenLimits.responseLimit)} tokens

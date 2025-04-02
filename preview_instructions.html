@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dana AI Platform Preview Instructions</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+      line-height: 1.6;
+      color: #333;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    h1 {
+      color: #2563eb;
+      margin-bottom: 24px;
+    }
+    h2 {
+      color: #4b5563;
+      margin-top: 32px;
+    }
+    .card {
+      background-color: #f9fafb;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 24px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      border: 1px solid #e5e7eb;
+    }
+    .success {
+      background-color: #ecfdf5;
+      border-left: 4px solid #10b981;
+    }
+    .warning {
+      background-color: #fffbeb;
+      border-left: 4px solid #f59e0b;
+    }
+    .button {
+      display: inline-block;
+      background-color: #2563eb;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 4px;
+      text-decoration: none;
+      font-weight: 500;
+      margin-top: 12px;
+    }
+    .button:hover {
+      background-color: #1d4ed8;
+    }
+    code {
+      background-color: #f3f4f6;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+    ul {
+      padding-left: 20px;
+    }
+    li {
+      margin-bottom: 8px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Dana AI Platform Preview Instructions</h1>
+  
+  <div class="card success">
+    <h2>✅ Services Running</h2>
+    <p>The Dana AI Platform is running successfully on the following URLs:</p>
+    <ul>
+      <li><strong>Flask Backend:</strong> <code>http://localhost:5000/</code></li>
+      <li><strong>React Frontend:</strong> <code>http://localhost:5174/</code></li>
+    </ul>
+  </div>
+  
+  <div class="card">
+    <h2>How to Access the Application</h2>
+    <p>You can access the Dana AI Platform in two ways:</p>
+    
+    <h3>Option 1: Direct Access</h3>
+    <p>Click the links below to open the application in your browser:</p>
+    <ul>
+      <li><a href="http://localhost:5174/" target="_blank" class="button">Open React Frontend</a></li>
+      <li><a href="http://localhost:5000/" target="_blank" class="button" style="background-color: #4b5563;">Open Flask Backend</a></li>
+    </ul>
+    
+    <h3>Option 2: Replit Preview</h3>
+    <p>If the direct links don't work, you can use the Replit preview feature:</p>
+    <ol>
+      <li>Look for the "Webview" tab in your Replit interface</li>
+      <li>Click on it to open the application preview</li>
+      <li>If the preview is blank, try manually entering <code>http://localhost:5174/</code> in the preview URL bar</li>
+    </ol>
+  </div>
+  
+  <div class="card warning">
+    <h2>⚠️ Troubleshooting</h2>
+    <p>If you're having issues accessing the preview:</p>
+    <ul>
+      <li>Make sure the application is still running (check the console output)</li>
+      <li>Try restarting the workflow with <code>restart_workflow</code></li>
+      <li>If using a mobile device, ensure you're on the same network as your development environment</li>
+      <li>Check browser console for any JavaScript errors</li>
+    </ul>
+  </div>
+  
+  <div class="card">
+    <h2>Token Usage Widget</h2>
+    <p>To view the Token Usage Widget:</p>
+    <ol>
+      <li>Log in to the application</li>
+      <li>Navigate to the Conversations page</li>
+      <li>The Token Usage Widget should appear at the top right of the Conversations dashboard</li>
+    </ol>
+    <p>The widget displays:</p>
+    <ul>
+      <li>Current token usage with a color-coded progress bar</li>
+      <li>Remaining token count</li>
+      <li>A settings modal to adjust token limits for AI responses</li>
+    </ul>
+  </div>
+</body>
+</html>
