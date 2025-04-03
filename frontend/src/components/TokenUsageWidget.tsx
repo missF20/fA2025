@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, ProgressBar, OverlayTrigger, Tooltip, Modal, Form } from 'react-bootstrap';
-import { FaCog, FaInfoCircle } from 'react-icons/fa';
+import { Card, Button, ProgressBar, OverlayTrigger, Tooltip, Modal, Form, Row, Col, Badge } from 'react-bootstrap';
+import { FaCog, FaInfoCircle, FaChartLine, FaServer, FaExclamationTriangle } from 'react-icons/fa';
 
 // Define interfaces for token usage data
 interface TokenUsage {
@@ -42,12 +42,21 @@ const TokenUsageWidget: React.FC = () => {
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [selectedModel, setSelectedModel] = useState('total');
   const [newLimit, setNewLimit] = useState('1000000');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
   // Fetch token usage data from API
   useEffect(() => {
     const fetchTokenUsage = async () => {
+      setLoading(true);
+      setError(null);
       try {
         const response = await fetch('/api/usage/tokens');
+        
+        if (!response.ok) {
+          throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+        
         const data = await response.json();
         
         if (data) {
@@ -79,6 +88,9 @@ const TokenUsageWidget: React.FC = () => {
         }
       } catch (error) {
         console.error('Error fetching token usage:', error);
+        setError('Failed to load token usage data');
+      } finally {
+        setLoading(false);
       }
     };
     
@@ -95,7 +107,8 @@ const TokenUsageWidget: React.FC = () => {
         return;
       }
       
-      const response = await fetch('/api/usage/configure', {
+      setLoading(true);
+      const response = await fetch('/api/usage/limits', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -125,9 +138,14 @@ const TokenUsageWidget: React.FC = () => {
           }));
         }
         setShowConfigModal(false);
+      } else {
+        throw new Error(`Error ${response.status}: ${response.statusText}`);
       }
     } catch (error) {
       console.error('Error saving token limit:', error);
+      setError('Failed to update token limit');
+    } finally {
+      setLoading(false);
     }
   };
   
@@ -138,79 +156,152 @@ const TokenUsageWidget: React.FC = () => {
     return 'success';
   };
   
+  // Helper function to format large numbers
+  const formatNumber = (num: number): string => {
+    if (num >= 1000000) {
+      return (num / 1000000).toFixed(1) + 'M';
+    } else if (num >= 1000) {
+      return (num / 1000).toFixed(1) + 'K';
+    }
+    return num.toString();
+  };
+  
+  if (loading && Object.keys(modelUsage).length === 0) {
+    return (
+      <div className="text-center p-4">
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </div>
+        <p className="text-muted mt-2">Loading token usage data...</p>
+      </div>
+    );
+  }
+  
+  if (error && Object.keys(modelUsage).length === 0) {
+    return (
+      <div className="alert alert-danger">
+        <FaExclamationTriangle className="me-2" />
+        {error}
+      </div>
+    );
+  }
+  
   return (
     <div className="token-usage-widget">
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <div>
-          <h5 className="mb-0">Token Usage</h5>
-          <p className="text-muted small">Current billing period</p>
-        </div>
-        <Button 
-          variant="outline-secondary" 
-          size="sm" 
-          onClick={() => {
-            setSelectedModel('total');
-            setNewLimit(totalUsage.limit.toString());
-            setShowConfigModal(true);
-          }}
-        >
-          <FaCog className="me-1" /> Configure
-        </Button>
-      </div>
-      
-      <div className="mb-4">
-        <div className="d-flex justify-content-between mb-1">
-          <span>Total Usage</span>
-          <span>
-            {totalUsage.used.toLocaleString()} / {totalUsage.limit.toLocaleString()} tokens
-            <OverlayTrigger
-              placement="top"
-              overlay={
-                <Tooltip id="tooltip-total">
-                  {totalUsage.percentage.toFixed(1)}% of your total token allocation used
-                </Tooltip>
-              }
+      <Row>
+        <Col xs={12} className="mb-4">
+          <div className="d-flex justify-content-between align-items-center mb-3">
+            <div>
+              <div className="d-flex align-items-center">
+                <FaChartLine className="me-2 text-primary" />
+                <h5 className="mb-0">Token Usage</h5>
+              </div>
+              <p className="text-muted small mb-0">Current billing period</p>
+            </div>
+            <Button 
+              variant="outline-primary" 
+              size="sm" 
+              onClick={() => {
+                setSelectedModel('total');
+                setNewLimit(totalUsage.limit.toString());
+                setShowConfigModal(true);
+              }}
+              disabled={loading}
             >
-              <FaInfoCircle className="ms-2 text-muted" style={{ cursor: 'pointer' }} />
-            </OverlayTrigger>
-          </span>
-        </div>
-        <ProgressBar 
-          now={totalUsage.percentage} 
-          variant={getProgressVariant(totalUsage.percentage)}
-          style={{ height: '8px' }}
-        />
-      </div>
-      
-      {Object.keys(modelUsage).map(model => (
-        <div className="mb-3" key={model}>
-          <div className="d-flex justify-content-between mb-1">
-            <span>{model}</span>
-            <span>
-              {modelUsage[model].used.toLocaleString()} / {modelUsage[model].limit.toLocaleString()} tokens
-              <OverlayTrigger
-                placement="top"
-                overlay={
-                  <Tooltip id={`tooltip-${model}`}>
-                    {modelUsage[model].percentage.toFixed(1)}% of your {model} token allocation used
-                  </Tooltip>
-                }
-              >
-                <FaInfoCircle className="ms-2 text-muted" style={{ cursor: 'pointer' }} />
-              </OverlayTrigger>
-            </span>
+              <FaCog className="me-1" /> Configure Limits
+            </Button>
           </div>
-          <ProgressBar 
-            now={modelUsage[model].percentage} 
-            variant={getProgressVariant(modelUsage[model].percentage)}
-            style={{ height: '6px' }}
-          />
-        </div>
-      ))}
+          
+          {/* Total Usage Card */}
+          <Card className="mb-3 shadow-sm">
+            <Card.Body>
+              <div className="d-flex justify-content-between align-items-center mb-2">
+                <h6 className="fw-bold mb-0">Total Usage</h6>
+                <div>
+                  <Badge 
+                    bg={getProgressVariant(totalUsage.percentage)} 
+                    className="me-2"
+                  >
+                    {Math.round(totalUsage.percentage)}%
+                  </Badge>
+                  <span className="fw-bold">
+                    {formatNumber(totalUsage.used)} / {formatNumber(totalUsage.limit)}
+                  </span>
+                  <OverlayTrigger
+                    placement="top"
+                    overlay={
+                      <Tooltip id="tooltip-total">
+                        {totalUsage.percentage.toFixed(1)}% of your total token allocation used
+                      </Tooltip>
+                    }
+                  >
+                    <FaInfoCircle className="ms-2 text-muted" style={{ cursor: 'pointer' }} />
+                  </OverlayTrigger>
+                </div>
+              </div>
+              <ProgressBar 
+                now={totalUsage.percentage} 
+                variant={getProgressVariant(totalUsage.percentage)}
+                style={{ height: '10px' }}
+                animated={totalUsage.percentage > 90}
+              />
+              <div className="d-flex justify-content-between mt-2">
+                <small className="text-muted">0</small>
+                <small className="text-muted">{formatNumber(totalUsage.limit)} tokens</small>
+              </div>
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
       
-      <Modal show={showConfigModal} onHide={() => setShowConfigModal(false)}>
+      {/* Model-specific Usage Cards */}
+      <Row>
+        {Object.keys(modelUsage).map(model => (
+          <Col xs={12} md={6} key={model} className="mb-3">
+            <Card className="h-100 shadow-sm">
+              <Card.Body>
+                <div className="d-flex justify-content-between align-items-center mb-2">
+                  <div className="d-flex align-items-center">
+                    <FaServer className="me-2 text-secondary" />
+                    <h6 className="fw-bold mb-0">{model}</h6>
+                  </div>
+                  <Badge 
+                    bg={getProgressVariant(modelUsage[model].percentage)} 
+                    className="me-2"
+                  >
+                    {Math.round(modelUsage[model].percentage)}%
+                  </Badge>
+                </div>
+                
+                <div className="d-flex justify-content-between mb-2">
+                  <span>{formatNumber(modelUsage[model].used)} used</span>
+                  <span>{formatNumber(modelUsage[model].limit)} limit</span>
+                </div>
+                
+                <ProgressBar 
+                  now={modelUsage[model].percentage} 
+                  variant={getProgressVariant(modelUsage[model].percentage)}
+                  style={{ height: '8px' }}
+                  animated={modelUsage[model].percentage > 90}
+                />
+              </Card.Body>
+            </Card>
+          </Col>
+        ))}
+      </Row>
+      
+      {/* Configuration Modal */}
+      <Modal 
+        show={showConfigModal} 
+        onHide={() => setShowConfigModal(false)}
+        backdrop="static"
+        centered
+      >
         <Modal.Header closeButton>
-          <Modal.Title>Configure Token Limits</Modal.Title>
+          <Modal.Title>
+            <FaCog className="me-2" />
+            Configure Token Limits
+          </Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Form>
@@ -250,14 +341,26 @@ const TokenUsageWidget: React.FC = () => {
                 Set the maximum number of tokens that can be used
               </Form.Text>
             </Form.Group>
+            
+            {selectedModel === 'total' && (
+              <div className="alert alert-info">
+                <FaInfoCircle className="me-2" />
+                Setting a total limit helps control overall usage across all AI models
+              </div>
+            )}
           </Form>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowConfigModal(false)}>
+          <Button variant="secondary" onClick={() => setShowConfigModal(false)} disabled={loading}>
             Cancel
           </Button>
-          <Button variant="primary" onClick={handleSaveLimit}>
-            Save Changes
+          <Button variant="primary" onClick={handleSaveLimit} disabled={loading}>
+            {loading ? (
+              <>
+                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                Saving...
+              </>
+            ) : 'Save Changes'}
           </Button>
         </Modal.Footer>
       </Modal>
