@@ -70,6 +70,9 @@ def login_required(f: Callable) -> Callable:
         return f(*args, **kwargs)
         
     return decorated_function
+    
+# Alias for login_required for compatibility with existing imports
+token_required = login_required
 
 def admin_required(f: Callable) -> Callable:
     """
@@ -95,6 +98,9 @@ def admin_required(f: Callable) -> Callable:
         return f(*args, **kwargs)
         
     return decorated_function
+
+# Alias for admin_required for compatibility with existing imports
+require_admin = admin_required
 
 def get_current_user() -> Optional[Dict[str, Any]]:
     """
@@ -184,6 +190,27 @@ def check_is_admin(user_id: str) -> bool:
     except Exception as e:
         logger.error(f"Error checking admin status: {str(e)}")
         return False
+
+def validate_user_access(user_id: str, resource_owner_id: str) -> bool:
+    """
+    Validate if a user has access to a resource
+    
+    Args:
+        user_id: The ID of the user attempting to access the resource
+        resource_owner_id: The ID of the user who owns the resource
+        
+    Returns:
+        True if the user has access, otherwise False
+    """
+    if not user_id or not resource_owner_id:
+        return False
+        
+    # Check if user IDs match (resource owner)
+    if user_id == resource_owner_id:
+        return True
+        
+    # Check if user is admin
+    return check_is_admin(user_id)
 
 def generate_token(user_id: str, email: str, is_admin: bool = False) -> str:
     """

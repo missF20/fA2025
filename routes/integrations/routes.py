@@ -9,7 +9,7 @@ import logging
 from flask import Blueprint, request, jsonify, g
 from slack import check_slack_status
 from models import IntegrationType, IntegrationStatus
-from utils.auth import token_required, validate_user_access
+from utils.auth import token_required
 
 # Import integration-specific modules
 from routes.integrations.zendesk import connect_zendesk, sync_zendesk
