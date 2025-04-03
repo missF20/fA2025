@@ -40,6 +40,63 @@ def test_email():
         ]
     })
 
+@email_integration_bp.route('/status', methods=['GET'])
+def get_email_status():
+    """
+    Get status of Email integration API
+    
+    Returns:
+        JSON response with status information
+    """
+    # Count total email integrations
+    try:
+        total_integrations = IntegrationConfig.query.filter_by(
+            integration_type=IntegrationType.EMAIL.value
+        ).count()
+        
+        active_integrations = IntegrationConfig.query.filter_by(
+            integration_type=IntegrationType.EMAIL.value,
+            status='active'
+        ).count()
+        
+        return jsonify({
+            'success': True,
+            'status': 'operational',
+            'message': 'Email integration API is operational',
+            'stats': {
+                'total_integrations': total_integrations,
+                'active_integrations': active_integrations
+            }
+        })
+    except Exception as e:
+        logger.error(f"Error getting email integration status: {str(e)}")
+        return jsonify({
+            'success': False,
+            'status': 'error',
+            'message': f'Error getting email integration status: {str(e)}'
+        }), 500
+        
+@email_integration_bp.route('/configure', methods=['GET'])
+def get_email_configure():
+    """
+    Get configuration schema for Email integration
+    
+    Returns:
+        JSON response with configuration schema
+    """
+    try:
+        return jsonify({
+            'success': True,
+            'message': 'Email configuration schema',
+            'schema': get_email_config_schema()
+        })
+    except Exception as e:
+        logger.error(f"Error getting email configuration schema: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Error getting email configuration schema: {str(e)}'
+        }), 500
+
 # Set up logger
 logger = logging.getLogger(__name__)
 
