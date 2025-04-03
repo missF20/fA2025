@@ -427,14 +427,38 @@ def register_blueprints():
             logger.warning(f"Could not register slack blueprint: {e}")
             
         try:
-            from routes.integrations import integrations_bp, hubspot_bp, salesforce_bp, email_integration_bp
+            # We'll break this down into steps to better identify any import issues
+            logger.info("Attempting to import integration blueprints...")
+            # First import the whole module
+            import routes.integrations
+            
+            # Then import individual blueprints
+            logger.info("Importing integrations_bp...")
+            from routes.integrations import integrations_bp
+            logger.info("Registering integrations_bp...")
             app.register_blueprint(integrations_bp)
+            
+            logger.info("Importing hubspot_bp...")
+            from routes.integrations import hubspot_bp
+            logger.info("Registering hubspot_bp...")
             app.register_blueprint(hubspot_bp)
+            
+            logger.info("Importing salesforce_bp...")
+            from routes.integrations import salesforce_bp
+            logger.info("Registering salesforce_bp...")
             app.register_blueprint(salesforce_bp)
+            
+            logger.info("Importing email_integration_bp...")
+            from routes.integrations import email_integration_bp
+            logger.info("Registering email_integration_bp...")
             app.register_blueprint(email_integration_bp)
-            logger.info("Integrations blueprints registered successfully")
-        except ImportError as e:
-            logger.warning(f"Could not register integrations blueprints: {e}")
+            
+            logger.info("All integrations blueprints registered successfully")
+        except Exception as e:
+            logger.error(f"Error registering integrations blueprints: {e}")
+            # Log traceback for more detailed error info
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
             
         try:
             from routes.api_endpoints import api_endpoints_bp

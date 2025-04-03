@@ -22,6 +22,41 @@ JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', os.urandom(24).hex())
 # JWT token expiration time (in seconds) - default to 24 hours
 JWT_EXPIRATION = int(os.environ.get('JWT_EXPIRATION', 86400))
 
+def get_user_from_token(request=None):
+    """
+    Extract and verify user information from a token in the request
+    
+    Args:
+        request: The Flask request object (optional, uses current request if None)
+        
+    Returns:
+        The user information if valid token, otherwise None
+    """
+    if request is None:
+        # Use current Flask request
+        from flask import request as current_request
+        request = current_request
+        
+    # Get token from Authorization header
+    auth_header = request.headers.get('Authorization')
+    
+    if not auth_header:
+        # Try to get from cookies or query parameters
+        token = request.cookies.get('token') or request.args.get('token')
+    else:
+        # Extract token from Authorization header
+        parts = auth_header.split()
+        if len(parts) == 2 and parts[0].lower() == 'bearer':
+            token = parts[1]
+        else:
+            token = None
+            
+    if not token:
+        return None
+        
+    # Verify and return user information
+    return verify_token(token)
+
 def login_required(f: Callable) -> Callable:
     """
     Decorator to require authentication for routes

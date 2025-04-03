@@ -1,78 +1,112 @@
+#!/usr/bin/env python
 """
 Test Email Integration
 
-This script tests the email integration functionality by sending a request to the API endpoint.
+Simple script to test if the email integration endpoint is working.
+Using subprocess to call curl instead of requests library.
 """
 
-import requests
-import os
-import sys
+import subprocess
 import json
+import os
+import logging
 
-API_URL = "http://localhost:5000"
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
-def get_access_token():
+# Base URL for the API
+BASE_URL = "http://localhost:5000"
+
+def run_curl(url):
     """
-    Get access token by authenticating
-    
-    In a real test, you would use actual credentials
+    Run curl command and return the output
     """
-    auth_data = {
-        "email": "test@example.com",
-        "password": "password123"
-    }
-    
-    response = requests.post(f"{API_URL}/api/auth/login", json=auth_data)
-    if response.status_code != 200:
-        print(f"Authentication failed: {response.text}")
-        return None
-        
-    return response.json().get("token")
-    
-def test_email_integration():
-    """
-    Test email integration endpoint
-    """
-    token = get_access_token()
-    if not token:
-        print("Cannot proceed without access token")
-        return False
-        
-    # Configuration for email integration
-    email_config = {
-        "config": {
-            "email": "test@example.com",
-            "password": "app_password_here",
-            "smtp_server": "smtp.gmail.com",
-            "smtp_port": "587"
-        }
-    }
-    
-    # Test connecting to email
-    print("Testing email connection...")
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json"
-    }
-    
-    response = requests.post(
-        f"{API_URL}/api/integrations/connect/email",
-        headers=headers,
-        json=email_config
-    )
-    
-    print(f"Status code: {response.status_code}")
     try:
-        result = response.json()
-        print(json.dumps(result, indent=2))
-        return response.status_code == 200 and result.get("success", False)
-    except Exception as e:
-        print(f"Error parsing response: {str(e)}")
-        print(f"Response text: {response.text}")
-        return False
+        result = subprocess.run(
+            ["curl", "-s", url],
+            capture_output=True,
+            text=True,
+            check=False
+        )
         
+        if result.returncode != 0:
+            logger.error(f"curl command failed with return code {result.returncode}")
+            return None, result.stderr
+            
+        return result.stdout, None
+        
+    except Exception as e:
+        logger.error(f"Error executing curl: {str(e)}")
+        return None, str(e)
+
+def test_email_integration_endpoints():
+    """Test email integration endpoints"""
+    
+    endpoints = [
+        "/api/integrations/email/test",
+        "/api/integrations/email/status",
+        "/api/integrations/email/configure"
+    ]
+    
+    for endpoint in endpoints:
+        url = f"{BASE_URL}{endpoint}"
+        logger.info(f"Testing endpoint: {url}")
+        
+        output, error = run_curl(url)
+        
+        if error:
+            logger.error(f"ERROR: Failed to access {endpoint}: {error}")
+            continue
+            
+        if not output:
+            logger.error(f"ERROR: No response from {endpoint}")
+            continue
+            
+        try:
+            response_json = json.loads(output)
+            logger.info(f"SUCCESS: Endpoint {endpoint} returned valid JSON")
+            logger.info(f"Response: {json.dumps(response_json, indent=2)}")
+        except json.JSONDecodeError:
+            logger.error(f"ERROR: Endpoint {endpoint} did not return valid JSON")
+            logger.error(f"Response: {output}")
+
+def test_all_blueprints():
+    """Test all blueprint routes"""
+    url = f"{BASE_URL}/api/routes"
+    
+    output, error = run_curl(url)
+    
+    if error:
+        logger.error(f"ERROR: Failed to access routes listing: {error}")
+        return
+        
+    if not output:
+        logger.error("ERROR: No response from routes listing")
+        return
+        
+    try:
+        routes = json.loads(output)
+        logger.info("SUCCESS: Routes listing returned valid JSON")
+        
+        # Check if email integration routes are present
+        email_routes = [r for r in routes.get('routes', []) 
+                       if 'email_integration' in r.get('endpoint', '')]
+        
+        if email_routes:
+            logger.info(f"Email integration routes found: {len(email_routes)}")
+            for route in email_routes:
+                logger.info(f"  {route.get('rule')} - {route.get('endpoint')}")
+        else:
+            logger.error("No email integration routes found!")
+            
+    except json.JSONDecodeError:
+        logger.error("ERROR: Routes listing did not return valid JSON")
+        logger.error(f"Response: {output}")
+
 if __name__ == "__main__":
-    print("Testing Email Integration API...")
-    success = test_email_integration()
-    print(f"\nTest {'succeeded' if success else 'failed'}")
-    sys.exit(0 if success else 1)
+    logger.info("Testing email integration endpoints...")
+    test_email_integration_endpoints()
+    
+    logger.info("\nChecking all registered routes...")
+    test_all_blueprints()

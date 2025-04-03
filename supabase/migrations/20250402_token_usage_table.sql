@@ -20,6 +20,11 @@ CREATE INDEX IF NOT EXISTS token_usage_timestamp_idx ON token_usage(timestamp);
 -- Apply RLS policies to the token_usage table
 ALTER TABLE token_usage ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist to avoid duplication errors
+DROP POLICY IF EXISTS user_token_usage_policy ON token_usage;
+DROP POLICY IF EXISTS user_token_usage_insert_policy ON token_usage;
+DROP POLICY IF EXISTS admin_token_usage_policy ON token_usage;
+
 -- Policy: Users can see their own token usage
 CREATE POLICY user_token_usage_policy ON token_usage
     FOR SELECT

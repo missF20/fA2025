@@ -18,6 +18,9 @@ from app import db
 # This is a placeholder - in a real implementation this would be a proper module
 # from automation.integrations.business.email import validate_email_config
 
+# Set up logger
+logger = logging.getLogger(__name__)
+
 # Create blueprint
 email_integration_bp = Blueprint('email_integration', __name__, url_prefix='/api/integrations/email')
 
@@ -96,9 +99,6 @@ def get_email_configure():
             'success': False,
             'message': f'Error getting email configuration schema: {str(e)}'
         }), 500
-
-# Set up logger
-logger = logging.getLogger(__name__)
 
 def connect_email(user_id, config):
     """
