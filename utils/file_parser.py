@@ -31,14 +31,33 @@ class FileParser:
             Dict containing extracted content and metadata
         """
         try:
-            from PyPDF2 import PdfReader
-            
-            # Save file to temporary location
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as temp_file:
-                temp_file.write(file_data)
-                temp_path = temp_file.name
-            
+            # First try using pypdf
             try:
+                import pypdf
+                # Try with pypdf first (newer version)
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as temp_file:
+                    temp_file.write(file_data)
+                    temp_path = temp_file.name
+                
+                # Open and parse PDF with pypdf
+                reader = pypdf.PdfReader(temp_path)
+                
+                # Extract metadata
+                info = reader.metadata
+                metadata = {}
+                if info:
+                    for key in info:
+                        if info[key]:
+                            metadata[key] = str(info[key])
+            except ImportError:
+                # Fall back to PyPDF2
+                from PyPDF2 import PdfReader
+                
+                # Save file to temporary location
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as temp_file:
+                    temp_file.write(file_data)
+                    temp_path = temp_file.name
+                
                 # Open and parse PDF
                 reader = PdfReader(temp_path)
                 
@@ -47,7 +66,8 @@ class FileParser:
                 metadata = {}
                 if info:
                     for key in info:
-                        metadata[key] = str(info[key])
+                        if info[key]:
+                            metadata[key] = str(info[key])
                 
                 # Extract text from each page
                 pages = []
@@ -233,16 +253,28 @@ class FileParser:
         """
         file_type = file_type.lower()
         
-        if file_type == 'pdf':
+        # Normalize MIME types to simple file extensions
+        if file_type == 'application/pdf':
+            file_type = 'pdf'
+        elif file_type in ['application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/msword']:
+            file_type = 'docx'
+        elif file_type in ['text/plain', 'text/markdown']:
+            file_type = 'txt'
+        
+        if 'pdf' in file_type:
             return FileParser.parse_pdf(file_data)
-        elif file_type in ['docx', 'doc']:
+        elif any(doc_type in file_type for doc_type in ['docx', 'doc', 'word']):
             return FileParser.parse_docx(file_data)
-        elif file_type == 'txt':
+        elif any(txt_type in file_type for txt_type in ['txt', 'text', 'plain']):
             return FileParser.parse_txt(file_data)
         else:
+            # Return basic success to allow uploading of unknown files
+            logger.warning(f"Unsupported file type: {file_type}, saving file without content extraction")
             return {
-                "success": False,
-                "error": f"Unsupported file type: {file_type}"
+                "success": True,
+                "content": f"File content not extracted (unsupported type: {file_type})",
+                "metadata": {"file_type": file_type},
+                "warning": f"Unsupported file type: {file_type}"
             }
     
     @staticmethod
