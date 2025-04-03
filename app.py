@@ -380,14 +380,22 @@ def register_blueprints():
             app.register_blueprint(knowledge_bp)
             logger.info("Knowledge blueprint registered successfully")
             
-            # Ensure binary upload endpoint is registered directly in case it's not in the blueprint
-            @app.route("/api/knowledge/files/binary", methods=["POST"])
-            def upload_binary_file():
-                """
-                Upload a binary file to the knowledge base
+            # Register the knowledge binary upload blueprint
+            try:
+                from routes.knowledge_binary import knowledge_binary_bp
+                app.register_blueprint(knowledge_binary_bp)
+                logger.info("Knowledge binary upload blueprint registered successfully")
+            except Exception as e:
+                logger.error(f"Error registering knowledge binary upload blueprint: {e}")
                 
-                This endpoint accepts multipart/form-data with a file
-                """
+                # Fallback: register binary upload endpoint directly if blueprint registration fails
+                @app.route("/api/knowledge/files/binary", methods=["POST"])
+                def upload_binary_file():
+                    """
+                    Upload a binary file to the knowledge base
+                    
+                    This endpoint accepts multipart/form-data with a file
+                    """
                 # This is a fallback in case the endpoint in the blueprint isn't registered
                 # Import the necessary modules
                 import base64

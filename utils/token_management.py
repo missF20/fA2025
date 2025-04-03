@@ -222,27 +222,22 @@ def get_token_limit(user_id: str, model: Optional[str] = None) -> int:
         
         # Build query
         sql = """
-        SELECT token_limit
+        SELECT monthly_token_limit
         FROM token_limits
         WHERE user_id = %s
         """
         
         params = [user_id]
         
-        # Add model filter if specified
-        if model:
-            sql += " AND model = %s"
-            params.append(model)
-        else:
-            sql += " AND model IS NULL"
-            
+        # We don't have model filtering in the existing schema, so we ignore the model parameter
+        
         # Execute query
         result = execute_sql(sql, tuple(params))
         
         # Return limit if found
         if isinstance(result, list) and result and len(result) > 0:
-            if 'token_limit' in result[0]:
-                return result[0]['token_limit']
+            if 'monthly_token_limit' in result[0]:
+                return result[0]['monthly_token_limit']
             
         # Return 0 (no limit) if not found
         return 0
@@ -266,10 +261,10 @@ def check_token_limit_exceeded(user_id: str, model: Optional[str] = None) -> Dic
         ensure_token_tracking_table()
         
         # Get token limit
-        token_limit = get_token_limit(user_id, model)
+        monthly_token_limit = get_token_limit(user_id, model)
         
         # If no limit, return immediately
-        if token_limit <= 0:
+        if monthly_token_limit <= 0:
             return {
                 'limit': 0,
                 'used': 0,
@@ -308,12 +303,12 @@ def check_token_limit_exceeded(user_id: str, model: Optional[str] = None) -> Dic
                 usage = result[0]['total_tokens']
                 
         # Calculate remaining and if limit is exceeded
-        remaining = max(0, token_limit - usage)
-        exceeded = usage >= token_limit
+        remaining = max(0, monthly_token_limit - usage)
+        exceeded = usage >= monthly_token_limit
         
         # Return result
         return {
-            'limit': token_limit,
+            'limit': monthly_token_limit,
             'used': usage,
             'remaining': remaining,
             'exceeded': exceeded,
@@ -350,18 +345,42 @@ def update_user_token_limit(
         # Ensure tables exist
         ensure_token_tracking_table()
         
-        # Build upsert query
-        sql = """
-        INSERT INTO token_limits (user_id, model, token_limit)
-        VALUES (%s, %s, %s)
-        ON CONFLICT (user_id, model) DO UPDATE
-        SET token_limit = %s
+        # Check if the user already has a token limit record
+        check_sql = """
+        SELECT id FROM token_limits WHERE user_id = %s
         """
         
-        # Execute query
-        execute_sql(sql, (user_id, model, token_limit, token_limit), fetch_results=False)
+        result = execute_sql(check_sql, (user_id,))
         
-        logger.info(f"Updated token limit for user {user_id} to {token_limit}" + (f" for model {model}" if model else ""))
+        if isinstance(result, list) and result and len(result) > 0:
+            # Update existing record
+            sql = """
+            UPDATE token_limits
+            SET monthly_token_limit = %s,
+                updated_at = NOW()
+            WHERE user_id = %s
+            """
+            execute_sql(sql, (token_limit, user_id), fetch_results=False)
+        else:
+            # Insert new record
+            sql = """
+            INSERT INTO token_limits (
+                user_id, 
+                monthly_token_limit, 
+                daily_token_limit, 
+                response_token_limit,
+                created_at,
+                updated_at
+            )
+            VALUES (%s, %s, %s, %s, NOW(), NOW())
+            """
+            # Set daily and response limits to reasonable defaults
+            daily_limit = token_limit // 30 if token_limit > 0 else 0  # Monthly / 30 days
+            response_limit = 4000  # Default max response size
+            
+            execute_sql(sql, (user_id, token_limit, daily_limit, response_limit), fetch_results=False)
+        
+        logger.info(f"Updated token limit for user {user_id} to {token_limit}")
         
         # Get updated limit information
         limit_info = check_token_limit_exceeded(user_id, model)

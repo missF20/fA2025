@@ -41,13 +41,14 @@ def get_user_from_token(request=None):
     bypass_auth = request.args.get('bypass_auth') == 'true'
     is_dev = (os.environ.get('FLASK_ENV') == 'development' or 
              request.args.get('flask_env') == 'development' or
-             os.environ.get('DEVELOPMENT_MODE') == 'true')
+             os.environ.get('DEVELOPMENT_MODE') == 'true' or
+             os.environ.get('APP_ENV') == 'development')
     
     # If we have explicit development bypass in query params, use it
     if bypass_auth and is_dev:
         logger.warning("Using authentication bypass from query parameters")
         return {
-            'id': 'dev-bypass-user',
+            'id': '00000000-0000-0000-0000-000000000000',  # Valid UUID format
             'email': 'dev@example.com',
             'is_admin': True,
             'dev_mode': True
@@ -90,13 +91,14 @@ def login_required(f: Callable) -> Callable:
         bypass_auth = request.args.get('bypass_auth') == 'true'
         is_dev = (os.environ.get('FLASK_ENV') == 'development' or 
                  request.args.get('flask_env') == 'development' or
-                 os.environ.get('DEVELOPMENT_MODE') == 'true')
+                 os.environ.get('DEVELOPMENT_MODE') == 'true' or
+                 os.environ.get('APP_ENV') == 'development')
         
         if bypass_auth and is_dev:
             logger.warning(f"Development mode bypass for {f.__name__}")
             # Create a development user
             user = {
-                'id': 'dev-bypass-user',
+                'id': '00000000-0000-0000-0000-000000000000',  # Valid UUID format
                 'email': 'dev@example.com',
                 'is_admin': True,
                 'dev_mode': True
@@ -185,13 +187,14 @@ def get_current_user() -> Optional[Dict[str, Any]]:
     bypass_auth = request.args.get('bypass_auth') == 'true'
     is_dev = (os.environ.get('FLASK_ENV') == 'development' or 
              request.args.get('flask_env') == 'development' or
-             os.environ.get('DEVELOPMENT_MODE') == 'true')
+             os.environ.get('DEVELOPMENT_MODE') == 'true' or
+             os.environ.get('APP_ENV') == 'development')
     
     if bypass_auth and is_dev:
         logger.warning("Development mode - using bypass for get_current_user")
         # Return a dev user with admin privileges
         return {
-            'id': 'dev-bypass-user',
+            'id': '00000000-0000-0000-0000-000000000000',  # Valid UUID format
             'email': 'dev@example.com',
             'is_admin': True,
             'dev_mode': True
@@ -237,13 +240,14 @@ def require_auth(f):
         bypass_auth = request.args.get('bypass_auth') == 'true'
         is_dev = (os.environ.get('FLASK_ENV') == 'development' or 
                  request.args.get('flask_env') == 'development' or
-                 os.environ.get('DEVELOPMENT_MODE') == 'true')
+                 os.environ.get('DEVELOPMENT_MODE') == 'true' or
+                 os.environ.get('APP_ENV') == 'development')
         
         if bypass_auth and is_dev:
             logger.warning(f"Development mode bypass for {f.__name__}")
             # Create a development user and pass it to the route function
             user = {
-                'id': 'dev-bypass-user',
+                'id': '00000000-0000-0000-0000-000000000000',  # Valid UUID format
                 'email': 'dev@example.com',
                 'is_admin': True,
                 'dev_mode': True
@@ -361,14 +365,15 @@ def verify_token(token: str) -> Optional[Dict[str, Any]]:
         # Check if we're in development mode
         is_dev = (os.environ.get('FLASK_ENV') == 'development' or 
                  request.args.get('flask_env') == 'development' or
-                 os.environ.get('DEVELOPMENT_MODE') == 'true')
+                 os.environ.get('DEVELOPMENT_MODE') == 'true' or
+                 os.environ.get('APP_ENV') == 'development')
         
         # Only allow special tokens in development mode
         if is_dev:
             logger.warning("Development mode - using bypass authentication")
             # Return a test user with admin privileges for development
             return {
-                'id': 'test-user-id',
+                'id': '00000000-0000-0000-0000-000000000000',  # Valid UUID format
                 'email': 'test@example.com',
                 'is_admin': True,
                 'dev_mode': True
