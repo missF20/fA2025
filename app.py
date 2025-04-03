@@ -171,6 +171,7 @@ def test_usage_api():
     })
 
 @app.route("/routes")
+@app.route("/api/routes")
 def list_routes():
     """List all routes in the application"""
     routes = []
@@ -277,6 +278,7 @@ def upload_binary_file():
         return jsonify({'error': f'Failed to upload file: {str(e)}'}), 500
 
 @app.route("/status")
+@app.route("/api/status")
 def status():
     """API status endpoint"""
     status_info = {

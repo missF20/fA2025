@@ -18,7 +18,7 @@ supabase = refresh_supabase_client()
 
 @knowledge_bp.route('/files', methods=['GET'])
 @require_auth
-def get_knowledge_files():
+def get_knowledge_files(user=None):
     """
     Get user's knowledge base files
     ---
@@ -46,7 +46,9 @@ def get_knowledge_files():
       500:
         description: Server error
     """
-    user = get_user_from_token(request)
+    # If user isn't provided by require_auth decorator, try to get it from token
+    if user is None:
+        user = get_user_from_token(request)
     
     # Get query parameters
     limit = request.args.get('limit', 20, type=int)
@@ -84,7 +86,7 @@ def get_knowledge_files():
 
 @knowledge_bp.route('/files/<file_id>', methods=['GET'])
 @require_auth
-def get_knowledge_file(file_id):
+def get_knowledge_file(file_id, user=None):
     """
     Get a specific knowledge file
     ---
@@ -114,7 +116,9 @@ def get_knowledge_file(file_id):
       500:
         description: Server error
     """
-    user = get_user_from_token(request)
+    # If user isn't provided by require_auth decorator, try to get it from token
+    if user is None:
+        user = get_user_from_token(request)
     exclude_content = request.args.get('exclude_content', 'false').lower() == 'true'
     
     try:
@@ -148,7 +152,7 @@ def get_knowledge_file(file_id):
 @knowledge_bp.route('/files/<file_id>', methods=['PUT'])
 @require_auth
 @validate_request_json(KnowledgeFileUpdate)
-def update_knowledge_file(file_id):
+def update_knowledge_file(file_id, user=None):
     """
     Update a knowledge file
     ---
@@ -180,7 +184,9 @@ def update_knowledge_file(file_id):
       500:
         description: Server error
     """
-    user = get_user_from_token(request)
+    # If user isn't provided by require_auth decorator, try to get it from token
+    if user is None:
+        user = get_user_from_token(request)
     data = request.json
     
     try:
@@ -257,7 +263,7 @@ def update_knowledge_file(file_id):
 @knowledge_bp.route('/files', methods=['POST'])
 @require_auth
 @validate_request_json(KnowledgeFileCreate)
-def create_knowledge_file():
+def create_knowledge_file(user=None):
     """
     Upload a new knowledge file
     ---
@@ -282,7 +288,9 @@ def create_knowledge_file():
       500:
         description: Server error
     """
-    user = get_user_from_token(request)
+    # If user isn't provided by require_auth decorator, try to get it from token
+    if user is None:
+        user = get_user_from_token(request)
     data = request.json
     
     # Enhanced logging for debugging
@@ -424,7 +432,7 @@ def create_knowledge_file():
 
 @knowledge_bp.route('/files/<file_id>', methods=['DELETE'])
 @require_auth
-def delete_knowledge_file(file_id):
+def delete_knowledge_file(file_id, user=None):
     """
     Delete a knowledge file
     ---
@@ -449,7 +457,9 @@ def delete_knowledge_file(file_id):
       500:
         description: Server error
     """
-    user = get_user_from_token(request)
+    # If user isn't provided by require_auth decorator, try to get it from token
+    if user is None:
+        user = get_user_from_token(request)
     
     try:
         # Verify file belongs to user using direct SQL
@@ -496,7 +506,7 @@ def delete_knowledge_file(file_id):
 
 @knowledge_bp.route('/search', methods=['GET'])
 @require_auth
-def search_knowledge_base():
+def search_knowledge_base(user=None):
     """
     Search knowledge base
     ---
@@ -546,7 +556,9 @@ def search_knowledge_base():
       500:
         description: Server error
     """
-    user = get_user_from_token(request)
+    # If user isn't provided by require_auth decorator, try to get it from token
+    if user is None:
+        user = get_user_from_token(request)
     
     # Get query parameters
     query = request.args.get('query')
@@ -698,7 +710,7 @@ def search_knowledge_base():
 
 @knowledge_bp.route('/files/categories', methods=['GET'])
 @require_auth
-def get_knowledge_categories():
+def get_knowledge_categories(user=None):
     """
     Get all categories in the knowledge base
     ---
@@ -716,7 +728,9 @@ def get_knowledge_categories():
       500:
         description: Server error
     """
-    user = get_user_from_token(request)
+    # If user isn't provided by require_auth decorator, try to get it from token
+    if user is None:
+        user = get_user_from_token(request)
     
     try:
         # Use direct SQL to get categories
@@ -745,7 +759,7 @@ def get_knowledge_categories():
 
 @knowledge_bp.route('/files/tags', methods=['GET'])
 @require_auth
-def get_knowledge_tags():
+def get_knowledge_tags(user=None):
     """
     Get all tags in the knowledge base
     ---
@@ -763,7 +777,9 @@ def get_knowledge_tags():
       500:
         description: Server error
     """
-    user = get_user_from_token(request)
+    # If user isn't provided by require_auth decorator, try to get it from token
+    if user is None:
+        user = get_user_from_token(request)
     
     try:
         # Use direct SQL to get tags
@@ -804,7 +820,7 @@ def get_knowledge_tags():
 
 @knowledge_bp.route('/files/binary', methods=['POST'])
 @require_auth
-def upload_binary_file():
+def upload_binary_file(user=None):
     """
     Upload a binary file to the knowledge base (compatible with KnowledgeBase.tsx)
     ---
@@ -841,7 +857,9 @@ def upload_binary_file():
       500:
         description: Server error
     """
-    user = get_user_from_token(request)
+    # If user isn't provided by require_auth decorator, try to get it from token
+    if user is None:
+        user = get_user_from_token(request)
     data = request.json
     
     if not data:
