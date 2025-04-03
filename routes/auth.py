@@ -3,7 +3,7 @@ import logging
 import os
 from utils.validation import validate_request_json
 from utils.supabase import get_supabase_client
-from utils.auth import generate_token, verify_token, get_user_from_token
+from utils.auth import generate_token, verify_token, get_current_user as get_user_from_token
 from utils.rate_limit import rate_limit_middleware
 from models import SignUp, Login, PasswordReset, PasswordChange
 

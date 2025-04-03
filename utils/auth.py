@@ -7,7 +7,7 @@ import os
 import time
 import logging
 from datetime import datetime, timedelta
-from functools import wraps
+import functools
 from typing import Dict, List, Optional, Any, Callable, Tuple, Union
 
 import jwt
@@ -32,7 +32,7 @@ def login_required(f: Callable) -> Callable:
     Returns:
         The decorated function
     """
-    @wraps(f)
+    @functools.wraps(f)
     def decorated_function(*args, **kwargs):
         # Get authentication token
         auth_header = request.headers.get('Authorization')
@@ -81,7 +81,7 @@ def admin_required(f: Callable) -> Callable:
     Returns:
         The decorated function
     """
-    @wraps(f)
+    @functools.wraps(f)
     @login_required
     def decorated_function(*args, **kwargs):
         # Check if user is admin
@@ -122,6 +122,34 @@ def get_current_user() -> Optional[Dict[str, Any]]:
         
     # Verify token
     return verify_token(token)
+
+def require_auth(f):
+    """
+    Decorator to require authentication for a route
+    
+    This decorator extracts the user from the request token
+    and passes it to the route function.
+    
+    Args:
+        f: The function to decorate
+        
+    Returns:
+        The decorated function
+    """
+    @functools.wraps(f)
+    def decorated_function(*args, **kwargs):
+        # Get current user
+        user = get_current_user()
+        
+        if not user:
+            return jsonify({'error': 'Authentication required'}), 401
+            
+        # Add user to kwargs
+        kwargs['user'] = user
+        return f(*args, **kwargs)
+        
+    return decorated_function
+
 
 def check_is_admin(user_id: str) -> bool:
     """

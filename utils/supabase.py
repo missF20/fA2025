@@ -53,6 +53,21 @@ def get_supabase_client() -> Optional[Any]:
         return None
 
 
+def refresh_supabase_client() -> Optional[Any]:
+    """
+    Force refresh the Supabase client, clearing the cached instance
+    
+    This is useful when schema changes or migrations have been applied
+    and we need to ensure the client recognizes the new structure.
+    
+    Returns:
+        A fresh Supabase client instance
+    """
+    global _supabase_client
+    _supabase_client = None
+    return get_supabase_client()
+
+
 def execute_sql_query(sql_query: str, params: Optional[dict] = None) -> Optional[Any]:
     """
     Execute an SQL query through Supabase's RPC interface

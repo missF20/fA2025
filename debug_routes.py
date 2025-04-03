@@ -38,7 +38,25 @@ def try_import_blueprint(module_path, blueprint_name):
             blueprint = getattr(module, blueprint_name)
             logger.info(f"Successfully imported {blueprint_name} from {module_path}")
             logger.info(f"Blueprint details: {blueprint}")
-            logger.info(f"Blueprint routes: {[rule.rule for rule in blueprint.deferred_functions]}")
+            
+            # Print all module functions to see if there are duplicates
+            logger.info("Module functions:")
+            for attr_name in dir(module):
+                attr = getattr(module, attr_name)
+                if callable(attr) and not attr_name.startswith('__'):
+                    logger.info(f"Function: {attr_name}, type: {type(attr)}")
+            
+            # Print all blueprint routes
+            logger.info("Blueprint routes:")
+            for rule in blueprint.deferred_functions:
+                try:
+                    if hasattr(rule, 'rule'):
+                        logger.info(f"Route: {rule.rule}")
+                    else:
+                        logger.info(f"Deferred function without rule: {rule}")
+                except Exception as ex:
+                    logger.error(f"Error inspecting rule: {str(ex)}")
+            
             return blueprint
         else:
             logger.error(f"Module {module_path} does not have a blueprint named {blueprint_name}")
@@ -48,6 +66,8 @@ def try_import_blueprint(module_path, blueprint_name):
         return None
     except Exception as e:
         logger.error(f"Unexpected error importing {module_path}: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
         return None
 
 def main():
