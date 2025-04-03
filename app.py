@@ -182,6 +182,82 @@ def list_routes():
         })
     return jsonify(routes)
 
+@app.route('/api/knowledge/files/binary', methods=['POST'])
+def upload_binary_file():
+    """
+    Upload a binary file to the knowledge base
+    
+    This endpoint accepts multipart/form-data with a file
+    """
+    import base64
+    from flask import request, jsonify
+    from utils.auth import get_user_from_token, require_auth
+    from utils.file_parser import FileParser
+    
+    try:
+        # Get the user from the request context
+        user = get_user_from_token()
+        user_id = user.get('id', None)
+        
+        if not user_id:
+            return jsonify({'error': 'User not authenticated'}), 401
+        
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file provided'}), 400
+        
+        file = request.files['file']
+        
+        if file.filename == '':
+            return jsonify({'error': 'Empty filename'}), 400
+        
+        # Get file metadata
+        filename = file.filename
+        file_size = 0
+        file_type = file.content_type or 'application/octet-stream'
+        
+        # Read the file data
+        file_data = file.read()
+        file_size = len(file_data)
+        
+        # Create a FileParser instance
+        parser = FileParser()
+        
+        # Parse the file
+        content = parser.parse_file(file_data, file_type)
+        
+        # Base64 encode the file data for storage
+        encoded_data = base64.b64encode(file_data).decode('utf-8')
+        
+        # Store file metadata and content in the database
+        from utils.supabase import get_supabase_client
+        supabase = get_supabase_client()
+        
+        # Create the knowledge file entry
+        new_file = {
+            'user_id': user_id,
+            'file_name': filename,
+            'file_size': file_size,
+            'file_type': file_type,
+            'content': content,
+            'binary_data': encoded_data
+        }
+        
+        result = supabase.table('knowledge_files').insert(new_file).execute()
+        
+        if hasattr(result, 'error') and result.error:
+            return jsonify({'error': result.error}), 500
+        
+        return jsonify({
+            'success': True,
+            'file_id': result.data[0]['id'] if hasattr(result, 'data') and result.data else None,
+            'message': f'File {filename} uploaded successfully'
+        }), 201
+        
+    except Exception as e:
+        import logging
+        logging.error(f"Error uploading binary file: {str(e)}", exc_info=True)
+        return jsonify({'error': f'Failed to upload file: {str(e)}'}), 500
+
 @app.route("/status")
 def status():
     """API status endpoint"""
