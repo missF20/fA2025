@@ -38,3 +38,6 @@ def init_db_migrations():
             "error": str(e),
             "message": "Failed to initialize database migration system"
         }
+
+# Alias for backwards compatibility with existing code
+initialize_db_migration_system = init_db_migrations

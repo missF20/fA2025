@@ -24,8 +24,29 @@ def apply_migration(file_path):
         with open(file_path, 'r') as f:
             sql = f.read()
         
-        # Execute the SQL
-        success = execute_sql(sql)
+        # Special handling for token_usage table migration
+        if '20250402_token_usage_table.sql' in file_path:
+            logger.info("Applying token_usage table migration with policy check")
+            
+            # Modified SQL that checks if policies exist before creating them
+            modified_sql = sql.replace(
+                "CREATE POLICY user_token_usage_policy ON token_usage",
+                "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'user_token_usage_policy' AND tablename = 'token_usage') THEN CREATE POLICY user_token_usage_policy ON token_usage"
+            )
+            modified_sql = modified_sql.replace(
+                "CREATE POLICY user_token_usage_insert_policy ON token_usage",
+                "END IF; IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'user_token_usage_insert_policy' AND tablename = 'token_usage') THEN CREATE POLICY user_token_usage_insert_policy ON token_usage"
+            )
+            modified_sql = modified_sql.replace(
+                "CREATE POLICY admin_token_usage_policy ON token_usage",
+                "END IF; IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'admin_token_usage_policy' AND tablename = 'token_usage') THEN CREATE POLICY admin_token_usage_policy ON token_usage"
+            )
+            modified_sql += "\nEND IF; END $$;"
+            
+            success = execute_sql(modified_sql)
+        else:
+            # Execute the SQL as is for other migrations
+            success = execute_sql(sql)
         
         if success:
             logger.info(f"Successfully applied migration: {os.path.basename(file_path)}")

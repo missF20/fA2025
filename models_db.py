@@ -115,8 +115,8 @@ class IntegrationConfig(db.Model):
     """IntegrationConfig model for integration configurations"""
     __tablename__ = 'integration_configs'
     
-    id = db.Column(db.String, primary_key=True)
-    user_id = db.Column(db.String, nullable=False)  # Use String type for UUID compatibility
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     integration_type = db.Column(db.String(50), nullable=False)
     config = db.Column(db.JSON, nullable=False)
     status = db.Column(db.String(20), default='pending')
@@ -134,8 +134,8 @@ class KnowledgeFile(db.Model):
     """KnowledgeFile model for user knowledge base documents"""
     __tablename__ = 'knowledge_files'
     
-    id = db.Column(db.String, primary_key=True)
-    user_id = db.Column(db.String, nullable=False)  # Use String type for UUID compatibility
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     file_name = db.Column(db.String(256), nullable=False)
     file_size = db.Column(db.Integer, nullable=False)
     file_type = db.Column(db.String(50), nullable=False)
