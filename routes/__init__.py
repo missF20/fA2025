@@ -12,24 +12,18 @@ from .test_route import test_blueprint_bp
 from .email_test import email_test_bp
 
 # Import integrations
-try:
-    from .integrations import email_integration_bp
-except ImportError:
-    email_integration_bp = None
-from .integrations import integrations_bp 
-from .integrations.email import email_integration_bp
-from .integrations.slack import slack_integration_bp
-from .integrations.zendesk import zendesk_bp
-from .integrations.google_analytics import google_analytics_bp
-from .integrations.hubspot import hubspot_bp
-from .integrations.salesforce import salesforce_bp
+from .integrations import integrations_bp
+from .integrations import email_integration_bp
+from .integrations import hubspot_bp
+from .integrations import salesforce_bp
+
+# Import core modules that will be needed in the application
+import routes.integrations.slack
+import routes.integrations.zendesk
+import routes.integrations.google_analytics
 
 # List of all blueprint modules
-blueprints = []
-
-if email_integration_bp:
-    blueprints.append(email_integration_bp)
-
+blueprints = [
     email_test_bp,
     auth_bp,
     usage_bp,
@@ -38,9 +32,6 @@ if email_integration_bp:
     knowledge_binary_bp,
     integrations_bp,
     email_integration_bp,
-    slack_integration_bp,
-    zendesk_bp,
-    google_analytics_bp,
     hubspot_bp,
     salesforce_bp,
     test_blueprint_bp

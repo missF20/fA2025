@@ -27,6 +27,36 @@ logger = logging.getLogger(__name__)
 # Create blueprint
 integrations_bp = Blueprint('integrations', __name__, url_prefix='/api/integrations')
 
+@integrations_bp.route('/', methods=['GET'])
+def list_integrations():
+    """
+    Root endpoint for integrations API that lists available integrations
+    
+    Returns:
+        JSON response with available integrations
+    """
+    return jsonify({
+        'success': True,
+        'message': 'Integrations API',
+        'version': '1.0.0',
+        'available_integrations': [
+            'slack',
+            'hubspot',
+            'salesforce',
+            'zendesk',
+            'google_analytics',
+            'shopify',
+            'email'
+        ],
+        'endpoints': [
+            '/api/integrations/test',
+            '/api/integrations/status',
+            '/api/integrations/connect/{integration_type}',
+            '/api/integrations/disconnect/{integration_id}',
+            '/api/integrations/sync/{integration_id}'
+        ]
+    })
+
 @integrations_bp.route('/test', methods=['GET'])
 def test_integrations():
     """

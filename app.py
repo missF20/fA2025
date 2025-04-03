@@ -469,13 +469,29 @@ def register_blueprints():
         except Exception as e:
             logger.error(f"Error registering email integration blueprint: {e}")
             
-        # Slack integration blueprint
+        # Slack integration 
         try:
-            from routes.integrations.slack import slack_integration_bp
-            app.register_blueprint(slack_integration_bp)
-            logger.info("Slack integration blueprint registered successfully")
+            # Import the slack module without the blueprint
+            import routes.integrations.slack
+            logger.info("Slack integration module imported successfully")
         except Exception as e:
-            logger.error(f"Error registering slack integration blueprint: {e}")
+            logger.error(f"Error importing slack integration module: {e}")
+            
+        # Zendesk integration
+        try:
+            # Import the zendesk module without the blueprint
+            import routes.integrations.zendesk
+            logger.info("Zendesk integration module imported successfully")
+        except Exception as e:
+            logger.error(f"Error importing zendesk integration module: {e}")
+            
+        # Google Analytics integration
+        try:
+            # Import the google_analytics module without the blueprint
+            import routes.integrations.google_analytics
+            logger.info("Google Analytics integration module imported successfully")
+        except Exception as e:
+            logger.error(f"Error importing google_analytics integration module: {e}")
             
         # Test blueprint (for verification)
         try:
