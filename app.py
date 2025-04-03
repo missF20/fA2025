@@ -278,6 +278,35 @@ def upload_binary_file():
         return jsonify({'error': f'Failed to upload file: {str(e)}'}), 500
 
 @app.route("/status")
+
+# Direct token usage test endpoint
+@app.route("/api/usage/test", methods=["GET"])
+def test_token_usage_endpoint():
+    """
+    Test endpoint for token usage that doesn't require authentication
+    
+    Returns:
+        JSON response with sample token usage statistics
+    """""
+    try:
+        # Use a test user ID for demonstration
+        from utils.token_management import get_user_token_usage
+        
+        user_id = '00000000-0000-0000-0000-000000000000'
+        
+        # Get usage statistics from token management utility
+        stats = get_user_token_usage(user_id)
+        
+        # Return statistics as JSON
+        return jsonify({
+            "status": "success",
+            "message": "Test usage endpoint is working",
+            "statistics": stats
+        })
+    except Exception as e:
+        logger.error(f"Error in test usage endpoint: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
 @app.route("/api/status")
 def status():
     """API status endpoint"""
@@ -914,6 +943,15 @@ def register_blueprints():
             logger.info("Database management blueprint registered successfully")
         except ImportError as e:
             logger.warning(f"Could not register database management blueprint: {e}")
+            
+        # Explicitly register token usage blueprint
+        try:
+            from routes.usage import usage_bp
+            app.register_blueprint(usage_bp)
+            logger.info("Token usage blueprint registered successfully")
+        except ImportError as e:
+            logger.error(f"Could not register token usage blueprint: {e}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
         
         logger.info("Route blueprints registration completed")
     except Exception as e:

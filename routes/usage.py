@@ -74,6 +74,31 @@ def get_usage_stats():
         logger.error(f"Error getting usage statistics: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
+@usage_bp.route('/test', methods=['GET'])
+def test_usage_endpoint():
+    """
+    Test endpoint for token usage that doesn't require authentication
+    
+    Returns:
+        JSON response with sample token usage statistics
+    """
+    try:
+        # Use a test user ID for demonstration
+        user_id = '00000000-0000-0000-0000-000000000000'
+        
+        # Get usage statistics from token management utility
+        stats = get_user_token_usage(user_id)
+        
+        # Return statistics as JSON
+        return jsonify({
+            "status": "success",
+            "message": "Test usage endpoint is working",
+            "statistics": stats
+        })
+    except Exception as e:
+        logger.error(f"Error in test usage endpoint: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
 @usage_bp.route('/tokens', methods=['GET'])
 @login_required
 def get_token_usage():
