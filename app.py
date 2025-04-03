@@ -156,18 +156,6 @@ def api_index():
         ]
     })
 
-@app.route('/api/debug/routes', methods=['GET'])
-def debug_routes():
-    """Debug endpoint to list all routes"""
-    routes = []
-    for rule in app.url_map.iter_rules():
-        routes.append({
-            'endpoint': rule.endpoint,
-            'path': str(rule),
-            'methods': list(rule.methods)
-        })
-    return jsonify(routes)
-
 @app.route('/api/test-usage')
 def test_usage_api():
     """Test endpoint for usage API"""
@@ -276,18 +264,6 @@ def register_blueprints():
         from routes.usage import usage_bp
         from routes.auth import auth_bp
         
-        # Import binary file upload handler (direct endpoint)
-        from binary_file_handler import binary_upload_bp
-        logger.info("Successfully imported binary file upload blueprint")
-        
-        # Register direct file upload routes
-        try:
-            from routes.file_upload import register_file_routes
-            register_file_routes(app)
-            logger.info("Direct file upload routes registered successfully")
-        except ImportError as e:
-            logger.warning(f"Could not register direct file upload routes: {e}")
-        
         # Register existing blueprints
         app.register_blueprint(ai_test_bp)
         app.register_blueprint(subscription_mgmt_bp)
@@ -295,20 +271,9 @@ def register_blueprints():
         app.register_blueprint(knowledge_bp)
         app.register_blueprint(usage_bp)
         app.register_blueprint(auth_bp)
-        # Register direct binary file upload endpoint
-        app.register_blueprint(binary_upload_bp)
         logger.info("Knowledge blueprint registered successfully")
-        logger.info("Binary file upload endpoint registered successfully")
         logger.info("Token usage blueprint registered successfully")
         logger.info("Auth blueprint registered successfully")
-        
-        # Register simple binary handler for testing
-        try:
-            from simple_binary_handler import simple_binary_bp
-            app.register_blueprint(simple_binary_bp)
-            logger.info("Simple binary blueprint registered successfully")
-        except ImportError as e:
-            logger.warning(f"Could not register simple binary blueprint: {e}")
         
         # Register payments blueprint - which depends on requests
         try:
