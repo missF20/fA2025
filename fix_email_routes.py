@@ -3,121 +3,52 @@ Fix Email Integration Routes
 
 This script directly adds the email_integration_bp import and registration to app.py.
 """
-import logging
-import sys
 import os
+import sys
 from pathlib import Path
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-def fix_routes_init():
+def ensure_email_module_exists():
     """
-    Update routes/__init__.py to correctly import the email_integration_bp
+    Ensure routes/integrations/email.py module exists and has a proper blueprint defined
     """
-    init_path = Path("routes/__init__.py")
-    if not init_path.exists():
-        logger.error("routes/__init__.py not found")
-        return False
+    file_path = Path('routes/integrations/email.py')
     
-    init_content = init_path.read_text()
-    
-    # Only add the import if it's not already there
-    if "from routes.integrations.email import email_integration_bp" not in init_content:
-        # Add the import statement
-        if "# Import all blueprint modules" in init_content:
-            # Insert after this comment
-            updated_content = init_content.replace(
-                "# Import all blueprint modules",
-                "# Import all blueprint modules\nfrom routes.integrations.email import email_integration_bp"
-            )
-        else:
-            # Just append to the end
-            updated_content = init_content + "\n# Import email integration blueprint\nfrom routes.integrations.email import email_integration_bp\n"
+    if not file_path.exists():
+        print(f"Creating {file_path}")
+        directory = file_path.parent
+        if not directory.exists():
+            directory.mkdir(parents=True, exist_ok=True)
         
-        # Write the updated content back to the file
-        try:
-            init_path.write_text(updated_content)
-            logger.info("Updated routes/__init__.py to import email_integration_bp")
-            return True
-        except Exception as e:
-            logger.error(f"Error updating routes/__init__.py: {e}")
-            return False
-    else:
-        logger.info("email_integration_bp import already exists in routes/__init__.py")
-        return True
+        content = '''"""
+Email Integration API
 
-def fix_integrations_init():
-    """
-    Ensure routes/integrations/__init__.py exports the email_integration_bp
-    """
-    init_path = Path("routes/integrations/__init__.py")
-    if not init_path.exists():
-        logger.error("routes/integrations/__init__.py not found")
-        return False
-    
-    init_content = init_path.read_text()
-    
-    # Check if the blueprint is already exported
-    if "from routes.integrations.email import email_integration_bp" not in init_content:
-        # Add the import and export statements
-        updated_content = init_content + "\n# Import and export email integration blueprint\nfrom routes.integrations.email import email_integration_bp\n"
-        
-        # Write the updated content back to the file
-        try:
-            init_path.write_text(updated_content)
-            logger.info("Updated routes/integrations/__init__.py to export email_integration_bp")
-            return True
-        except Exception as e:
-            logger.error(f"Error updating routes/integrations/__init__.py: {e}")
-            return False
-    else:
-        logger.info("email_integration_bp export already exists in routes/integrations/__init__.py")
-        return True
-
-def create_email_integration_module():
-    """
-    Ensure the email.py module exists and has a proper blueprint defined
-    """
-    email_path = Path("routes/integrations/email.py")
-    if not email_path.exists():
-        logger.warning("routes/integrations/email.py not found, creating it")
-        
-        # Create the directory if it doesn't exist
-        email_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        # Create a basic email integration blueprint
-        email_content = '''"""
-Email Integration Routes
-
-This module provides API routes for connecting to and interacting with email services.
-"""'''
-import logging
-import json
+Provides routes for email integration operations.
+"""
 import os
-from flask import Blueprint, jsonify, request, current_app
-from werkzeug.security import generate_password_hash
+import logging
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
+from flask import Blueprint, jsonify, request
+from werkzeug.security import generate_password_hash, check_password_hash
+
 from utils.auth import get_user_from_token
 
-# Create blueprint
-email_integration_bp = Blueprint('email_integration', __name__, url_prefix='/api/integrations/email')
+# Configure logger
+logger = logging.getLogger('email_integration')
 
-# Set up logger
-logger = logging.getLogger(__name__)
+# Create a blueprint
+email_integration_bp = Blueprint('email_integration', __name__, url_prefix='/api/integrations/email')
 
 @email_integration_bp.route('/test', methods=['GET'])
 def test_email():
-    \"""
+    """
     Test endpoint for Email integration that doesn't require authentication
     
     Returns:
         JSON response with test data
-    \"""
+    """
     return jsonify({
         'success': True,
         'message': 'Email integration API is working',
@@ -131,12 +62,12 @@ def test_email():
 
 @email_integration_bp.route('/status', methods=['GET'])
 def get_email_status():
-    \"""
+    """
     Get status of Email integration API
     
     Returns:
         JSON response with status information
-    \"""
+    """
     return jsonify({
         'success': True,
         'status': 'active',
@@ -145,12 +76,12 @@ def get_email_status():
 
 @email_integration_bp.route('/configure', methods=['GET'])
 def get_email_configure():
-    \"""
+    """
     Get configuration schema for Email integration
     
     Returns:
         JSON response with configuration schema
-    \"""
+    """
     schema = get_email_config_schema()
     return jsonify({
         'success': True,
@@ -158,7 +89,7 @@ def get_email_configure():
     })
 
 def connect_email(user_id, config):
-    \"""
+    """
     Connect to email service
     
     Args:
@@ -167,10 +98,10 @@ def connect_email(user_id, config):
         
     Returns:
         tuple: (success, message, status_code)
-    \"""
+    """
     try:
         # Test the connection
-        server = smtplib.SMTP(config['smtp_server'], config['smtp_port'])
+        server = smtplib.SMTP(config['smtp_server'], int(config['smtp_port']))
         server.starttls()
         server.login(config['email'], config['password'])
         server.quit()
@@ -194,7 +125,7 @@ def connect_email(user_id, config):
         return False, f'Error connecting to email service: {str(e)}', 400
 
 def sync_email(user_id, integration_id):
-    \"""
+    """
     Sync with email service
     
     Args:
@@ -203,7 +134,7 @@ def sync_email(user_id, integration_id):
         
     Returns:
         tuple: (success, message, status_code)
-    \"""
+    """
     try:
         # TODO: Implement email sync
         return True, 'Synced with email service successfully', 200
@@ -211,26 +142,13 @@ def sync_email(user_id, integration_id):
         logger.error(f"Error syncing with email service: {str(e)}")
         return False, f'Error syncing with email service: {str(e)}', 400
 
-def get_or_create_user(supabase_user_email):
-    \"""
-    Get a user from the database based on email, or create one if it doesn't exist
-    
-    Args:
-        supabase_user_email: Email from the Supabase token
-        
-    Returns:
-        User: User model instance if found or created, None if error
-    \"""
-    # TODO: Implement user fetching/creation
-    return {'id': 'test-user-id', 'email': supabase_user_email}
-
 def get_email_config_schema():
-    \"""
+    """
     Get configuration schema for Email integration
     
     Returns:
         dict: Configuration schema
-    \"""
+    """
     return {
         'type': 'object',
         'required': ['email', 'password', 'smtp_server', 'smtp_port'],
@@ -263,7 +181,7 @@ def get_email_config_schema():
 
 @email_integration_bp.route('/connect', methods=['POST'])
 def handle_connect_email():
-    \"""
+    """
     Connect to email service
     
     Body:
@@ -278,7 +196,7 @@ def handle_connect_email():
     
     Returns:
         JSON response with connection status
-    \"""
+    """
     try:
         # Get user from token
         user = get_user_from_token()
@@ -334,12 +252,12 @@ def handle_connect_email():
 
 @email_integration_bp.route('/disconnect', methods=['POST'])
 def handle_disconnect_email():
-    \"""
+    """
     Disconnect from email service
     
     Returns:
         JSON response with disconnection status
-    \"""
+    """
     try:
         # Get user from token
         user = get_user_from_token()
@@ -366,12 +284,12 @@ def handle_disconnect_email():
 
 @email_integration_bp.route('/sync', methods=['POST'])
 def handle_sync_email():
-    \"""
+    """
     Sync with email service
     
     Returns:
         JSON response with sync status
-    \"""
+    """
     try:
         # Get user from token
         user = get_user_from_token()
@@ -417,7 +335,7 @@ def handle_sync_email():
 
 @email_integration_bp.route('/send', methods=['POST'])
 def handle_send_email():
-    \"""
+    """
     Send an email
     
     Body:
@@ -430,7 +348,7 @@ def handle_send_email():
     
     Returns:
         JSON response with send status
-    \"""
+    """
     try:
         # Get user from token
         user = get_user_from_token()
@@ -485,7 +403,7 @@ def handle_send_email():
         
         # Send email
         try:
-            server = smtplib.SMTP(email_config['smtp_server'], email_config['smtp_port'])
+            server = smtplib.SMTP(email_config['smtp_server'], int(email_config['smtp_port']))
             server.starttls()
             server.login(email_config['email'], email_config['password'])
             server.send_message(msg)
@@ -509,74 +427,275 @@ def handle_send_email():
             'error': 'Server error',
             'message': f'An error occurred while sending email: {str(e)}'
         }), 500
-"""
-        
+'''
         try:
-            email_path.write_text(email_content)
-            logger.info("Created email integration module at routes/integrations/email.py")
+            file_path.write_text(content)
+            print(f"Created {file_path}")
             return True
         except Exception as e:
-            logger.error(f"Error creating email integration module: {e}")
+            print(f"Error creating {file_path}: {e}")
             return False
-    else:
-        logger.info("Email integration module already exists")
-        return True
+    
+    return True  # File already exists
 
-def fix_app_blueprints():
+
+def update_integrations_init():
+    """
+    Update routes/integrations/__init__.py to correctly export the email_integration_bp
+    """
+    file_path = Path('routes/integrations/__init__.py')
+    
+    if not file_path.exists():
+        print(f"File {file_path} does not exist, creating")
+        directory = file_path.parent
+        if not directory.exists():
+            directory.mkdir(parents=True, exist_ok=True)
+        
+        content = '''"""
+Integrations package
+
+Contains blueprints for various third-party service integrations.
+"""
+# Import integration blueprints
+try:
+    from .email import email_integration_bp
+except ImportError:
+    email_integration_bp = None
+
+try:
+    from .slack import slack_integration_bp
+except ImportError:
+    slack_integration_bp = None
+
+try:
+    from .zendesk import zendesk_bp
+except ImportError:
+    zendesk_bp = None
+
+try:
+    from .google_analytics import google_analytics_bp
+except ImportError:
+    google_analytics_bp = None
+
+# Export integration blueprints (only the ones that exist)
+__all__ = []
+
+if email_integration_bp:
+    __all__.append('email_integration_bp')
+
+if slack_integration_bp:
+    __all__.append('slack_integration_bp')
+
+if zendesk_bp:
+    __all__.append('zendesk_bp')
+
+if google_analytics_bp:
+    __all__.append('google_analytics_bp')
+'''
+        try:
+            file_path.write_text(content)
+            print(f"Created {file_path}")
+            return True
+        except Exception as e:
+            print(f"Error creating {file_path}: {e}")
+            return False
+    
+    # File exists, check if email_integration_bp is imported
+    content = file_path.read_text()
+    
+    if 'from .email import email_integration_bp' in content:
+        print("email_integration_bp already imported in routes/integrations/__init__.py")
+        return True
+    
+    # Add import line if missing
+    new_content = content.replace(
+        '"""',
+        '"""\n# Import integration blueprints\ntry:\n    from .email import email_integration_bp\nexcept ImportError:\n    email_integration_bp = None\n',
+        1
+    )
+    
+    # Add to __all__ list if missing
+    if '__all__' in new_content:
+        if "email_integration_bp" not in new_content:
+            new_content = new_content.replace(
+                '__all__ = [',
+                '__all__ = [\n    "email_integration_bp",'
+            )
+    else:
+        new_content += '\n\n__all__ = ["email_integration_bp"]\n'
+    
+    try:
+        file_path.write_text(new_content)
+        print(f"Updated {file_path}")
+        return True
+    except Exception as e:
+        print(f"Error updating {file_path}: {e}")
+        return False
+
+
+def update_routes_init():
+    """
+    Update routes/__init__.py to correctly import and register the email_integration_bp
+    """
+    file_path = Path('routes/__init__.py')
+    
+    if not file_path.exists():
+        print(f"File {file_path} does not exist, creating")
+        
+        content = '''"""
+Routes package
+
+Contains all application routes organized in blueprints.
+"""
+# Import integrations
+try:
+    from .integrations import email_integration_bp
+except ImportError:
+    email_integration_bp = None
+
+# Import all route blueprints
+try:
+    from .knowledge import knowledge_bp
+except ImportError:
+    knowledge_bp = None
+
+try:
+    from .usage import usage_bp
+except ImportError:
+    usage_bp = None
+
+try:
+    from .auth import auth_bp
+except ImportError:
+    auth_bp = None
+
+# Create list of all blueprints
+blueprints = []
+
+if email_integration_bp:
+    blueprints.append(email_integration_bp)
+    
+if knowledge_bp:
+    blueprints.append(knowledge_bp)
+    
+if usage_bp:
+    blueprints.append(usage_bp)
+    
+if auth_bp:
+    blueprints.append(auth_bp)
+'''
+        try:
+            file_path.write_text(content)
+            print(f"Created {file_path}")
+            return True
+        except Exception as e:
+            print(f"Error creating {file_path}: {e}")
+            return False
+    
+    # File exists, check if email_integration_bp is imported
+    content = file_path.read_text()
+    
+    if 'from .integrations import email_integration_bp' in content:
+        print("email_integration_bp already imported in routes/__init__.py")
+        
+        # Check if it's in the blueprints list
+        if 'email_integration_bp' in content and 'blueprints.append(email_integration_bp)' in content:
+            print("email_integration_bp already in blueprints list")
+            return True
+    
+    # Add import if missing
+    if 'from .integrations import email_integration_bp' not in content:
+        # Add import line at the integrations section
+        if '# Import integrations' in content:
+            new_content = content.replace(
+                '# Import integrations',
+                '# Import integrations\ntry:\n    from .integrations import email_integration_bp\nexcept ImportError:\n    email_integration_bp = None'
+            )
+        else:
+            # No marker, add after initial docstring
+            if '"""' in content:
+                docstring_end = content.find('"""', content.find('"""') + 3) + 3
+                new_content = content[:docstring_end] + '\n\n# Import integrations\ntry:\n    from .integrations import email_integration_bp\nexcept ImportError:\n    email_integration_bp = None\n\n' + content[docstring_end:]
+            else:
+                new_content = '"""Routes package\n\nContains all application routes organized in blueprints.\n"""\n\n# Import integrations\ntry:\n    from .integrations import email_integration_bp\nexcept ImportError:\n    email_integration_bp = None\n\n' + content
+    else:
+        new_content = content
+    
+    # Add to blueprints list if missing
+    if 'blueprints = [' in new_content:
+        if 'email_integration_bp' not in new_content or 'blueprints.append(email_integration_bp)' not in new_content:
+            # Add to blueprints list
+            new_content = new_content.replace(
+                'blueprints = [',
+                'blueprints = []\n\nif email_integration_bp:\n    blueprints.append(email_integration_bp)\n'
+            )
+    else:
+        # No blueprints list found, create one
+        new_content += '\n\n# Create list of all blueprints\nblueprints = []\n\nif email_integration_bp:\n    blueprints.append(email_integration_bp)\n'
+    
+    try:
+        file_path.write_text(new_content)
+        print(f"Updated {file_path}")
+        return True
+    except Exception as e:
+        print(f"Error updating {file_path}: {e}")
+        return False
+
+
+def update_app_direct_import():
     """
     Update app.py to explicitly import and register the email_integration_bp
     """
-    app_path = Path("app.py")
-    if not app_path.exists():
-        logger.error("app.py not found")
+    file_path = Path('app.py')
+    
+    if not file_path.exists():
+        print(f"File {file_path} does not exist")
         return False
     
-    # First check if our direct route is in the app
-    app_content = app_path.read_text()
+    content = file_path.read_text()
     
-    # If we already have a direct email integration endpoint in app.py,
-    # we don't need to modify the file
-    if "@app.route('/api/integrations/email/test', methods=['GET'])" in app_content:
-        logger.info("Direct email integration test endpoint already exists in app.py")
-        return True
+    # Find the register_blueprints function
+    if 'def register_blueprints():' not in content:
+        print("register_blueprints function not found in app.py")
+        return False
     
-    # Check if the blueprint import is already there
-    blueprint_import = "from routes.integrations.email import email_integration_bp"
-    blueprint_register = "app.register_blueprint(email_integration_bp)"
+    # Check if there's already a direct import for email_integration_bp
+    if 'from routes.integrations.email import email_integration_bp' in content:
+        print("email_integration_bp already imported directly in app.py")
+        
+        # Check if it's registered
+        if 'app.register_blueprint(email_integration_bp)' in content:
+            print("email_integration_bp already registered in app.py")
+            return True
     
-    if blueprint_import in app_content and blueprint_register in app_content:
-        logger.info("Email integration blueprint already properly imported and registered in app.py")
-        return True
+    # Find a good place to add the email integration blueprint registration
+    marker = "        # Slack integration blueprint"
     
-    # Otherwise, add the import and registration
-    
-    # Find the register blueprints function
-    if "def register_blueprints():" in app_content:
-        # Insert before "return True" in register_blueprints function
-        if "    return True" in app_content:
-            updated_content = app_content.replace(
-                "    return True",
-                """    # Ensure email integration blueprint is registered
-    try:
-        from routes.integrations.email import email_integration_bp
-        app.register_blueprint(email_integration_bp)
-        logger.info("Email integration blueprint registered successfully")
-    except Exception as e:
-        logger.error(f"Error registering email integration blueprint: {e}")
-    
-    return True"""
-            )
-            
-            try:
-                app_path.write_text(updated_content)
-                logger.info("Updated app.py to import and register email_integration_bp")
-                return True
-            except Exception as e:
-                logger.error(f"Error updating app.py: {e}")
-                return False
-    
-    logger.warning("Could not find suitable place to insert email integration blueprint in app.py")
-    return False
+    if marker in content:
+        # Add before Slack integration
+        insert_code = '''        # Email integration blueprint
+        try:
+            from routes.integrations.email import email_integration_bp
+            app.register_blueprint(email_integration_bp)
+            logger.info("Email integration blueprint registered successfully")
+        except Exception as e:
+            logger.error(f"Error registering email integration blueprint: {e}")
+        
+'''
+        
+        new_content = content.replace(marker, insert_code + marker)
+        
+        try:
+            file_path.write_text(new_content)
+            print(f"Updated {file_path}")
+            return True
+        except Exception as e:
+            print(f"Error updating {file_path}: {e}")
+            return False
+    else:
+        print("Could not find insertion point in app.py")
+        return False
+
 
 def main():
     """
@@ -584,31 +703,28 @@ def main():
     """
     success = True
     
-    # Step 1: Create/update the email integration module
-    if not create_email_integration_module():
-        logger.error("Failed to create email integration module")
+    if not ensure_email_module_exists():
         success = False
     
-    # Step 2: Fix the integrations/__init__.py file
-    if not fix_integrations_init():
-        logger.error("Failed to fix routes/integrations/__init__.py")
+    if not update_integrations_init():
         success = False
     
-    # Step 3: Fix the routes/__init__.py file
-    if not fix_routes_init():
-        logger.error("Failed to fix routes/__init__.py")
+    if not update_routes_init():
         success = False
     
-    # Step 4: Update the app.py file to register the blueprint
-    if not fix_app_blueprints():
-        logger.error("Failed to update app.py to register email integration blueprint")
+    if not update_app_direct_import():
         success = False
     
     if success:
-        logger.info("Email integration routes fixed successfully")
+        print("Successfully applied email integration routes fixes")
+        print("\nTo test the integration, run:")
+        print("  curl -X GET http://0.0.0.0:5000/api/integrations/email/test")
+        print("  curl -X GET http://0.0.0.0:5000/api/integrations/email/status")
+        print("  curl -X GET http://0.0.0.0:5000/api/integrations/email/configure")
+        print("\nRestart the application for changes to take effect")
         return 0
     else:
-        logger.error("Failed to fix email integration routes")
+        print("Failed to apply all fixes")
         return 1
 
 if __name__ == "__main__":

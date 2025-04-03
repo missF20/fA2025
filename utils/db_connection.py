@@ -8,9 +8,44 @@ import logging
 import psycopg2
 import psycopg2.extras
 from typing import Dict, List, Optional, Any, Tuple, Union
+from flask import current_app
+from sqlalchemy.orm import scoped_session, sessionmaker
 
 # Setup logger
 logger = logging.getLogger(__name__)
+
+def get_db():
+    """
+    Get the SQLAlchemy database session
+    
+    Returns:
+        SQLAlchemy database session
+    """
+    try:
+        if current_app and hasattr(current_app, 'extensions') and 'sqlalchemy' in current_app.extensions:
+            # If we're in a Flask app context, return the db from there
+            from app import db
+            return db
+        else:
+            # If we're not in a Flask app context, create a new session
+            from sqlalchemy import create_engine
+            from sqlalchemy.orm import scoped_session, sessionmaker
+            
+            # Get the database URL
+            db_url = os.environ.get('DATABASE_URL')
+            if not db_url:
+                params = get_db_params()
+                db_url = f"postgresql://{params['user']}:{params['password']}@{params['host']}:{params['port']}/{params['database']}"
+            
+            # Create engine and session
+            engine = create_engine(db_url)
+            session_factory = sessionmaker(bind=engine)
+            Session = scoped_session(session_factory)
+            
+            return Session
+    except Exception as e:
+        logger.error(f"Error getting database session: {str(e)}")
+        raise
 
 def get_db_params() -> Dict[str, str]:
     """

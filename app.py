@@ -351,7 +351,140 @@ def init_automation():
 # Register blueprints/routes
 def register_blueprints():
     """Register all route blueprints"""
+    # Import all blueprints from routes package
     try:
+        from routes import blueprints
+        
+        # Register all blueprints
+        for blueprint in blueprints:
+            try:
+                app.register_blueprint(blueprint)
+                logger.info(f"Registered blueprint: {blueprint.name}")
+            except Exception as e:
+                logger.error(f"Error registering blueprint {getattr(blueprint, 'name', 'unknown')}: {e}")
+    except Exception as e:
+        logger.error(f"Error importing blueprints: {e}")
+        
+    # Explicitly register critical blueprints
+    try:
+        # Knowledge blueprint
+        try:
+            from routes.knowledge import knowledge_bp
+            app.register_blueprint(knowledge_bp)
+            logger.info("Knowledge blueprint registered successfully")
+            
+            # Knowledge binary blueprint
+            try:
+                from routes.knowledge_binary import knowledge_binary_bp
+                app.register_blueprint(knowledge_binary_bp)
+                logger.info("Knowledge binary blueprint registered successfully")
+            except Exception as e:
+                logger.error(f"Error registering knowledge binary blueprint: {e}")
+        except Exception as e:
+            logger.error(f"Error registering knowledge blueprint: {e}")
+            
+        # Create direct routes for email integration testing
+        @app.route('/api/integrations/email/test', methods=['GET'])
+        def test_email_integration():
+            """
+            Test endpoint for Email integration that doesn't require authentication
+            """
+            from flask import jsonify
+            return jsonify({
+                'success': True,
+                'message': 'Email integration API is working',
+                'endpoints': [
+                    '/connect',
+                    '/disconnect',
+                    '/sync',
+                    '/send'
+                ]
+            })
+            
+        @app.route('/api/integrations/email/status', methods=['GET'])
+        def status_email_integration():
+            """
+            Status endpoint for Email integration that doesn't require authentication
+            """
+            from flask import jsonify
+            return jsonify({
+                'success': True,
+                'status': 'active',
+                'version': '1.0.0'
+            })
+            
+        @app.route('/api/integrations/email/configure', methods=['GET'])
+        def configure_email_integration():
+            """
+            Configuration endpoint for Email integration that doesn't require authentication
+            """
+            from flask import jsonify
+            return jsonify({
+                'success': True,
+                'schema': {
+                    'type': 'object',
+                    'required': ['email', 'password', 'smtp_server', 'smtp_port'],
+                    'properties': {
+                        'email': {
+                            'type': 'string',
+                            'format': 'email',
+                            'title': 'Email',
+                            'description': 'Your email address'
+                        },
+                        'password': {
+                            'type': 'string',
+                            'format': 'password',
+                            'title': 'Password',
+                            'description': 'Your email password or app password'
+                        },
+                        'smtp_server': {
+                            'type': 'string',
+                            'title': 'SMTP Server',
+                            'description': 'SMTP server address (e.g., smtp.gmail.com)'
+                        },
+                        'smtp_port': {
+                            'type': 'string',
+                            'title': 'SMTP Port',
+                            'description': 'SMTP server port (e.g., 587)',
+                            'default': '587'
+                        }
+                    }
+                }
+            })
+        logger.info("Direct email integration endpoints registered successfully")
+        
+        # Register email test blueprint explicitly
+        try:
+            from routes.email_test import email_test_bp
+            app.register_blueprint(email_test_bp)
+            logger.info("Email test blueprint registered successfully")
+        except Exception as e:
+            logger.error(f"Error registering email test blueprint: {e}")
+            
+        # Email integration blueprint
+        try:
+            from routes.integrations.email import email_integration_bp
+            app.register_blueprint(email_integration_bp)
+            logger.info("Email integration blueprint registered successfully")
+        except Exception as e:
+            logger.error(f"Error registering email integration blueprint: {e}")
+            
+        # Slack integration blueprint
+        try:
+            from routes.integrations.slack import slack_integration_bp
+            app.register_blueprint(slack_integration_bp)
+            logger.info("Slack integration blueprint registered successfully")
+        except Exception as e:
+            logger.error(f"Error registering slack integration blueprint: {e}")
+            
+        # Test blueprint (for verification)
+        try:
+            from routes.test_route import test_blueprint_bp
+            app.register_blueprint(test_blueprint_bp)
+            logger.info("Test blueprint registered successfully")
+        except Exception as e:
+            logger.error(f"Error registering test blueprint: {e}")
+
         # Import and register core blueprints individually with proper error handling
         try:
             from routes.ai_test import ai_test_bp
