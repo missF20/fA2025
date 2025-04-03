@@ -144,17 +144,6 @@ def knowledge_stats_api():
         logger.error(f"Error in direct knowledge stats endpoint: {str(e)}")
         return jsonify({"error": "Knowledge stats API error", "details": str(e)}), 500
 
-@app.route('/api/knowledge/binary/upload', methods=['POST'])
-def binary_upload_api():
-    # Direct endpoint for binary file upload API
-    try:
-        # Import function from knowledge blueprint
-        from routes.knowledge import upload_binary_file
-        return upload_binary_file()
-    except Exception as e:
-        logger.error(f"Error in direct binary upload endpoint: {str(e)}")
-        return jsonify({"error": "Binary upload API error", "details": str(e)}), 500
-
 
 if __name__ == "__main__":
     # Start the main application using SocketIO
