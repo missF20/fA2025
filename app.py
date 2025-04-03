@@ -280,6 +280,14 @@ def register_blueprints():
         from binary_file_handler import binary_upload_bp
         logger.info("Successfully imported binary file upload blueprint")
         
+        # Register direct file upload routes
+        try:
+            from routes.file_upload import register_file_routes
+            register_file_routes(app)
+            logger.info("Direct file upload routes registered successfully")
+        except ImportError as e:
+            logger.warning(f"Could not register direct file upload routes: {e}")
+        
         # Register existing blueprints
         app.register_blueprint(ai_test_bp)
         app.register_blueprint(subscription_mgmt_bp)
