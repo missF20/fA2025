@@ -90,8 +90,13 @@ def test_all_blueprints():
         logger.info("SUCCESS: Routes listing returned valid JSON")
         
         # Check if email integration routes are present
-        email_routes = [r for r in routes.get('routes', []) 
-                       if 'email_integration' in r.get('endpoint', '')]
+        # Handle both dictionary and list formats of routes
+        if isinstance(routes, dict):
+            routes_list = routes.get('routes', [])
+        else:
+            routes_list = routes
+            
+        email_routes = [r for r in routes_list if isinstance(r, dict) and 'email_integration' in r.get('endpoint', '')]
         
         if email_routes:
             logger.info(f"Email integration routes found: {len(email_routes)}")
