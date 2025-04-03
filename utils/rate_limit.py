@@ -7,7 +7,13 @@ This module provides utilities for applying rate limits to routes to prevent abu
 import logging
 import functools
 from flask import request, jsonify
-from app import limiter
+
+# Avoid circular import from app
+try:
+    from app import limiter
+except ImportError:
+    limiter = None
+    logging.getLogger(__name__).warning("Flask-Limiter not available, rate limiting disabled")
 
 logger = logging.getLogger(__name__)
 
@@ -23,9 +29,13 @@ def rate_limit_middleware(limit_string="20 per minute"):
     """
     def decorator(f):
         @functools.wraps(f)
-        @limiter.limit(limit_string)
         def wrapped(*args, **kwargs):
-            return f(*args, **kwargs)
+            if limiter:
+                # Apply rate limiting if available
+                return limiter.limit(limit_string)(f)(*args, **kwargs)
+            else:
+                # If limiter is not available, just call the function
+                return f(*args, **kwargs)
         return wrapped
     return decorator
 
@@ -38,6 +48,10 @@ def apply_rate_limit(blueprint, route, limit_string="20 per minute"):
         route: The route path, e.g. "/api/users"
         limit_string: The rate limit string, e.g. "20 per minute"
     """
+    if not limiter:
+        logger.warning("Rate limiting is disabled, skipping rate limit application")
+        return
+        
     route_function = None
     
     # Find the route function
@@ -90,6 +104,13 @@ def register_rate_limit_handler(app):
     Args:
         app: The Flask application
     """
-    from flask_limiter.errors import RateLimitExceeded
-    app.errorhandler(RateLimitExceeded)(handle_rate_limit_exceeded)
-    logger.info("Rate limit exceeded handler registered")
+    if not limiter:
+        logger.warning("Rate limiting is disabled, skipping rate limit handler registration")
+        return
+        
+    try:
+        from flask_limiter.errors import RateLimitExceeded
+        app.errorhandler(RateLimitExceeded)(handle_rate_limit_exceeded)
+        logger.info("Rate limit exceeded handler registered")
+    except ImportError:
+        logger.warning("Could not import flask_limiter.errors, rate limit handler not registered")

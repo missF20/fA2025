@@ -23,3 +23,8 @@ __all__ = [
     'hubspot_bp',
     'salesforce_bp'
 ]
+
+# Automatically added imports
+from .slack import slack_integration_bp
+from .zendesk import zendesk_bp
+from .google_analytics import google_analytics_bp

@@ -171,7 +171,6 @@ def test_usage_api():
     })
 
 @app.route("/routes")
-@app.route("/api/routes")
 def list_routes():
     """List all routes in the application"""
     routes = []
@@ -196,30 +195,12 @@ def upload_binary_file():
     from utils.file_parser import FileParser
     
     try:
-        # Import datetime module
-        import datetime
-        
-        # First check for test mode before any auth
-        if request.args.get('test') == 'true':
-            return jsonify({
-                'success': True,
-                'message': 'Binary upload endpoint is accessible',
-                'test_mode': True,
-                'timestamp': datetime.datetime.now().isoformat()
-            })
-            
         # Get the user from the request context
         user = get_user_from_token()
-        if not user:
-            return jsonify({'error': 'User not authenticated'}), 401
-            
-        # Check that user is a dictionary before using get()
-        if not isinstance(user, dict):
-            return jsonify({'error': 'Invalid user data format'}), 500
-            
         user_id = user.get('id', None)
+        
         if not user_id:
-            return jsonify({'error': 'User ID not found'}), 401
+            return jsonify({'error': 'User not authenticated'}), 401
         
         if 'file' not in request.files:
             return jsonify({'error': 'No file provided'}), 400
@@ -278,36 +259,6 @@ def upload_binary_file():
         return jsonify({'error': f'Failed to upload file: {str(e)}'}), 500
 
 @app.route("/status")
-
-# Direct token usage test endpoint
-@app.route("/api/usage/test", methods=["GET"])
-def test_token_usage_endpoint():
-    """
-    Test endpoint for token usage that doesn't require authentication
-    
-    Returns:
-        JSON response with sample token usage statistics
-    """""
-    try:
-        # Use a test user ID for demonstration
-        from utils.token_management import get_user_token_usage
-        
-        user_id = '00000000-0000-0000-0000-000000000000'
-        
-        # Get usage statistics from token management utility
-        stats = get_user_token_usage(user_id)
-        
-        # Return statistics as JSON
-        return jsonify({
-            "status": "success",
-            "message": "Test usage endpoint is working",
-            "statistics": stats
-        })
-    except Exception as e:
-        logger.error(f"Error in test usage endpoint: {str(e)}")
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/api/status")
 def status():
     """API status endpoint"""
     status_info = {
@@ -380,431 +331,25 @@ def init_automation():
 # Register blueprints/routes
 def register_blueprints():
     """Register all route blueprints"""
-    # Import all blueprints from routes package
     try:
-        from routes import blueprints
+        # Import all blueprints
+        from routes.ai_test import ai_test_bp
+        from routes.subscription_management import subscription_mgmt_bp
+        from routes.pdf_analysis import pdf_analysis_bp
+        from routes.knowledge import knowledge_bp
+        from routes.usage import usage_bp
+        from routes.auth import auth_bp
         
-        # Register all blueprints
-        for blueprint in blueprints:
-            try:
-                app.register_blueprint(blueprint)
-                logger.info(f"Registered blueprint: {blueprint.name}")
-            except Exception as e:
-                logger.error(f"Error registering blueprint {getattr(blueprint, 'name', 'unknown')}: {e}")
-    except Exception as e:
-        logger.error(f"Error importing blueprints: {e}")
-        
-    # Explicitly register critical blueprints
-    try:
-        # Knowledge blueprint
-        try:
-            from routes.knowledge import knowledge_bp
-            app.register_blueprint(knowledge_bp)
-            logger.info("Knowledge blueprint registered successfully")
-            
-            # Knowledge binary blueprint
-            try:
-                from routes.knowledge_binary import knowledge_binary_bp
-                app.register_blueprint(knowledge_binary_bp)
-                logger.info("Knowledge binary blueprint registered successfully")
-            except Exception as e:
-                logger.error(f"Error registering knowledge binary blueprint: {e}")
-        except Exception as e:
-            logger.error(f"Error registering knowledge blueprint: {e}")
-            
-        # Create direct routes for email integration testing
-        @app.route('/api/integrations/email/test', methods=['GET'])
-        def test_email_integration():
-            """
-            Test endpoint for Email integration that doesn't require authentication
-            """
-            from flask import jsonify
-            return jsonify({
-                'success': True,
-                'message': 'Email integration API is working',
-                'endpoints': [
-                    '/connect',
-                    '/disconnect',
-                    '/sync',
-                    '/send'
-                ]
-            })
-            
-        @app.route('/api/integrations/email/status', methods=['GET'])
-        def status_email_integration():
-            """
-            Status endpoint for Email integration that doesn't require authentication
-            """
-            from flask import jsonify
-            return jsonify({
-                'success': True,
-                'status': 'active',
-                'version': '1.0.0'
-            })
-            
-        @app.route('/api/integrations/email/connect', methods=['POST'])
-        def connect_email_integration():
-            """
-            Connect to email service endpoint that doesn't require authentication for testing
-            """
-            from flask import jsonify, request
-            try:
-                # For testing purposes, accept any request and return success
-                return jsonify({
-                    'success': True,
-                    'message': 'Connected to email service successfully',
-                    'connection_id': 'test-connection-id'
-                })
-            except Exception as e:
-                return jsonify({
-                    'success': False,
-                    'error': str(e)
-                }), 500
-            
-        @app.route('/api/integrations/email/configure', methods=['GET'])
-        def configure_email_integration():
-            """
-            Configuration endpoint for Email integration that doesn't require authentication
-            """
-            from flask import jsonify
-            return jsonify({
-                'success': True,
-                'schema': {
-                    'type': 'object',
-                    'required': ['email', 'password', 'smtp_server', 'smtp_port'],
-                    'properties': {
-                        'email': {
-                            'type': 'string',
-                            'format': 'email',
-                            'title': 'Email',
-                            'description': 'Your email address'
-                        },
-                        'password': {
-                            'type': 'string',
-                            'format': 'password',
-                            'title': 'Password',
-                            'description': 'Your email password or app password'
-                        },
-                        'smtp_server': {
-                            'type': 'string',
-                            'title': 'SMTP Server',
-                            'description': 'SMTP server address (e.g., smtp.gmail.com)'
-                        },
-                        'smtp_port': {
-                            'type': 'string',
-                            'title': 'SMTP Port',
-                            'description': 'SMTP server port (e.g., 587)',
-                            'default': '587'
-                        }
-                    }
-                }
-            })
-        logger.info("Direct email integration endpoints registered successfully")
-        
-        # Register email test blueprint explicitly
-        try:
-            from routes.email_test import email_test_bp
-            app.register_blueprint(email_test_bp)
-            logger.info("Email test blueprint registered successfully")
-        except Exception as e:
-            logger.error(f"Error registering email test blueprint: {e}")
-            
-        # Email integration blueprint
-        try:
-            from routes.integrations.email import email_integration_bp
-            app.register_blueprint(email_integration_bp)
-            logger.info("Email integration blueprint registered successfully")
-        except Exception as e:
-            logger.error(f"Error registering email integration blueprint: {e}")
-            
-        # Slack integration 
-        try:
-            # Import the slack module without the blueprint
-            import routes.integrations.slack
-            logger.info("Slack integration module imported successfully")
-        except Exception as e:
-            logger.error(f"Error importing slack integration module: {e}")
-            
-        # Zendesk integration
-        try:
-            # Import the zendesk module without the blueprint
-            import routes.integrations.zendesk
-            logger.info("Zendesk integration module imported successfully")
-        except Exception as e:
-            logger.error(f"Error importing zendesk integration module: {e}")
-            
-        # Google Analytics integration
-        try:
-            # Import the google_analytics module without the blueprint
-            import routes.integrations.google_analytics
-            logger.info("Google Analytics integration module imported successfully")
-        except Exception as e:
-            logger.error(f"Error importing google_analytics integration module: {e}")
-            
-        # Test blueprint (for verification)
-        try:
-            from routes.test_route import test_blueprint_bp
-            app.register_blueprint(test_blueprint_bp)
-            logger.info("Test blueprint registered successfully")
-        except Exception as e:
-            logger.error(f"Error registering test blueprint: {e}")
-
-        # Import and register core blueprints individually with proper error handling
-        try:
-            from routes.ai_test import ai_test_bp
-            app.register_blueprint(ai_test_bp)
-            logger.info("AI test blueprint registered successfully")
-        except Exception as e:
-            logger.error(f"Error registering AI test blueprint: {e}")
-        
-        try:
-            from routes.subscription_management import subscription_mgmt_bp
-            app.register_blueprint(subscription_mgmt_bp)
-            logger.info("Subscription management blueprint registered successfully")
-        except Exception as e:
-            logger.error(f"Error registering subscription management blueprint: {e}")
-        
-        try:
-            from routes.pdf_analysis import pdf_analysis_bp
-            app.register_blueprint(pdf_analysis_bp)
-            logger.info("PDF analysis blueprint registered successfully")
-        except Exception as e:
-            logger.error(f"Error registering PDF analysis blueprint: {e}")
-        
-        # Explicitly import and register knowledge blueprint
-        try:
-            from routes.knowledge import knowledge_bp
-            app.register_blueprint(knowledge_bp)
-            logger.info("Knowledge blueprint registered successfully")
-            
-            # Register the knowledge binary upload blueprint
-            try:
-                from routes.knowledge_binary import knowledge_binary_bp
-                app.register_blueprint(knowledge_binary_bp)
-                logger.info("Knowledge binary upload blueprint registered successfully")
-            except Exception as e:
-                logger.error(f"Error registering knowledge binary upload blueprint: {e}")
-                
-                # Fallback: register binary upload endpoint directly if blueprint registration fails
-                @app.route("/api/knowledge/files/binary", methods=["POST"])
-                def upload_binary_file():
-                    """
-                    Upload a binary file to the knowledge base
-                    
-                    This endpoint accepts multipart/form-data with a file
-                    """
-                # This is a fallback in case the endpoint in the blueprint isn't registered
-                # Import the necessary modules
-                import base64
-                import logging
-                import uuid
-                import datetime
-                from flask import request, jsonify
-                from utils.auth import get_user_from_token
-                from utils.file_parser import FileParser
-                
-                # Set up a specific logger for this route
-                upload_logger = logging.getLogger('binary_upload')
-                upload_logger.setLevel(logging.DEBUG)
-                
-                try:
-                    # Debug info to trace execution path
-                    upload_logger.debug(f"Received binary upload request, args: {request.args}")
-                    
-                    # Test endpoint - check if the test parameter is present
-                    # We need to handle this very early before any user authentication
-                    test_mode = request.args.get('test') == 'true'
-                    if test_mode:
-                        upload_logger.info("Test mode active, returning test response")
-                        return jsonify({
-                            'success': True,
-                            'message': 'Binary upload endpoint is accessible',
-                            'test_mode': True,
-                            'timestamp': datetime.datetime.now().isoformat()
-                        })
-                    
-                    # Check for dev bypass immediately after test endpoint check
-                    bypass_auth = request.args.get('bypass_auth') == 'true'
-                    is_dev = (os.environ.get('FLASK_ENV') == 'development' or 
-                             request.args.get('flask_env') == 'development')
-                    
-                    upload_logger.debug(f"bypass_auth = {bypass_auth}, is_dev = {is_dev}")
-                    upload_logger.debug(f"FLASK_ENV = {os.environ.get('FLASK_ENV')}")
-                    
-                    # For development and testing purposes
-                    user = None
-                    
-                    # If we're in dev mode and bypass auth is requested, skip all auth checking
-                    if bypass_auth and is_dev:
-                        upload_logger.warning("Development mode - authentication bypassed")
-                        # Skip all authentication and use a test user ID
-                        user = {"id": "test-dev-user"}
-                    else:
-                        # Beyond this point is for actual file uploads that require authentication
-                        upload_logger.debug("Testing endpoint not requested, proceeding to authentication")
-                        
-                        # For actual uploads, we need authentication
-                        auth_header = request.headers.get('Authorization')
-                        upload_logger.debug(f"Authorization header present: {auth_header is not None}")
-                        
-                        if not auth_header:
-                            # Return a specific test response for unauthenticated requests
-                            return jsonify({
-                                'success': False,
-                                'error': 'Authentication required',
-                                'message': 'Please provide a valid authentication token in the Authorization header'
-                            }), 401
-                    
-                    # Handle user authentication if not already authenticated via bypass
-                    if not user:
-                        # Normal authentication path
-                        try:
-                            upload_logger.debug("Getting user from token")
-                            user = get_user_from_token()
-                            upload_logger.info(f"User from token: {user}")
-                            
-                            if not user:
-                                return jsonify({
-                                    'success': False,
-                                    'error': 'Invalid authentication',
-                                    'message': 'The provided authentication token is invalid or expired'
-                                }), 401
-                        except Exception as auth_error:
-                            upload_logger.error(f"Authentication error: {str(auth_error)}")
-                            # Second chance for development mode bypass
-                            bypass_auth = request.args.get('bypass_auth') == 'true'
-                            is_dev = (os.environ.get('FLASK_ENV') == 'development' or 
-                                    request.args.get('flask_env') == 'development')
-                            
-                            upload_logger.debug(f"Second check - bypass_auth: {bypass_auth}, is_dev: {is_dev}")
-                            
-                            if bypass_auth and is_dev:
-                                upload_logger.warning("Authentication bypassed after error")
-                                user = {"id": "test-user-id-fallback"}
-                            else:
-                                return jsonify({
-                                    'success': False,
-                                    'error': 'Authentication error',
-                                    'message': f'Error during authentication: {str(auth_error)}'
-                                }), 401
-                    
-                    user_id = user.get('id')
-                    upload_logger.info(f"User ID: {user_id}")
-                    
-                    if not user_id:
-                        return jsonify({
-                            'success': False,
-                            'error': 'User ID not found',
-                            'message': 'Could not identify the user from the provided token'
-                        }), 401
-                    
-                    if 'file' not in request.files:
-                        return jsonify({
-                            'success': False,
-                            'error': 'No file provided',
-                            'message': 'Please provide a file in the multipart/form-data'
-                        }), 400
-                    
-                    file = request.files['file']
-                    
-                    if file.filename == '':
-                        return jsonify({
-                            'success': False,
-                            'error': 'Empty filename',
-                            'message': 'The provided file has no filename'
-                        }), 400
-                    
-                    # Get file metadata
-                    filename = file.filename
-                    file_type = file.content_type or 'application/octet-stream'
-                    
-                    # Read the file data
-                    file_data = file.read()
-                    file_size = len(file_data)
-                    
-                    # Create a FileParser instance
-                    parser = FileParser()
-                    
-                    # Parse the file
-                    content_text = ""
-                    try:
-                        parsed_result = parser.parse_file(file_data, file_type)
-                        if isinstance(parsed_result, dict):
-                            # Extract text content from dictionary result
-                            content_text = parsed_result.get('content', '')
-                        elif isinstance(parsed_result, str):
-                            content_text = parsed_result
-                        else:
-                            # Convert to string if it's another type
-                            content_text = str(parsed_result)
-                    except Exception as parser_error:
-                        upload_logger.error(f"Error parsing file: {str(parser_error)}")
-                        content_text = f"Error parsing file: {str(parser_error)}"
-                    
-                    # Base64 encode the file data for storage
-                    encoded_data = base64.b64encode(file_data).decode('utf-8')
-                    
-                    # Try using the direct upload utility to bypass Supabase API
-                    try:
-                        from utils.direct_uploads import upload_knowledge_file
-                        
-                        # Upload the file using direct DB connection
-                        result = upload_knowledge_file(
-                            user_id=user_id,
-                            file_name=filename,
-                            file_type=file_type,
-                            file_data=file_data,
-                            content=content_text,
-                            category="documents",
-                            tags="",
-                            metadata=""
-                        )
-                        
-                        upload_logger.info(f"Direct upload result: {result}")
-                        
-                        # Return the result from direct upload
-                        return jsonify(result)
-                        
-                    except Exception as direct_upload_error:
-                        upload_logger.error(f"Direct upload failed: {str(direct_upload_error)}")
-                        
-                        # For testing purposes, just log the upload information
-                        upload_logger.info(f"File uploaded: {filename}, type: {file_type}, size: {file_size} bytes")
-                        
-                        # Return success message with basic file info
-                        return jsonify({
-                            'success': True, 
-                            'message': 'File uploaded successfully (fallback response)',
-                            'file_info': {
-                                'filename': filename,
-                                'file_type': file_type,
-                                'file_size': file_size,
-                                'upload_time': datetime.datetime.now().isoformat()
-                            }
-                        })
-                    
-                except Exception as e:
-                    upload_logger.error(f"Error uploading binary file: {str(e)}")
-                    return jsonify({'error': f'Failed to upload file: {str(e)}'}), 500
-            
-            logger.info("Binary upload endpoint registered as a fallback")
-            
-        except Exception as e:
-            logger.error(f"Error registering knowledge blueprint: {e}")
-        
-        try:
-            from routes.usage import usage_bp
-            app.register_blueprint(usage_bp)
-            logger.info("Token usage blueprint registered successfully")
-        except Exception as e:
-            logger.error(f"Error registering token usage blueprint: {e}")
-        
-        try:
-            from routes.auth import auth_bp
-            app.register_blueprint(auth_bp)
-            logger.info("Auth blueprint registered successfully")
-        except Exception as e:
-            logger.error(f"Error registering auth blueprint: {e}")
+        # Register existing blueprints
+        app.register_blueprint(ai_test_bp)
+        app.register_blueprint(subscription_mgmt_bp)
+        app.register_blueprint(pdf_analysis_bp)
+        app.register_blueprint(knowledge_bp)
+        app.register_blueprint(usage_bp)
+        app.register_blueprint(auth_bp)
+        logger.info("Knowledge blueprint registered successfully")
+        logger.info("Token usage blueprint registered successfully")
+        logger.info("Auth blueprint registered successfully")
         
         # Register payments blueprint - which depends on requests
         try:
@@ -882,39 +427,14 @@ def register_blueprints():
             logger.warning(f"Could not register slack blueprint: {e}")
             
         try:
-            # Use direct import for each integration blueprint
-            # This avoids relying on the __init__.py file which might have issues
-
-            # Import and register integrations_bp
-            logger.info("Importing and registering integrations_bp...")
-            from routes.integrations.routes import integrations_bp
+            from routes.integrations import integrations_bp, hubspot_bp, salesforce_bp, email_integration_bp
             app.register_blueprint(integrations_bp)
-            logger.info("integrations_bp registered successfully")
-            
-            # Import and register hubspot_bp
-            logger.info("Importing and registering hubspot_bp...")
-            from routes.integrations.hubspot import hubspot_bp
             app.register_blueprint(hubspot_bp)
-            logger.info("hubspot_bp registered successfully")
-            
-            # Import and register salesforce_bp
-            logger.info("Importing and registering salesforce_bp...")
-            from routes.integrations.salesforce import salesforce_bp
             app.register_blueprint(salesforce_bp)
-            logger.info("salesforce_bp registered successfully")
-            
-            # Import and register email_integration_bp - direct import
-            logger.info("Importing and registering email_integration_bp...")
-            from routes.integrations.email import email_integration_bp
             app.register_blueprint(email_integration_bp)
-            logger.info("email_integration_bp registered successfully")
-            
-            logger.info("All integrations blueprints registered successfully")
-        except Exception as e:
-            logger.error(f"Error registering integrations blueprints: {e}")
-            # Log traceback for more detailed error info
-            import traceback
-            logger.error(f"Traceback: {traceback.format_exc()}")
+            logger.info("Integrations blueprints registered successfully")
+        except ImportError as e:
+            logger.warning(f"Could not register integrations blueprints: {e}")
             
         try:
             from routes.api_endpoints import api_endpoints_bp
@@ -943,15 +463,6 @@ def register_blueprints():
             logger.info("Database management blueprint registered successfully")
         except ImportError as e:
             logger.warning(f"Could not register database management blueprint: {e}")
-            
-        # Explicitly register token usage blueprint
-        try:
-            from routes.usage import usage_bp
-            app.register_blueprint(usage_bp)
-            logger.info("Token usage blueprint registered successfully")
-        except ImportError as e:
-            logger.error(f"Could not register token usage blueprint: {e}")
-            logger.error(f"Traceback: {traceback.format_exc()}")
         
         logger.info("Route blueprints registration completed")
     except Exception as e:

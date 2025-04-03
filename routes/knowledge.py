@@ -985,3 +985,76 @@ def upload_binary_file(user=None):
     except Exception as e:
         logger.error(f"Error uploading binary file: {str(e)}", exc_info=True)
         return jsonify({'error': 'Error uploading binary file'}), 500
+
+@knowledge_bp.route('/stats', methods=['GET'])
+@require_auth
+def get_knowledge_stats(user=None):
+    """
+    Get knowledge base statistics
+    ---
+    parameters:
+      - name: Authorization
+        in: header
+        type: string
+        required: true
+        description: Bearer token
+    responses:
+      200:
+        description: Knowledge base statistics
+      401:
+        description: Unauthorized
+      500:
+        description: Server error
+    """
+    # If user isn't provided by require_auth decorator, try to get it from token
+    if user is None:
+        user = get_user_from_token(request)
+    
+    try:
+        # Execute queries to get statistics
+        file_count_sql = "SELECT COUNT(*) as count FROM knowledge_files WHERE user_id = %s"
+        file_count_result = query_sql(file_count_sql, (user['id'],))
+        file_count = file_count_result[0]['count'] if file_count_result else 0
+        
+        category_count_sql = "SELECT COUNT(DISTINCT category) as count FROM knowledge_files WHERE user_id = %s"
+        category_count_result = query_sql(category_count_sql, (user['id'],))
+        category_count = category_count_result[0]['count'] if category_count_result else 0
+        
+        total_size_sql = "SELECT SUM(file_size) as total_size FROM knowledge_files WHERE user_id = %s"
+        total_size_result = query_sql(total_size_sql, (user['id'],))
+        total_size = total_size_result[0]['total_size'] if total_size_result and total_size_result[0]['total_size'] else 0
+        
+        file_types_sql = "SELECT file_type, COUNT(*) as count FROM knowledge_files WHERE user_id = %s GROUP BY file_type"
+        file_types_result = query_sql(file_types_sql, (user['id'],))
+        file_types = {row['file_type']: row['count'] for row in file_types_result} if file_types_result else {}
+        
+        # Get most recent files
+        recent_files_sql = """
+            SELECT id, file_name, file_type, category, created_at 
+            FROM knowledge_files 
+            WHERE user_id = %s 
+            ORDER BY created_at DESC 
+            LIMIT 5
+        """
+        recent_files_result = query_sql(recent_files_sql, (user['id'],))
+        recent_files = [
+            {
+                "id": row['id'],
+                "file_name": row['file_name'],
+                "file_type": row['file_type'],
+                "category": row['category'],
+                "created_at": row['created_at'].isoformat() if row['created_at'] else None
+            }
+            for row in recent_files_result
+        ] if recent_files_result else []
+        
+        return jsonify({
+            "file_count": file_count,
+            "category_count": category_count,
+            "total_size_bytes": total_size,
+            "file_types": file_types,
+            "recent_files": recent_files
+        })
+    except Exception as e:
+        logger.error(f"Error getting knowledge stats: {str(e)}", exc_info=True)
+        return jsonify({'error': 'Error getting knowledge stats'}), 500
