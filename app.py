@@ -10,6 +10,7 @@ from flask import Flask, jsonify, g, render_template, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_socketio import SocketIO
+from flask_cors import CORS
 # Temporarily commented out due to installation issues
 # from flask_limiter import Limiter
 # from flask_limiter.util import get_remote_address
@@ -56,6 +57,9 @@ db.init_app(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = "auth.login"
+
+# Initialize CORS
+CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": "*", "allow_headers": ["Content-Type", "Authorization"]}})
 
 # Initialize Flask-SocketIO
 socketio = SocketIO(app, cors_allowed_origins="*")
@@ -182,6 +186,16 @@ def list_routes():
         })
     return jsonify(routes)
 
+@app.route('/api/knowledge/files/binary', methods=['OPTIONS'])
+def binary_upload_options():
+    """Handle OPTIONS request for binary upload endpoint (CORS preflight)"""
+    response = jsonify({})
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'POST, OPTIONS')
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Max-Age', '3600')
+    return response, 204
+    
 @app.route('/api/knowledge/files/binary', methods=['POST'])
 def upload_binary_file():
     """

@@ -1,0 +1,46 @@
+✅ Questions You Need to Answer
+🔐 Authentication & Token Handling
+Is the frontend consistently including the JWT token in all requests (especially file uploads)?
+
+What method is being used to pass the token? (Authorization header, cookie, URL param?)
+
+Does the backend expect a specific token format (e.g. Bearer token)? Is that aligned with how the frontend sends it?
+
+Are the tokens expired, malformed, or signed with the wrong secret?
+
+Is get_current_user() function extracting the token correctly from the request?
+
+🌐 API Endpoint Conflicts
+Are there duplicate routes that handle similar functionality (especially for file uploads)?
+
+Is the frontend pointing to the correct path now that you’ve restructured the endpoints?
+
+Is routing handled using Flask Blueprints, and are they being registered cleanly with no overlap or double-binding?
+
+⚙️ Integration Failures
+Are all external integrations (Shopify, email, Pesapal) correctly configured in the environment variables?
+
+Are the API keys present, valid, and being passed in headers or requests where needed?
+
+Is there logging around integration errors that can show which step is failing (e.g., connection, auth, payload validation)?
+
+🔐 Supabase / RLS Issues
+Are Row Level Security (RLS) policies too restrictive? Do they block legitimate queries or writes from your app?
+
+Are there any conflicting or duplicate policies being applied (as the logs suggest)?
+
+Have all roles been tested for the correct permissions (authenticated, anon, service roles)?
+
+📛 Error Logging & Debugging
+Are you using structured logging to track each API call and error precisely?
+
+Do you log the full stack trace for 500 errors?
+
+Can you isolate whether errors are happening before or after authentication in the backend?
+
+💥 General Structure & Deployment
+Are all API routes mounted and exposed properly after restructuring?
+
+Are you using CORS middleware correctly in the backend?
+
+Have you tested all endpoints using Postman or curl to simulate frontend behavior?

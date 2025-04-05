@@ -1,0 +1,178 @@
+Thanks for the detailed breakdown — that makes it much easier to troubleshoot! 💪 Here’s a **step-by-step fix plan** based on your findings, broken down by issue type:
+
+---
+
+## ✅ 1. **Fix Token Handling Issues**
+
+### 🔧 Problem:
+- Tokens aren't consistently included.
+- Some uploads are missing the `Authorization` header.
+- Format issues: “Not enough segments” → indicates something like `test_token` instead of a real JWT.
+
+### 🛠️ Fix:
+**Frontend**
+- Ensure all `fetch` or `axios` calls, especially file uploads, include the `Authorization: Bearer <token>` header.
+```js
+axios.post('/api/knowledge/binary/upload', formData, {
+  headers: {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'multipart/form-data'
+  }
+})
+```
+
+**Backend (Python)**
+- Add better logging in `get_user_from_token()`:
+```python
+logger.debug(f"Authorization header: {auth_header}")
+if not token:
+    logger.error("Missing or malformed Authorization header")
+```
+
+- Add token validation check (catch dev/test tokens):
+```python
+if token.count('.') != 2:
+    raise ValueError("Invalid token format. Expected JWT with 3 segments.")
+```
+
+---
+
+## ✅ 2. **Fix Overlapping Routes**
+
+### 🔧 Problem:
+- Duplicate `binary_upload_api` route in `main.py` and `routes/knowledge.py`.
+- AssertionError caused by registering the same route twice.
+
+### 🛠️ Fix:
+**Remove one of the conflicting routes**:
+- Choose either to register via `main.py` **or** via Blueprint.
+- Cleanly register routes in `app.py` like this:
+```python
+from routes.knowledge import knowledge_bp
+app.register_blueprint(knowledge_bp, url_prefix='/api/knowledge')
+```
+
+- Ensure `main.py` does **not** have a direct `/binary/upload` route if it's in the Blueprint.
+
+---
+
+## ✅ 3. **Fix Pesapal & Other Integrations**
+
+### 🔧 Problem:
+- Missing API keys for Pesapal, Shopify, etc.
+- "Keys not configured" and 500 errors.
+
+### 🛠️ Fix:
+- Load `.env` correctly. In `utils/environment.py` or similar:
+```python
+from dotenv import load_dotenv
+load_dotenv()
+```
+
+- Add a config check at startup:
+```python
+assert os.getenv("PESAPAL_CONSUMER_KEY"), "Pesapal key is missing"
+```
+
+- Log masked secrets on startup (for dev only):
+```python
+logger.info("PesaPal Key Loaded: " + os.getenv("PESAPAL_CONSUMER_KEY", "")[:6] + "...")
+```
+
+- Add better exception logging in `routes/integrations/routes.py`:
+```python
+logger.error(f"Failed to connect to Shopify: {e}", exc_info=True)
+```
+
+---
+
+## ✅ 4. **Resolve Supabase RLS Conflicts**
+
+### 🔧 Problem:
+- Duplicate policy creation (`already exists` errors).
+- Possible migration or init scripts re-running on boot.
+
+### 🛠️ Fix:
+- Add a check before creating policies:
+```python
+if not policy_exists("integration_configs", "Users can delete own integrations"):
+    supabase.table('policy').insert({ ... })
+```
+
+- Use `supabase-admin` CLI or direct SQL to list and clean policies:
+```sql
+select * from pg_policies where tablename = 'integration_configs';
+```
+
+- Review `utils/supabase_rls.py` to ensure it doesn't reapply policies blindly.
+
+---
+
+## ✅ 5. **Improve Error Logging and Tracing**
+
+### 🔧 Problem:
+- Not all logs have stack traces or context.
+- Error cause isn't always clear.
+
+### 🛠️ Fix:
+- Standardize error logging:
+```python
+try:
+    ...
+except Exception as e:
+    logger.error("Upload failed", exc_info=True)
+    return jsonify({"error": str(e)}), 500
+```
+
+- Return consistent error structure to frontend:
+```python
+return jsonify({
+    "status": "error",
+    "message": "Token missing or malformed",
+    "trace_id": uuid4().hex
+}), 401
+```
+
+---
+
+## ✅ 6. **Fix CORS and Preflight Issues**
+
+### 🔧 Problem:
+- Uploads (especially with multipart/form-data) might trigger failed preflight CORS checks.
+
+### 🛠️ Fix:
+In `app.py`, configure Flask-CORS like this:
+```python
+from flask_cors import CORS
+CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": "*"}})
+```
+
+Make sure OPTIONS requests are handled correctly:
+```python
+@app.route('/api/knowledge/binary/upload', methods=['OPTIONS'])
+def options_upload():
+    return '', 204
+```
+
+---
+
+## ✅ Final Touch: Endpoint Testing
+
+- Run `test_knowledge_api.sh` with **valid tokens**.
+- Use Postman to test upload and integration endpoints manually.
+
+---
+
+## 🚀 TL;DR Fix Order
+
+| Priority | Task |
+|----------|------|
+| 🥇 High | Fix missing/invalid token handling in frontend |
+| 🥈 High | Remove route duplication for binary uploads |
+| 🥉 Medium | Clean up Supabase RLS policy re-creation logic |
+| 🔧 Medium | Fix Pesapal/Shopify API key config and improve logs |
+| 📦 Low | Improve CORS and logging consistency |
+
+---
+
+Want me to help you with code snippets or config templates for any specific part of the above? You’re super close to stable now — just need to clean up the plumbing! 🛠️💡

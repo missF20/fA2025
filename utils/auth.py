@@ -56,20 +56,32 @@ def get_user_from_token(request=None):
         
     # Get token from Authorization header
     auth_header = request.headers.get('Authorization')
+    logger.debug(f"Authorization header: {auth_header}")
     
     if not auth_header:
         # Try to get from cookies or query parameters
         token = request.cookies.get('token') or request.args.get('token')
+        if token:
+            logger.debug(f"Found token in cookies/params, length: {len(token)}")
+        else:
+            logger.error("Missing authorization header, cookies, and query parameters")
     else:
         # Extract token from Authorization header
         parts = auth_header.split()
         if len(parts) == 2 and parts[0].lower() == 'bearer':
             token = parts[1]
+            logger.debug(f"Found Bearer token, length: {len(token)}")
         else:
             token = None
+            logger.error(f"Malformed Authorization header: {auth_header}, expected 'Bearer <token>'")
             
     if not token:
-        logger.debug("No token found in request")
+        logger.debug("No valid token found in request")
+        return None
+    
+    # Basic token format validation
+    if token.count('.') != 2:
+        logger.error(f"Invalid JWT format: Token does not have 3 segments separated by dots, length: {len(token)}")
         return None
         
     # Verify and return user information
@@ -202,24 +214,42 @@ def get_current_user() -> Optional[Dict[str, Any]]:
     
     # Get authentication token
     auth_header = request.headers.get('Authorization')
+    logger.debug(f"get_current_user - Authorization header: {auth_header}")
     
     if not auth_header:
         # Try to get from cookies or query parameters
         token = request.cookies.get('token') or request.args.get('token')
+        if token:
+            logger.debug(f"get_current_user - Found token in cookies/params, length: {len(token)}")
+        else:
+            logger.error("get_current_user - Missing authorization header, cookies, and query parameters")
     else:
         # Extract token from Authorization header
         parts = auth_header.split()
         if len(parts) == 2 and parts[0].lower() == 'bearer':
             token = parts[1]
+            logger.debug(f"get_current_user - Found Bearer token, length: {len(token)}")
         else:
             token = None
+            logger.error(f"get_current_user - Malformed Authorization header: {auth_header}, expected 'Bearer <token>'")
             
     if not token:
         logger.debug("No token found in request for get_current_user")
         return None
+    
+    # Basic token format validation
+    if token.count('.') != 2:
+        logger.error(f"get_current_user - Invalid JWT format: Token does not have 3 segments separated by dots, length: {len(token)}")
+        return None
         
     # Verify token
-    return verify_token(token)
+    user = verify_token(token)
+    if user:
+        logger.debug(f"get_current_user - Successfully authenticated user: {user.get('email')}")
+    else:
+        logger.error(f"get_current_user - Failed to verify token, length: {len(token)}")
+    
+    return user
 
 def require_auth(f):
     """
@@ -236,6 +266,13 @@ def require_auth(f):
     """
     @functools.wraps(f)
     def decorated_function(*args, **kwargs):
+        logger.debug(f"@require_auth called for endpoint {f.__name__}")
+        # Log request information for debugging
+        method = request.method if hasattr(request, 'method') else 'UNKNOWN'
+        path = request.path if hasattr(request, 'path') else 'UNKNOWN'
+        content_type = request.content_type if hasattr(request, 'content_type') else 'UNKNOWN'
+        logger.debug(f"Request details: Method={method}, Path={path}, Content-Type={content_type}")
+        
         # Check for development mode bypass first
         bypass_auth = request.args.get('bypass_auth') == 'true'
         is_dev = (os.environ.get('FLASK_ENV') == 'development' or 
@@ -259,9 +296,15 @@ def require_auth(f):
         user = get_current_user()
         
         if not user:
-            return jsonify({'error': 'Authentication required'}), 401
+            logger.error(f"Authentication required for {f.__name__} but no valid user found")
+            return jsonify({
+                'error': 'Authentication required',
+                'message': 'Valid authentication token is required for this endpoint',
+                'endpoint': f.__name__
+            }), 401
             
         # Add user to kwargs
+        logger.debug(f"User {user.get('email')} authenticated for {f.__name__}")
         kwargs['user'] = user
         return f(*args, **kwargs)
         
@@ -370,7 +413,7 @@ def verify_token(token: str) -> Optional[Dict[str, Any]]:
         
         # Only allow special tokens in development mode
         if is_dev:
-            logger.warning("Development mode - using bypass authentication")
+            logger.warning("Development mode - using bypass authentication with special token")
             # Return a test user with admin privileges for development
             return {
                 'id': '00000000-0000-0000-0000-000000000000',  # Valid UUID format
@@ -380,15 +423,61 @@ def verify_token(token: str) -> Optional[Dict[str, Any]]:
             }
         else:
             logger.warning(f"Attempted to use development token in production: {token[:20]}...")
+            return None
     
     try:
-        # Decode and verify token
-        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=['HS256'])
+        # Log token format info for debugging
+        token_parts = token.split('.')
+        logger.debug(f"Token format check: parts={len(token_parts)}, length={len(token)}")
+        
+        # Decode and verify token with extra error handling
+        try:
+            payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=['HS256'])
+        except Exception as decode_err:
+            logger.error(f"JWT decode error: {str(decode_err)}, token length: {len(token)}")
+            # Try to decode without verification to see what's in the token
+            try:
+                # Just decode header and payload without verification for debugging purposes
+                header_payload = token.split('.')[:2]
+                if len(header_payload) >= 2:
+                    import base64
+                    import json
+                    
+                    # Decode header
+                    try:
+                        header_json = base64.b64decode(header_payload[0] + '=' * (4 - len(header_payload[0]) % 4))
+                        header = json.loads(header_json)
+                        logger.debug(f"Token header: {header}")
+                    except Exception as header_err:
+                        logger.debug(f"Couldn't decode token header: {str(header_err)}")
+                        
+                    # Decode payload
+                    try:
+                        payload_json = base64.b64decode(header_payload[1] + '=' * (4 - len(header_payload[1]) % 4))
+                        payload_debug = json.loads(payload_json)
+                        logger.debug(f"Token payload: {payload_debug}")
+                    except Exception as payload_err:
+                        logger.debug(f"Couldn't decode token payload: {str(payload_err)}")
+            except Exception as debug_err:
+                logger.debug(f"Failed to debug token: {str(debug_err)}")
+            
+            # Re-raise the original error to continue with normal error handling
+            raise decode_err
+            
         logger.debug(f"Token decoded successfully: {payload.get('email')}")
         
         # Check if token is expired
         if 'exp' in payload and payload['exp'] < time.time():
             logger.warning(f"Expired token: {token[:20]}..., expired at {time.ctime(payload['exp'])}")
+            return None
+            
+        # Validate the payload has required fields
+        if 'sub' not in payload:
+            logger.error(f"Token missing 'sub' claim for user ID")
+            return None
+            
+        if 'email' not in payload:
+            logger.error(f"Token missing 'email' claim")
             return None
             
         # Return user information

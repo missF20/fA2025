@@ -100,16 +100,11 @@ def knowledge_files_api():
         logger.error(f"Error in direct knowledge files endpoint: {str(e)}")
         return jsonify({"error": "Knowledge files API error", "details": str(e)}), 500
 
-@app.route('/api/knowledge/binary/upload', methods=['POST'])
-def binary_upload_api():
-    # Direct endpoint for binary file upload
-    try:
-        # Import only when needed to avoid circular imports
-        from routes.knowledge_binary import upload_binary_file
-        return upload_binary_file()
-    except Exception as e:
-        logger.error(f"Error in direct binary upload endpoint: {str(e)}")
-        return jsonify({"error": "Binary upload API error", "details": str(e)}), 500
+# Binary upload is now handled by knowledge_binary_bp, removed to avoid duplicate route
+# @app.route('/api/knowledge/binary/upload', methods=['POST'])
+# def binary_upload_api():
+#    # Direct endpoint for binary file upload - REMOVED TO AVOID DUPLICATE ROUTES
+#    pass
 
 @app.route('/api/knowledge/search', methods=['GET', 'POST'])
 def knowledge_search_api():
