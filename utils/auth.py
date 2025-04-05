@@ -64,7 +64,8 @@ def get_user_from_token(request=None):
         if token:
             logger.debug(f"Found token in cookies/params, length: {len(token)}")
         else:
-            logger.error("Missing authorization header, cookies, and query parameters")
+            logger.error("Missing or malformed Authorization header")
+            return None
     else:
         # Extract token from Authorization header
         parts = auth_header.split()
@@ -74,14 +75,15 @@ def get_user_from_token(request=None):
         else:
             token = None
             logger.error(f"Malformed Authorization header: {auth_header}, expected 'Bearer <token>'")
+            return None
             
     if not token:
-        logger.debug("No valid token found in request")
+        logger.error("No valid token found in request")
         return None
     
     # Basic token format validation
     if token.count('.') != 2:
-        logger.error(f"Invalid JWT format: Token does not have 3 segments separated by dots, length: {len(token)}")
+        logger.error(f"Invalid token format. Expected JWT with 3 segments. Found: {token.count('.')} segments, token length: {len(token)}")
         return None
         
     # Verify and return user information
@@ -222,7 +224,8 @@ def get_current_user() -> Optional[Dict[str, Any]]:
         if token:
             logger.debug(f"get_current_user - Found token in cookies/params, length: {len(token)}")
         else:
-            logger.error("get_current_user - Missing authorization header, cookies, and query parameters")
+            logger.error("get_current_user - Missing or malformed Authorization header")
+            return None
     else:
         # Extract token from Authorization header
         parts = auth_header.split()
@@ -232,14 +235,15 @@ def get_current_user() -> Optional[Dict[str, Any]]:
         else:
             token = None
             logger.error(f"get_current_user - Malformed Authorization header: {auth_header}, expected 'Bearer <token>'")
+            return None
             
     if not token:
-        logger.debug("No token found in request for get_current_user")
+        logger.error("No valid token found in request for get_current_user")
         return None
     
     # Basic token format validation
     if token.count('.') != 2:
-        logger.error(f"get_current_user - Invalid JWT format: Token does not have 3 segments separated by dots, length: {len(token)}")
+        logger.error(f"get_current_user - Invalid token format. Expected JWT with 3 segments. Found: {token.count('.')} segments, token length: {len(token)}")
         return None
         
     # Verify token
