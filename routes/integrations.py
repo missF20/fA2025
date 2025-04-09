@@ -68,7 +68,7 @@ async def get_integration_schema_route(integration_type):
     """
     Get the configuration schema for an integration type
     ---
-    parameters:
+    parame ters:
       - name: Authorization
         in: header
         type: string
