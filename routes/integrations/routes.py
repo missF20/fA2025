@@ -142,26 +142,65 @@ def get_integrations_status_impl():
         logger.debug(f"User email: {user_email}, User ID: {user_id}")
         
         if user_email:
-            user = User.query.filter_by(email=user_email).first()
-            if user:
-                logger.debug(f"Found user with ID: {user.id}")
-                email_integration = IntegrationConfig.query.filter_by(
-                    user_id=user.id,
-                    integration_type=IntegrationType.EMAIL.value,
-                    status='active'
-                ).first()
-                
-                if email_integration:
-                    logger.debug(f"Found active email integration for user {user.id}")
+            # Get user from database
+            from models_db import User, IntegrationConfig
+            
+            # Try to find user by UUID first (for Supabase auth users)
+            if user_id:
+                # Check if it's a UUID
+                try:
+                    import uuid
+                    uuid.UUID(user_id)  # Will throw if not a valid UUID
+                    user = User.query.filter_by(email=user_email).first()
+                    if user:
+                        logger.debug(f"Found user with ID: {user.id} for UUID: {user_id}")
+                        email_integration = IntegrationConfig.query.filter_by(
+                            user_id=user.id,
+                            integration_type=IntegrationType.EMAIL.value
+                        ).first()
+                        
+                        if email_integration:
+                            logger.debug(f"Found email integration for user {user.id}: status={email_integration.status}")
+                except (ValueError, TypeError):
+                    # Not a UUID, try direct lookup
+                    user = User.query.filter_by(id=user_id).first()
+                    if user:
+                        logger.debug(f"Found user with direct ID: {user.id}")
+                        email_integration = IntegrationConfig.query.filter_by(
+                            user_id=user.id,
+                            integration_type=IntegrationType.EMAIL.value
+                        ).first()
+                        
+                        if email_integration:
+                            logger.debug(f"Found email integration for user {user.id}: status={email_integration.status}")
+            
+            # Fallback to email lookup if no user found yet
+            if not user:
+                user = User.query.filter_by(email=user_email).first()
+                if user:
+                    logger.debug(f"Found user by email with ID: {user.id}")
+                    email_integration = IntegrationConfig.query.filter_by(
+                        user_id=user.id,
+                        integration_type=IntegrationType.EMAIL.value
+                    ).first()
+                    
+                    if email_integration:
+                        logger.debug(f"Found email integration for user {user.id}: status={email_integration.status}")
         else:
             logger.warning("No user email found in token")
     except Exception as e:
         logger.error(f"Error checking for email integration: {str(e)}")
         
+    # Don't filter by 'active' status in the lookup, let all found integrations be considered
+    email_status = 'inactive'
+    if email_integration:
+        email_status = email_integration.status
+        logger.info(f"Email integration status: {email_status}")
+    
     integrations.append({
         'id': 'email',
         'type': IntegrationType.EMAIL.value,
-        'status': 'active' if email_integration else 'inactive',
+        'status': email_status,
         'lastSync': None
     })
     
@@ -333,15 +372,17 @@ def connect_integration(integration_type):
                     
                     if existing_config:
                         # Update existing config
-                        existing_config.config = str(config)
+                        import json
+                        existing_config.config = json.dumps(config)
                         existing_config.status = 'active'
                         existing_config.last_updated = datetime.now()
                     else:
                         # Create new config
+                        import json
                         new_config = IntegrationConfig(
                             user_id=user_id,
                             integration_type=getattr(IntegrationType, integration_type.upper()).value,
-                            config=str(config),
+                            config=json.dumps(config),
                             status='active',
                             created_at=datetime.now(),
                             last_updated=datetime.now()
@@ -379,15 +420,75 @@ def disconnect_integration(integration_id):
     Returns:
         JSON response with disconnection status
     """
-    # In a real implementation, we would:
-    # 1. Find the integration by ID
-    # 2. Revoke any tokens or connections
-    # 3. Update the database record
+    try:
+        # Get user information
+        user_email = None
+        if hasattr(g, 'user'):
+            if isinstance(g.user, dict):
+                user_email = g.user.get('email')
+            elif hasattr(g.user, 'email'):
+                user_email = g.user.email
+        
+        if not user_email:
+            return jsonify({
+                'success': False,
+                'message': 'User email not found in token'
+            }), 400
+        
+        # Find the user in the database
+        from models_db import User, IntegrationConfig, db
+        from models import IntegrationType
+        from datetime import datetime
+        
+        user = User.query.filter_by(email=user_email).first()
+        if not user:
+            return jsonify({
+                'success': False,
+                'message': 'User not found in database'
+            }), 400
+        
+        # Get integration type enum value
+        try:
+            # Convert integration_id to uppercase for enum lookup
+            integration_type = getattr(IntegrationType, integration_id.upper()).value
+        except (AttributeError, ValueError):
+            return jsonify({
+                'success': False,
+                'message': f'Invalid integration type: {integration_id}'
+            }), 400
+        
+        # Find the integration configuration
+        integration_config = IntegrationConfig.query.filter_by(
+            user_id=user.id,
+            integration_type=integration_type
+        ).first()
+        
+        if not integration_config:
+            return jsonify({
+                'success': False,
+                'message': f'No {integration_id} integration found for this user'
+            }), 404
+        
+        # Update the integration status to inactive
+        integration_config.status = 'inactive'
+        integration_config.last_updated = datetime.now()
+        
+        # Commit the changes
+        db.session.commit()
+        
+        logger.info(f"Disconnected {integration_id} integration for user {user.id}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Disconnected from {integration_id} successfully'
+        })
     
-    return jsonify({
-        'success': True,
-        'message': f'Disconnected from {integration_id} successfully'
-    })
+    except Exception as e:
+        logger.exception(f"Error disconnecting {integration_id}: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Error disconnecting {integration_id}: {str(e)}'
+        }), 500
 
 @integrations_bp.route('/sync/<integration_id>', methods=['POST'])
 @token_required
