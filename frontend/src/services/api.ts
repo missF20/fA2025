@@ -144,6 +144,13 @@ export const api = {
         }
 
         const data = await response.json();
+        console.log('Integrations status response:', data);
+        // Log each integration status for debugging
+        if (data.integrations && Array.isArray(data.integrations)) {
+          data.integrations.forEach(integration => {
+            console.log(`Integration ${integration.id} status: ${integration.status}`);
+          });
+        }
         return data.integrations;
       } catch (error) {
         console.error("Error fetching integrations:", error);

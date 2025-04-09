@@ -7,6 +7,7 @@ This module provides API routes for connecting to and interacting with email ser
 import os
 import json
 import logging
+from datetime import datetime
 from flask import Blueprint, request, jsonify, current_app, g
 from werkzeug.security import generate_password_hash, check_password_hash
 from utils.auth import token_required
@@ -48,6 +49,84 @@ def test_email():
     Returns:
         JSON response with test data
     """
+
+@email_integration_bp.route('/connect', methods=['POST'])
+@token_required
+def connect_email_endpoint():
+    """
+    Connect to email service with the provided credentials
+    
+    Body:
+    {
+        "email": "user@example.com",
+        "password": "password",
+        "smtp_server": "smtp.example.com",
+        "smtp_port": 587
+    }
+    
+    Returns:
+        JSON response with connection status
+    """
+    try:
+        logger.info("Email connect endpoint called")
+        
+        # Get request data
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({
+                'success': False,
+                'message': 'No configuration data provided'
+            }), 400
+            
+        # Log the request data for debugging (exclude password)
+        sanitized_data = {k: v for k, v in data.items() if k != 'password'}
+        logger.info(f"Email connect data: {sanitized_data}")
+        
+        # Get user information
+        user_email = None
+        user_id = None
+        
+        if hasattr(g, 'user'):
+            # Handle dict format
+            if isinstance(g.user, dict):
+                user_email = g.user.get('email')
+                user_id = g.user.get('user_id') or g.user.get('id')
+            # Handle object format
+            elif hasattr(g.user, 'email'):
+                user_email = g.user.email
+                user_id = getattr(g.user, 'user_id', None) or getattr(g.user, 'id', None)
+        
+        logger.info(f"User from token: email={user_email}, id={user_id}")
+        
+        # Find user ID in database
+        from models_db import User
+        db_user = User.query.filter_by(email=user_email).first()
+        
+        if not db_user:
+            logger.warning(f"No user found with email {user_email}")
+            return jsonify({
+                'success': False,
+                'message': 'User not found'
+            }), 404
+            
+        logger.info(f"Found user with ID: {db_user.id}")
+        
+        # Call the implementation function with the database user ID
+        success, message, status_code = connect_email(db_user.id, data)
+        
+        return jsonify({
+            'success': success,
+            'message': message
+        }), status_code
+        
+    except Exception as e:
+        logger.exception(f"Error in email connect endpoint: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f"Error connecting to email: {str(e)}"
+        }), 500
+    # Return test data
     return jsonify({
         'success': True,
         'message': 'Email integration API is working',
@@ -136,12 +215,58 @@ def connect_email(user_id, config_data):
         logger.info(f"Email connect - Username: {email_username}")
         logger.info(f"Email connect - Password: {'*' * (len(str(email_password)) if email_password else 0)}")
         
-        # In a real implementation, we would:
-        # 1. Store hashed credentials in the database
-        # 2. Test connection to email server
-        # 3. Return success/failure
+        # Save configurations to the database
+        from app import db
+        from models_db import IntegrationConfig
+        from models import IntegrationType
         
-        return True, f"Email integration ({email_provider}) connected successfully", 200
+        # Hash the password for security
+        # Note: in production, implement proper encryption for credentials
+        from werkzeug.security import generate_password_hash
+        hashed_password = generate_password_hash(email_password)
+        
+        # Store the email configuration in the database
+        config_json = {
+            "provider": email_provider,
+            "server": email_server,
+            "port": email_port,
+            "username": email_username,
+            "password": hashed_password,
+            "enabled": True
+        }
+        
+        # Check if there's an existing config for this user
+        existing_config = IntegrationConfig.query.filter_by(
+            user_id=user_id,
+            integration_type=IntegrationType.EMAIL.value
+        ).first()
+        
+        if existing_config:
+            # Update existing config
+            existing_config.config = config_json
+            existing_config.status = 'active'
+            existing_config.date_updated = datetime.utcnow()
+        else:
+            # Create new config
+            new_config = IntegrationConfig(
+                user_id=user_id,
+                integration_type=IntegrationType.EMAIL.value,
+                config=config_json,
+                status='active',
+                date_created=datetime.utcnow(),
+                date_updated=datetime.utcnow()
+            )
+            db.session.add(new_config)
+        
+        # Commit the changes to the database
+        try:
+            db.session.commit()
+            logger.info(f"Email integration saved for user {user_id}")
+            return True, f"Email integration ({email_provider}) connected successfully", 200
+        except Exception as e:
+            db.session.rollback()
+            logger.exception(f"Error saving email integration to database: {str(e)}")
+            return False, f"Error saving integration: {str(e)}", 500
     
     except Exception as e:
         logger.exception(f"Error connecting to email service: {str(e)}")
@@ -171,6 +296,79 @@ def sync_email(user_id, integration_id):
         logger.exception(f"Error syncing email data: {str(e)}")
         return False, f"Error syncing email data: {str(e)}", 500
         
+@email_integration_bp.route('/disconnect', methods=['POST'])
+@token_required
+def disconnect_email_endpoint():
+    """
+    Disconnect from email service
+    
+    Returns:
+        JSON response with disconnection status
+    """
+    try:
+        logger.info("Email disconnect endpoint called")
+        
+        # Get user information
+        user_email = None
+        user_id = None
+        
+        if hasattr(g, 'user'):
+            # Handle dict format
+            if isinstance(g.user, dict):
+                user_email = g.user.get('email')
+                user_id = g.user.get('user_id') or g.user.get('id')
+            # Handle object format
+            elif hasattr(g.user, 'email'):
+                user_email = g.user.email
+                user_id = getattr(g.user, 'user_id', None) or getattr(g.user, 'id', None)
+        
+        logger.info(f"User from token: email={user_email}, id={user_id}")
+        
+        # Find user ID in database
+        from models_db import User, IntegrationConfig
+        db_user = User.query.filter_by(email=user_email).first()
+        
+        if not db_user:
+            logger.warning(f"No user found with email {user_email}")
+            return jsonify({
+                'success': False,
+                'message': 'User not found'
+            }), 404
+            
+        logger.info(f"Found user with ID: {db_user.id}")
+        
+        # Find and delete the email integration configuration
+        integration = IntegrationConfig.query.filter_by(
+            user_id=db_user.id,
+            integration_type='email'
+        ).first()
+        
+        if not integration:
+            logger.warning(f"No email integration found for user {db_user.id}")
+            return jsonify({
+                'success': False,
+                'message': 'No email integration found'
+            }), 404
+            
+        # Delete the integration
+        from app import db
+        db.session.delete(integration)
+        db.session.commit()
+        
+        logger.info(f"Email integration disconnected for user {db_user.id}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Email integration disconnected successfully'
+        })
+        
+    except Exception as e:
+        logger.exception(f"Error in email disconnect endpoint: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f"Error disconnecting email: {str(e)}"
+        }), 500
+
 @email_integration_bp.route('/send', methods=['POST'])
 @token_required
 def send_email():
