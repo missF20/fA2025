@@ -145,6 +145,8 @@ def connect_email(user_id, config_data):
         tuple: (success, message, status_code)
     """
     try:
+        # Extract user email from config data if available
+        user_email = config_data.get('email') or config_data.get('username') or None
         # Log incoming data for debugging
         logger.info(f"Email connect - User ID: {user_id}")
         logger.info(f"Email connect - Config Data: {config_data}")
@@ -235,47 +237,64 @@ def connect_email(user_id, config_data):
             "enabled": True
         }
         
-        # We need to ensure the user_id is a valid integer for the database
+        # We need to ensure the user_id is a valid UUID for the database
         from models_db import User
+        import uuid
         
-        # For testing tokens, use a fixed user ID
+        # For testing tokens, use a fixed UUID
+        test_uuid = '00000000-0000-0000-0000-000000000000'
+        
         if isinstance(user_id, str) and ('test-token' in user_id or 'dev-token' in user_id):
-            logger.info("Using test user ID (1) for test/dev token")
-            user_numeric_id = 1
+            logger.info(f"Using test UUID {test_uuid} for test/dev token")
+            user_uuid = test_uuid
         else:
-            # Try to look up the user by ID first
-            try:
-                # First try direct conversion if it's an integer
+            # If it's already a UUID string, use it directly
+            if isinstance(user_id, str) and len(user_id) == 36 and '-' in user_id:
+                # Looks like a UUID already
                 try:
-                    numeric_id = int(user_id)
-                    user = User.query.filter_by(id=numeric_id).first()
-                    if user:
-                        user_numeric_id = user.id
-                        logger.info(f"Found user with direct ID: {user_numeric_id}")
+                    # Validate it's a proper UUID
+                    valid_uuid = uuid.UUID(user_id)
+                    user_uuid = str(valid_uuid)
+                    logger.info(f"Using provided UUID: {user_uuid}")
+                except ValueError:
+                    # Not a valid UUID
+                    logger.warning(f"Invalid UUID format: {user_id}, using fallback")
+                    user_uuid = test_uuid
+            else:
+                # It's probably a numeric ID or some other format, try to find the auth ID
+                try:
+                    # Try to find the user in the database
+                    if isinstance(user_id, int) or (isinstance(user_id, str) and user_id.isdigit()):
+                        # Look up by numeric ID
+                        numeric_id = int(user_id)
+                        user = User.query.filter_by(id=numeric_id).first()
                     else:
-                        logger.warning(f"No user found with ID {numeric_id}")
-                        user_numeric_id = 1  # Fallback for testing
-                except (ValueError, TypeError):
-                    # If it's a UUID from auth, try to look up the user by email
-                    if isinstance(user_id, str) and user_id.startswith("00000000"):
-                        logger.warning(f"Using fallback user ID")
-                        user_numeric_id = 1
+                        # Try by email if we have it from token
+                        if user_email:
+                            user = User.query.filter_by(email=user_email).first()
+                        else:
+                            user = None
+                    
+                    if user and hasattr(user, 'auth_id') and user.auth_id:
+                        user_uuid = user.auth_id
+                        logger.info(f"Found user with auth_id: {user_uuid}")
                     else:
-                        logger.warning(f"Could not convert user_id to integer: {user_id}")
-                        user_numeric_id = 1
-            except Exception as e:
-                logger.exception(f"Error determining user ID: {str(e)}")
-                user_numeric_id = 1  # Fallback
+                        # No auth_id found, use the test UUID
+                        logger.warning(f"No auth_id found for user, using test UUID")
+                        user_uuid = test_uuid
+                except Exception as e:
+                    logger.exception(f"Error getting user auth_id: {str(e)}")
+                    user_uuid = test_uuid
         
-        logger.info(f"Using user_numeric_id = {user_numeric_id} for integration")
+        logger.info(f"Using user_uuid = {user_uuid} for integration")
         
         # Clear any previous session state that might be causing issues
         db.session.rollback()
         
-        # Now look for an existing config with this user ID
+        # Now look for an existing config with this user ID (as UUID)
         try:
             existing_config = IntegrationConfig.query.filter_by(
-                user_id=user_numeric_id,
+                user_id=user_uuid,
                 integration_type=IntegrationType.EMAIL.value
             ).first()
             logger.info(f"Existing config found: {existing_config is not None}")
@@ -290,9 +309,9 @@ def connect_email(user_id, config_data):
             existing_config.status = 'active'
             existing_config.date_updated = datetime.utcnow()
         else:
-            # Create new config with numeric user ID
+            # Create new config with UUID user ID
             new_config = IntegrationConfig(
-                user_id=user_numeric_id,
+                user_id=user_uuid,  # Use UUID instead of integer
                 integration_type=IntegrationType.EMAIL.value,
                 config=config_json,
                 status='active',
@@ -369,30 +388,61 @@ def disconnect_email_endpoint():
         
         # Find user ID in database
         from models_db import User, IntegrationConfig
-        db_user = User.query.filter_by(email=user_email).first()
-        
-        if not db_user:
-            logger.warning(f"No user found with email {user_email}")
-            return jsonify({
-                'success': False,
-                'message': 'User not found'
-            }), 404
-            
-        logger.info(f"Found user with ID: {db_user.id}")
+        import uuid
         
         # Clear any previous transaction errors
         from app import db
         db.session.rollback()
         
+        # Convert user_id to UUID for Supabase
+        user_uuid = None
+        
+        # If it's already a UUID string, use it directly
+        if isinstance(user_id, str) and len(user_id) == 36 and '-' in user_id:
+            # Looks like a UUID already
+            try:
+                # Validate it's a proper UUID
+                valid_uuid = uuid.UUID(user_id)
+                user_uuid = str(valid_uuid)
+                logger.info(f"Using provided UUID: {user_uuid}")
+            except ValueError:
+                # Not a valid UUID
+                logger.warning(f"Invalid UUID format: {user_id}")
+                user_uuid = None
+        
+        # If we don't have a UUID yet, try to find the user
+        if not user_uuid:
+            # Try to find by email
+            db_user = User.query.filter_by(email=user_email).first()
+            
+            if not db_user:
+                logger.warning(f"No user found with email {user_email}")
+                return jsonify({
+                    'success': False,
+                    'message': 'User not found'
+                }), 404
+                
+            # Check if user has auth_id (UUID)
+            if hasattr(db_user, 'auth_id') and db_user.auth_id:
+                user_uuid = db_user.auth_id
+                logger.info(f"Found user with auth_id: {user_uuid}")
+            else:
+                # Fallback to test UUID
+                test_uuid = '00000000-0000-0000-0000-000000000000'
+                logger.warning(f"No auth_id found for user, using test UUID: {test_uuid}")
+                user_uuid = test_uuid
+                
+        logger.info(f"Using UUID for database operation: {user_uuid}")
+        
         # Find and delete the email integration configuration
         try:
             integration = IntegrationConfig.query.filter_by(
-                user_id=db_user.id,
+                user_id=user_uuid,
                 integration_type='email'
             ).first()
             
             if not integration:
-                logger.warning(f"No email integration found for user {db_user.id}")
+                logger.warning(f"No email integration found for user with UUID {user_uuid}")
                 return jsonify({
                     'success': False,
                     'message': 'No email integration found'
@@ -410,7 +460,7 @@ def disconnect_email_endpoint():
                 'message': f'Error disconnecting: {str(e)}'
             }), 500
         
-        logger.info(f"Email integration disconnected for user {db_user.id}")
+        logger.info(f"Email integration disconnected for user with UUID {user_uuid}")
         
         return jsonify({
             'success': True,
