@@ -113,9 +113,10 @@ export default function SlackDashboard() {
     if (!status) return 'Checking Slack status...';
     
     if (status.valid) {
-      return `Connected to Slack channel: ${status.channel_id}`;
+      return `Connected to Slack channel: ${status.channel_id || 'Unknown'}`;
     } else {
-      return `Slack integration not properly configured. Missing: ${status.missing.join(', ')}`;
+      const missingItems = Array.isArray(status.missing) ? status.missing.join(', ') : 'configuration';
+      return `Slack integration not properly configured. Missing: ${missingItems}`;
     }
   };
   
