@@ -117,7 +117,7 @@ class IntegrationConfig(db.Model):
     __tablename__ = 'integration_configs'
     
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    user_id = db.Column(db.String(36), nullable=False)  # Changed to UUID string for Supabase compatibility
     integration_type = db.Column(db.String(50), nullable=False)
     config = db.Column(db.JSON, nullable=False)
     status = db.Column(db.String(20), default='pending')

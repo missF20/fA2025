@@ -154,10 +154,29 @@ def get_integrations_status_impl():
                     user = User.query.filter_by(email=user_email).first()
                     if user:
                         logger.debug(f"Found user with ID: {user.id} for UUID: {user_id}")
-                        email_integration = IntegrationConfig.query.filter_by(
-                            user_id=user.id,
-                            integration_type=IntegrationType.EMAIL.value
-                        ).first()
+                        
+                        # Use auth_id (UUID) if available, otherwise user_id as string
+                        if hasattr(user, 'auth_id') and user.auth_id:
+                            logger.debug(f"Using auth_id: {user.auth_id} for query")
+                            email_integration = IntegrationConfig.query.filter_by(
+                                user_id=user.auth_id,
+                                integration_type=IntegrationType.EMAIL.value
+                            ).first()
+                        else:
+                            # Try with the UUID first
+                            logger.debug(f"No auth_id available, trying with UUID: {user_id}")
+                            email_integration = IntegrationConfig.query.filter_by(
+                                user_id=user_id,
+                                integration_type=IntegrationType.EMAIL.value
+                            ).first()
+                            
+                            # If not found, try with user ID as string
+                            if not email_integration:
+                                logger.debug(f"No integration found with UUID, using user_id as string: {str(user.id)}")
+                                email_integration = IntegrationConfig.query.filter_by(
+                                    user_id=str(user.id),
+                                    integration_type=IntegrationType.EMAIL.value
+                                ).first()
                         
                         if email_integration:
                             logger.debug(f"Found email integration for user {user.id}: status={email_integration.status}")
@@ -166,10 +185,19 @@ def get_integrations_status_impl():
                     user = User.query.filter_by(id=user_id).first()
                     if user:
                         logger.debug(f"Found user with direct ID: {user.id}")
-                        email_integration = IntegrationConfig.query.filter_by(
-                            user_id=user.id,
-                            integration_type=IntegrationType.EMAIL.value
-                        ).first()
+                        # Use auth_id (UUID) if available, otherwise use ID as string
+                        if hasattr(user, 'auth_id') and user.auth_id:
+                            logger.debug(f"Using auth_id: {user.auth_id} for query")
+                            email_integration = IntegrationConfig.query.filter_by(
+                                user_id=user.auth_id,
+                                integration_type=IntegrationType.EMAIL.value
+                            ).first()
+                        else:
+                            logger.debug(f"No auth_id available, using ID as string: {str(user.id)}")
+                            email_integration = IntegrationConfig.query.filter_by(
+                                user_id=str(user.id),
+                                integration_type=IntegrationType.EMAIL.value
+                            ).first()
                         
                         if email_integration:
                             logger.debug(f"Found email integration for user {user.id}: status={email_integration.status}")
@@ -179,8 +207,19 @@ def get_integrations_status_impl():
                 user = User.query.filter_by(email=user_email).first()
                 if user:
                     logger.debug(f"Found user by email with ID: {user.id}")
+                    
+                    # The database stores user_id as UUID, so we need to use auth_id if available
+                    if hasattr(user, 'auth_id') and user.auth_id:
+                        logger.debug(f"Using user auth_id for lookup: {user.auth_id}")
+                        user_uuid = user.auth_id
+                    else:
+                        # Fallback to test UUID if no auth_id available
+                        user_uuid = '00000000-0000-0000-0000-000000000000'
+                        logger.debug(f"No auth_id found, using test UUID: {user_uuid}")
+                    
+                    # Query with UUID instead of integer ID
                     email_integration = IntegrationConfig.query.filter_by(
-                        user_id=user.id,
+                        user_id=user_uuid,
                         integration_type=IntegrationType.EMAIL.value
                     ).first()
                     
@@ -355,13 +394,25 @@ def connect_integration(integration_type):
                 # Get user ID (already retrieved for most integration types above)
                 user_id = None
                 if integration_type in ['shopify', 'hubspot', 'salesforce', 'email']:
-                    user_id = user.id
+                    # Use auth_id (UUID) if available, otherwise fall back to user.id as string
+                    if hasattr(user, 'auth_id') and user.auth_id:
+                        logger.debug(f"Using auth_id for integration config: {user.auth_id}")
+                        user_id = user.auth_id
+                    else:
+                        logger.debug(f"Using user.id as string for integration config: {str(user.id)}")
+                        user_id = str(user.id)
                 else:
                     # Get user from database for the other integration types
                     from models_db import User
                     user = User.query.filter_by(email=g.user.email).first()
                     if user:
-                        user_id = user.id
+                        # Use auth_id (UUID) if available, otherwise user.id as string
+                        if hasattr(user, 'auth_id') and user.auth_id:
+                            logger.debug(f"Using auth_id for integration config: {user.auth_id}")
+                            user_id = user.auth_id
+                        else:
+                            logger.debug(f"Using user.id as string for integration config: {str(user.id)}")
+                            user_id = str(user.id)
                 
                 if user_id:
                     # Check if config already exists
@@ -458,10 +509,20 @@ def disconnect_integration(integration_id):
             }), 400
         
         # Find the integration configuration
-        integration_config = IntegrationConfig.query.filter_by(
-            user_id=user.id,
-            integration_type=integration_type
-        ).first()
+        # First try with auth_id if available
+        if hasattr(user, 'auth_id') and user.auth_id:
+            logger.debug(f"Using auth_id for disconnect lookup: {user.auth_id}")
+            integration_config = IntegrationConfig.query.filter_by(
+                user_id=user.auth_id,
+                integration_type=integration_type
+            ).first()
+        else:
+            # Fallback to trying user.id as string
+            logger.debug(f"Using user.id as string for disconnect lookup: {str(user.id)}")
+            integration_config = IntegrationConfig.query.filter_by(
+                user_id=str(user.id),
+                integration_type=integration_type
+            ).first()
         
         if not integration_config:
             return jsonify({
