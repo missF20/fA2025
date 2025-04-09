@@ -222,15 +222,17 @@ def connect_integration(integration_type):
         elif integration_type == 'google_analytics':
             response, status_code = connect_google_analytics(config)
         elif integration_type == 'shopify':
-            response, status_code = connect_shopify(config)
+            success, message, status_code = connect_shopify(g.user.id, config_data=config)
+            response = {'success': success, 'message': message}
+
         elif integration_type == 'hubspot':
-            success, message, status_code = connect_hubspot(g.user.id, config)
+            success, message, status_code = connect_hubspot(g.user.id, config_data=config)
             response = {'success': success, 'message': message}
         elif integration_type == 'salesforce':
-            success, message, status_code = connect_salesforce(g.user.id, config)
+            success, message, status_code = connect_salesforce(g.user.id, config_data=config)
             response = {'success': success, 'message': message}
         elif integration_type == 'email':
-            success, message, status_code = connect_email(g.user.id, config)
+            success, message, status_code = connect_email(g.user.id, config_data=config)
             response = {'success': success, 'message': message}
         else:
             return jsonify({
@@ -308,7 +310,8 @@ def sync_integration(integration_id):
         elif integration_id == 'google_analytics':
             result = sync_google_analytics(integration_id, config)
         elif integration_id == 'shopify':
-            result = sync_shopify(integration_id, config)
+            success, message, status_code = sync_shopify(g.user.id, integration_id)
+            result = {'success': success, 'message': message}
         elif integration_id == 'hubspot':
             success, message, status_code = sync_hubspot(g.user.id, integration_id)
             result = {'success': success, 'message': message}

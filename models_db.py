@@ -13,13 +13,14 @@ class User(UserMixin, db.Model):
     """User model for authentication and authorization"""
     __tablename__ = 'users'
     
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(64), unique=True, nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=False)
+    id = db.Column(db.String(255), primary_key=True)
+    username = db.Column(db.String(64), nullable=False)
+    email = db.Column(db.String(120), nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
     is_admin = db.Column(db.Boolean, default=False)
-    date_created = db.Column(db.DateTime, default=datetime.utcnow)
-    date_updated = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime)
+    updated_at = db.Column(db.DateTime)
+    role = db.Column(db.String(50))
     
     # Relationships
     profile = db.relationship('Profile', backref='user', uselist=False, cascade='all, delete-orphan')
@@ -36,7 +37,7 @@ class Profile(db.Model):
     __tablename__ = 'profiles'
     
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    user_id = db.Column(db.String(255), db.ForeignKey('users.id'), nullable=False)
     email = db.Column(db.String(120), nullable=False)
     company = db.Column(db.String(128))
     account_setup_complete = db.Column(db.Boolean, default=False)
@@ -134,14 +135,17 @@ class KnowledgeFile(db.Model):
     """KnowledgeFile model for user knowledge base documents"""
     __tablename__ = 'knowledge_files'
     
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    id = db.Column(db.String(255), primary_key=True)
+    user_id = db.Column(db.String(255), nullable=False)
     file_name = db.Column(db.String(256), nullable=False)
     file_size = db.Column(db.Integer, nullable=False)
     file_type = db.Column(db.String(50), nullable=False)
-    content = db.Column(db.Text, nullable=False)
-    date_created = db.Column(db.DateTime, default=datetime.utcnow)
-    date_updated = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    content = db.Column(db.Text, nullable=True)
+    category = db.Column(db.String(100), nullable=True)
+    tags = db.Column(db.JSON, nullable=True)
+    file_path = db.Column(db.String(256), nullable=True)
+    created_at = db.Column(db.DateTime, nullable=True)
+    updated_at = db.Column(db.DateTime, nullable=True)
     
     def __repr__(self):
         return f'<KnowledgeFile {self.file_name}>'
@@ -328,13 +332,13 @@ class KnowledgeItem(db.Model):
     __tablename__ = 'knowledge_items'
     
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    user_id = db.Column(db.String(255), db.ForeignKey('users.id'), nullable=False)
     title = db.Column(db.String(255), nullable=False)
     content = db.Column(db.Text, nullable=False)
     type = db.Column(db.String(50), nullable=False)  # document, snippet, note, etc.
     tags = db.Column(db.JSON)
     meta_data = db.Column(db.JSON)  # Changed from 'metadata' (reserved name)
-    source_file_id = db.Column(db.Integer, db.ForeignKey('knowledge_files.id'))
+    source_file_id = db.Column(db.String(255), db.ForeignKey('knowledge_files.id'))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     

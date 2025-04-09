@@ -244,9 +244,9 @@ def init_db():
         # Import models here to ensure they are registered with SQLAlchemy
         import models_db
         
-        # Create tables
-        db.create_all()
-        logger.info("Database initialized")
+        # Don't automatically create tables, use migrations instead
+        # db.create_all()
+        logger.info("Database initialization skipped, using migrations instead")
         
         # Initialize database migration and backup system
         try:

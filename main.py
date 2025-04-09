@@ -88,6 +88,43 @@ except Exception as e:
     logger.error(f"Failed to start Simple API: {str(e)}")
 
 
+# Direct integrations API endpoints
+@app.route('/api/integrations/test', methods=['GET'])
+def test_integrations_direct():
+    """Test endpoint for integrations that doesn't require authentication"""
+    return jsonify({
+        'success': True,
+        'message': 'Integrations API is working (direct route)',
+        'version': '1.0.0'
+    })
+    
+@app.route('/api/integrations/email/test', methods=['GET'])
+def test_email_direct():
+    """Test endpoint for Email integration that doesn't require authentication"""
+    return jsonify({
+        'success': True,
+        'message': 'Email integration API is working (direct route)',
+        'version': '1.0.0'
+    })
+    
+@app.route('/api/integrations/hubspot/test', methods=['GET'])
+def test_hubspot_direct():
+    """Test endpoint for HubSpot integration that doesn't require authentication"""
+    return jsonify({
+        'success': True,
+        'message': 'HubSpot integration API is working (direct route)',
+        'version': '1.0.0'
+    })
+    
+@app.route('/api/integrations/salesforce/test', methods=['GET'])
+def test_salesforce_direct():
+    """Test endpoint for Salesforce integration that doesn't require authentication"""
+    return jsonify({
+        'success': True,
+        'message': 'Salesforce integration API is working (direct route)',
+        'version': '1.0.0'
+    })
+
 # Direct knowledge API endpoints
 @app.route('/api/knowledge/files', methods=['GET'])
 def knowledge_files_api():
