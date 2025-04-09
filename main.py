@@ -151,6 +151,19 @@ def connect_email_direct():
     try:
         from routes.integrations.email import connect_email
         
+        # Log the raw request data for debugging
+        logger.info(f"Email connect request headers: {dict(request.headers)}")
+        
+        # Try to parse JSON data, log if it fails
+        try:
+            raw_data = request.get_data(as_text=True)
+            logger.info(f"Raw request data: {raw_data}")
+            data = request.get_json(silent=True) or {}
+            logger.info(f"Parsed JSON data: {data}")
+        except Exception as json_err:
+            logger.error(f"Error parsing JSON data: {str(json_err)}")
+            data = {}
+        
         # Special development token handling
         auth_header = request.headers.get('Authorization')
         if auth_header in ['dev-token', 'test-token']:
@@ -158,8 +171,13 @@ def connect_email_direct():
             user_id = '00000000-0000-0000-0000-000000000000'
             
             # Extract config data from request
-            data = request.get_json() or {}
             config = data.get('config', {})
+            # Support both structures: {config: {...}} and direct parameters
+            if not config and any(k in data for k in ['server', 'host', 'port', 'username', 'password']):
+                logger.info("Using direct parameters from request body as config")
+                config = data  # Use the entire data object as config
+            
+            logger.info(f"Email connect config: {config}")
             
             # Call the implementation function
             success, message, status_code = connect_email(user_id, config_data=config)
@@ -176,8 +194,13 @@ def connect_email_direct():
                 return auth_result
                 
             # Extract config data from request
-            data = request.get_json() or {}
             config = data.get('config', {})
+            # Support both structures: {config: {...}} and direct parameters
+            if not config and any(k in data for k in ['server', 'host', 'port', 'username', 'password']):
+                logger.info("Using direct parameters from request body as config")
+                config = data  # Use the entire data object as config
+                
+            logger.info(f"Email connect config: {config}")
             
             # Call the implementation function with the user ID from auth
             success, message, status_code = connect_email(g.user.id, config_data=config)
