@@ -150,23 +150,25 @@ class InteractionCreate(InteractionBase):
 
 class KnowledgeFileBase(BaseModel):
     user_id: str
-    file_name: str
+    filename: str
     file_size: int
     file_type: str
     content: str
     category: Optional[str] = None
     tags: Optional[Union[List[str], str]] = None
+    binary_data: Optional[Union[Dict[str, Any], str]] = None
     metadata: Optional[Union[Dict[str, Any], str]] = None
 
 class KnowledgeFileCreate(KnowledgeFileBase):
     pass
 
 class KnowledgeFileUpdate(BaseModel):
-    file_name: Optional[str] = None
+    filename: Optional[str] = None
     file_type: Optional[str] = None
     content: Optional[str] = None
     category: Optional[str] = None
     tags: Optional[Union[List[str], str]] = None
+    binary_data: Optional[Union[Dict[str, Any], str]] = None
     metadata: Optional[Union[Dict[str, Any], str]] = None
 
 class SubscriptionFeatureBase(BaseModel):

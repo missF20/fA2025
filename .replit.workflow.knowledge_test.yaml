@@ -1,0 +1,9 @@
+workflows:
+  knowledge_test:
+    name: Knowledge Test Server
+    command: python fix_binary_upload_endpoint.py
+    restartable: true
+    portforward:
+      enabled: true
+      port: 8080
+      access: public

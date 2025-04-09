@@ -1,0 +1,9 @@
+workflows:
+  knowledge_server:
+    name: Knowledge Server
+    command: python test_knowledge_server.py
+    restartable: true
+    portforward:
+      enabled: true
+      port: 8000
+      access: public

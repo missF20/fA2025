@@ -225,7 +225,7 @@ def update_knowledge_file(file_id, user=None):
         UPDATE knowledge_files 
         SET {', '.join(update_fields)} 
         WHERE id = %s AND user_id = %s
-        RETURNING id, user_id, file_name, file_type, file_size, created_at, updated_at, category, tags, metadata
+        RETURNING id, user_id, filename, file_type, file_size, created_at, updated_at, category, tags, binary_data
         """
         
         # Execute update
@@ -294,7 +294,7 @@ def create_knowledge_file(user=None):
     data = request.json
     
     # Enhanced logging for debugging
-    logger.info(f"Starting file upload process. File name: {data.get('file_name', 'unknown')}")
+    logger.info(f"Starting file upload process. File name: {data.get('filename', 'unknown')}")
     
     # Ensure user_id is set to authenticated user
     data['user_id'] = user['id']
@@ -302,7 +302,7 @@ def create_knowledge_file(user=None):
     # Process file content based on file type
     try:
         # Check if file needs parsing (only if it's a supported file type and content is base64)
-        file_name = data.get('file_name', '')
+        file_name = data.get('filename', '')
         file_type = data.get('file_type', '')
         is_base64 = data.get('is_base64', True)
         file_content = data.get('content', '')
@@ -376,13 +376,13 @@ def create_knowledge_file(user=None):
         # Use direct SQL to insert the file to avoid Supabase schema cache issues
         insert_sql = """
         INSERT INTO knowledge_files 
-        (user_id, file_name, file_type, file_size, content, created_at, updated_at, category, tags, metadata) 
+        (user_id, filename, file_type, file_size, content, created_at, updated_at, category, tags, binary_data) 
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        RETURNING id, user_id, file_name, file_type, file_size, created_at, updated_at, category, tags, metadata
+        RETURNING id, user_id, filename, file_type, file_size, created_at, updated_at, category, tags, binary_data
         """
         params = (
             data['user_id'],
-            data['file_name'],
+            data['filename'],
             data['file_type'],
             data['file_size'],
             data.get('content', ''),
@@ -390,10 +390,10 @@ def create_knowledge_file(user=None):
             data['updated_at'],
             category,
             data.get('tags'),
-            data.get('metadata')
+            data.get('binary_data')
         )
         
-        logger.debug(f"Executing SQL to insert file: user_id={data['user_id']}, file_name={data['file_name']}")
+        logger.debug(f"Executing SQL to insert file: user_id={data['user_id']}, file_name={data['filename']}")
         try:
             result = query_sql(insert_sql, params)
             logger.debug(f"SQL insert result: {result}")
@@ -579,7 +579,7 @@ def search_knowledge_base(user=None):
         sql_params = [user['id'], f"%{query.lower()}%", f"%{query.lower()}%"]
         
         # Start building the WHERE clause with required user_id condition
-        where_conditions = ["user_id = %s", "(LOWER(content) LIKE %s OR LOWER(file_name) LIKE %s)"]
+        where_conditions = ["user_id = %s", "(LOWER(content) LIKE %s OR LOWER(filename) LIKE %s)"]
         
         # Add category filter if provided
         if category:
@@ -598,7 +598,7 @@ def search_knowledge_base(user=None):
         if include_snippets:
             # If we need snippets, we need to include content
             select_sql = f"""
-            SELECT id, file_name, file_type, category, tags, metadata, created_at, updated_at, content
+            SELECT id, filename, file_type, category, tags, binary_data, created_at, updated_at, content
             FROM knowledge_files
             WHERE {where_clause}
             ORDER BY updated_at DESC
@@ -607,7 +607,7 @@ def search_knowledge_base(user=None):
         else:
             # Otherwise, exclude content for efficiency
             select_sql = f"""
-            SELECT id, file_name, file_type, category, tags, metadata, created_at, updated_at
+            SELECT id, filename, file_type, category, tags, binary_data, created_at, updated_at
             FROM knowledge_files
             WHERE {where_clause}
             ORDER BY updated_at DESC
@@ -642,7 +642,7 @@ def search_knowledge_base(user=None):
                 # Prepare result object
                 result = {
                     'id': file['id'],
-                    'file_name': file['file_name'],
+                    'filename': file['filename'],
                     'file_type': file['file_type'],
                     'category': file.get('category'),
                     'tags': file.get('tags'),
@@ -818,7 +818,7 @@ def get_knowledge_tags(user=None):
         logger.error(f"Error getting knowledge tags: {str(e)}", exc_info=True)
         return jsonify({'error': 'Error getting knowledge tags'}), 500
 
-@knowledge_bp.route('/files/binary', methods=['POST'])
+@knowledge_bp.route('/files/binary', methods=['POST', 'OPTIONS'])
 @require_auth
 def upload_binary_file(user=None):
     """
@@ -838,7 +838,7 @@ def upload_binary_file(user=None):
           properties:
             user_id:
               type: string
-            file_name:
+            filename:
               type: string
             file_size:
               type: integer
@@ -866,7 +866,7 @@ def upload_binary_file(user=None):
         return jsonify({'error': 'No data provided'}), 400
     
     # Basic validation
-    required_fields = ['file_name', 'file_size', 'file_type', 'content']
+    required_fields = ['filename', 'file_size', 'file_type', 'content']
     for field in required_fields:
         if field not in data:
             return jsonify({'error': f'Missing required field: {field}'}), 400
@@ -876,7 +876,7 @@ def upload_binary_file(user=None):
     
     # Process file content based on file type
     try:
-        file_name = data.get('file_name', '')
+        file_name = data.get('filename', '')
         file_type = data.get('file_type', '')
         file_content = data.get('content', '')
         
@@ -940,13 +940,13 @@ def upload_binary_file(user=None):
         # Use direct SQL to insert the file to avoid Supabase schema cache issues
         insert_sql = """
         INSERT INTO knowledge_files 
-        (user_id, file_name, file_type, file_size, content, created_at, updated_at, category, tags, metadata) 
+        (user_id, filename, file_type, file_size, content, created_at, updated_at, category, tags, binary_data) 
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        RETURNING id, user_id, file_name, file_type, file_size, created_at, updated_at, category, tags, metadata
+        RETURNING id, user_id, filename, file_type, file_size, created_at, updated_at, category, tags, binary_data
         """
         params = (
             data['user_id'],
-            data['file_name'],
+            data['filename'],
             data['file_type'],
             data.get('file_size', 0),
             data.get('content', ''),
@@ -1030,7 +1030,7 @@ def get_knowledge_stats(user=None):
         
         # Get most recent files
         recent_files_sql = """
-            SELECT id, file_name, file_type, category, created_at 
+            SELECT id, filename, file_type, category, created_at 
             FROM knowledge_files 
             WHERE user_id = %s 
             ORDER BY created_at DESC 
@@ -1040,7 +1040,7 @@ def get_knowledge_stats(user=None):
         recent_files = [
             {
                 "id": row['id'],
-                "file_name": row['file_name'],
+                "filename": row['filename'],
                 "file_type": row['file_type'],
                 "category": row['category'],
                 "created_at": row['created_at'].isoformat() if row['created_at'] else None

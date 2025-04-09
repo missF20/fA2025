@@ -3,92 +3,60 @@ Fix Binary Upload Endpoint
 
 This script creates a direct endpoint to test and fix the binary file upload functionality.
 """
-
-import os
-import base64
-import logging
-import datetime
 from flask import Flask, request, jsonify
+import logging
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
-@app.route('/test', methods=['GET'])
+@app.route('/test')
 def test():
     """
     Simple test endpoint
     """
-    return jsonify({
-        'success': True,
-        'message': 'Test endpoint is operational'
-    })
+    return "Test endpoint is working!"
 
-@app.route('/binary-upload', methods=['POST'])
+@app.route('/api/binary-upload', methods=['POST'])
 def binary_upload():
     """
     Test binary upload endpoint
     """
     try:
-        # Check if this is a test request
-        if request.args.get('test') == 'true':
-            return jsonify({
-                'success': True,
-                'message': 'Binary upload endpoint is accessible'
-            })
+        data = request.json
+        if not data:
+            logger.warning("No data provided")
+            return jsonify({"error": "No data provided"}), 400
+            
+        logger.info(f"Received data: {data}")
         
-        # For testing purposes, we'll use a hardcoded user_id
-        user_id = "test-user-id"
-        
-        # Check if a file was provided
-        if 'file' not in request.files:
-            return jsonify({
-                'success': False,
-                'error': 'No file provided',
-                'message': 'Please provide a file in the multipart/form-data'
-            }), 400
-        
-        file = request.files['file']
-        
-        if file.filename == '':
-            return jsonify({
-                'success': False,
-                'error': 'Empty filename',
-                'message': 'The provided file has no filename'
-            }), 400
-        
-        # Get file metadata
-        filename = file.filename
-        file_type = file.content_type or 'application/octet-stream'
-        
-        # Read the file data
-        file_data = file.read()
-        file_size = len(file_data)
-        
-        # Base64 encode the file data for storage
-        encoded_data = base64.b64encode(file_data).decode('utf-8')
-        
-        # For testing purposes, just log the upload information
-        logger.info(f"File uploaded: {filename}, type: {file_type}, size: {file_size} bytes")
-        
-        # Return success message with basic file info
+        # Validate required fields
+        required_fields = ['filename', 'file_type', 'content']
+        for field in required_fields:
+            if field not in data:
+                logger.warning(f"Missing required field: {field}")
+                return jsonify({"error": f"Missing required field: {field}"}), 400
+                
+        # Return success response
         return jsonify({
-            'success': True, 
-            'message': 'File uploaded successfully',
-            'file_info': {
-                'filename': filename,
-                'file_type': file_type,
-                'file_size': file_size,
-                'upload_time': datetime.datetime.now().isoformat()
+            "message": "File received successfully",
+            "file_info": {
+                "filename": data['filename'],
+                "file_type": data['file_type'],
+                "content_length": len(data['content']),
+                "file_size": data.get('file_size', len(data['content']))
             }
-        })
+        }), 200
         
     except Exception as e:
-        logger.error(f"Error uploading binary file: {str(e)}")
-        return jsonify({'error': f'Failed to upload file: {str(e)}'}), 500
+        logger.error(f"Error processing request: {str(e)}", exc_info=True)
+        return jsonify({"error": f"Server error: {str(e)}"}), 500
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5002))
-    app.run(host='0.0.0.0', port=port, debug=True)
+    print("Starting test server for binary upload endpoint")
+    print("Test the endpoint with:")
+    print('curl -v -X POST -H "Content-Type: application/json" http://localhost:8080/api/binary-upload -d \'{"filename":"test.txt", "file_type":"text/plain", "content":"Test content"}\'')
+    
+    app.run(host='0.0.0.0', port=8080, debug=True)
