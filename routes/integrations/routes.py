@@ -305,10 +305,58 @@ def connect_integration(integration_type):
                 'message': f'Integration type {integration_type} not supported yet'
             }), 400
             
-        # In a real implementation, store connection details in the database if successful
+        # Store connection details in the database if successful
         if response.get('success'):
-            # Here we would save the configuration, connection timestamp, etc.
-            pass
+            try:
+                # Import models
+                from models_db import IntegrationConfig, db
+                from models import IntegrationType
+                from datetime import datetime
+                
+                # Get user ID (already retrieved for most integration types above)
+                user_id = None
+                if integration_type in ['shopify', 'hubspot', 'salesforce', 'email']:
+                    user_id = user.id
+                else:
+                    # Get user from database for the other integration types
+                    from models_db import User
+                    user = User.query.filter_by(email=g.user.email).first()
+                    if user:
+                        user_id = user.id
+                
+                if user_id:
+                    # Check if config already exists
+                    existing_config = IntegrationConfig.query.filter_by(
+                        user_id=user_id,
+                        integration_type=getattr(IntegrationType, integration_type.upper()).value
+                    ).first()
+                    
+                    if existing_config:
+                        # Update existing config
+                        existing_config.config = str(config)
+                        existing_config.status = 'active'
+                        existing_config.last_updated = datetime.now()
+                    else:
+                        # Create new config
+                        new_config = IntegrationConfig(
+                            user_id=user_id,
+                            integration_type=getattr(IntegrationType, integration_type.upper()).value,
+                            config=str(config),
+                            status='active',
+                            created_at=datetime.now(),
+                            last_updated=datetime.now()
+                        )
+                        db.session.add(new_config)
+                    
+                    # Commit changes
+                    db.session.commit()
+                    logger.info(f"Saved {integration_type} integration config for user {user_id}")
+                else:
+                    logger.warning(f"Could not save {integration_type} integration: user ID not found")
+            except Exception as e:
+                logger.exception(f"Error saving {integration_type} integration config: {str(e)}")
+                # Don't fail the request if saving to database fails
+                # Just log the error and continue
             
         return jsonify(response), status_code
             
