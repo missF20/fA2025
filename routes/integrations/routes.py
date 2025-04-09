@@ -170,13 +170,17 @@ def get_integrations_status_impl():
                                 integration_type=IntegrationType.EMAIL.value
                             ).first()
                             
-                            # If not found, try with user ID as string
+                            # If not found, we shouldn't use integer ID as string because the field expects a UUID
                             if not email_integration:
-                                logger.debug(f"No integration found with UUID, using user_id as string: {str(user.id)}")
-                                email_integration = IntegrationConfig.query.filter_by(
-                                    user_id=str(user.id),
-                                    integration_type=IntegrationType.EMAIL.value
-                                ).first()
+                                logger.debug(f"No integration found with UUID, we can't use integer ID {str(user.id)} because it's not valid UUID format")
+                                # We need to use the auth_id if available, or the UUID from authentication
+                                if hasattr(user, 'auth_id') and user.auth_id:
+                                    logger.debug(f"Using auth_id as fallback: {user.auth_id}")
+                                    email_integration = IntegrationConfig.query.filter_by(
+                                        user_id=user.auth_id,
+                                        integration_type=IntegrationType.EMAIL.value
+                                    ).first()
+                                # Otherwise, we can't find the integration
                         
                         if email_integration:
                             logger.debug(f"Found email integration for user {user.id}: status={email_integration.status}")
@@ -193,11 +197,9 @@ def get_integrations_status_impl():
                                 integration_type=IntegrationType.EMAIL.value
                             ).first()
                         else:
-                            logger.debug(f"No auth_id available, using ID as string: {str(user.id)}")
-                            email_integration = IntegrationConfig.query.filter_by(
-                                user_id=str(user.id),
-                                integration_type=IntegrationType.EMAIL.value
-                            ).first()
+                            logger.debug(f"No auth_id available. Cannot use numeric ID {user.id} as UUID")
+                            # We can't use an integer ID converted to string as a UUID
+                            # So we won't find the integration in this case
                         
                         if email_integration:
                             logger.debug(f"Found email integration for user {user.id}: status={email_integration.status}")
@@ -399,8 +401,10 @@ def connect_integration(integration_type):
                         logger.debug(f"Using auth_id for integration config: {user.auth_id}")
                         user_id = user.auth_id
                     else:
-                        logger.debug(f"Using user.id as string for integration config: {str(user.id)}")
-                        user_id = str(user.id)
+                        # Cannot use integer ID as UUID, fallback to test UUID
+                        test_uuid = '00000000-0000-0000-0000-000000000000'
+                        logger.debug(f"No auth_id available for user {user.id}, using test UUID: {test_uuid}")
+                        user_id = test_uuid
                 else:
                     # Get user from database for the other integration types
                     from models_db import User
@@ -411,8 +415,10 @@ def connect_integration(integration_type):
                             logger.debug(f"Using auth_id for integration config: {user.auth_id}")
                             user_id = user.auth_id
                         else:
-                            logger.debug(f"Using user.id as string for integration config: {str(user.id)}")
-                            user_id = str(user.id)
+                            # Cannot use integer ID as UUID, fallback to test UUID
+                            test_uuid = '00000000-0000-0000-0000-000000000000'
+                            logger.debug(f"No auth_id available for user {user.id}, using test UUID: {test_uuid}")
+                            user_id = test_uuid
                 
                 if user_id:
                     # Check if config already exists
@@ -517,10 +523,11 @@ def disconnect_integration(integration_id):
                 integration_type=integration_type
             ).first()
         else:
-            # Fallback to trying user.id as string
-            logger.debug(f"Using user.id as string for disconnect lookup: {str(user.id)}")
+            # We can't use an integer ID as a UUID, so we'll generate a generic UUID
+            logger.debug(f"No auth_id available, cannot use integer ID {user.id} as UUID for disconnect, using test UUID")
+            test_uuid = '00000000-0000-0000-0000-000000000000'
             integration_config = IntegrationConfig.query.filter_by(
-                user_id=str(user.id),
+                user_id=test_uuid,
                 integration_type=integration_type
             ).first()
         

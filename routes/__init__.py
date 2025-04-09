@@ -6,10 +6,11 @@ from .usage import usage_bp
 from .admin import admin_bp
 from .knowledge import knowledge_bp
 from .knowledge_binary import knowledge_binary_bp
-from .test_route import test_blueprint_bp
+# Test route blueprint import removed (file doesn't exist)
+# from .test_route import test_blueprint_bp
 
-# Import email test
-from .email_test import email_test_bp
+# Import email test - commented out because file doesn't exist
+# from .email_test import email_test_bp
 
 # Import integrations
 from .integrations import integrations_bp
@@ -24,7 +25,7 @@ import routes.integrations.google_analytics
 
 # List of all blueprint modules
 blueprints = [
-    email_test_bp,
+    # email_test_bp removed (file doesn't exist)
     auth_bp,
     usage_bp,
     admin_bp,
@@ -33,6 +34,6 @@ blueprints = [
     integrations_bp,
     email_integration_bp,
     hubspot_bp,
-    salesforce_bp,
-    test_blueprint_bp
+    salesforce_bp
+    # test_blueprint_bp removed (file doesn't exist)
 ]
