@@ -174,6 +174,20 @@ export const api = {
       
       console.log(`Connecting to ${integrationType} using endpoint: ${endpoint}`);
       
+      // Prepare the request body based on integration type
+      let requestBody;
+      
+      // For email, the backend expects direct parameters, not nested in config
+      if (integrationType === 'email') {
+        // Log the config for debugging
+        console.log('Email integration config:', config);
+        
+        requestBody = JSON.stringify(config);
+      } else {
+        // For other integrations, the backend expects config nested
+        requestBody = JSON.stringify({ config });
+      }
+      
       try {
         const response = await fetch(endpoint, {
           method: 'POST',
@@ -181,7 +195,7 @@ export const api = {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ config })
+          body: requestBody
         });
 
         console.log(`Response status: ${response.status}, ${response.statusText}`);

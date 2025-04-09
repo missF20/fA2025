@@ -124,14 +124,37 @@ def get_integrations_status_impl():
     from models_db import IntegrationConfig, User
     email_integration = None
     try:
-        # Get the user ID as an integer
-        user = User.query.filter_by(email=g.user.email).first()
-        if user:
-            email_integration = IntegrationConfig.query.filter_by(
-                user_id=user.id,
-                integration_type=IntegrationType.EMAIL.value,
-                status='active'
-            ).first()
+        # Handle various user object formats to get email
+        user_email = None
+        user_id = None
+        
+        # Get the user information in a robust way
+        if hasattr(g, 'user'):
+            # It might be a dict
+            if isinstance(g.user, dict):
+                user_email = g.user.get('email')
+                user_id = g.user.get('user_id') or g.user.get('id')
+            # Or it might be an object
+            elif hasattr(g.user, 'email'):
+                user_email = g.user.email
+                user_id = getattr(g.user, 'user_id', None) or getattr(g.user, 'id', None)
+        
+        logger.debug(f"User email: {user_email}, User ID: {user_id}")
+        
+        if user_email:
+            user = User.query.filter_by(email=user_email).first()
+            if user:
+                logger.debug(f"Found user with ID: {user.id}")
+                email_integration = IntegrationConfig.query.filter_by(
+                    user_id=user.id,
+                    integration_type=IntegrationType.EMAIL.value,
+                    status='active'
+                ).first()
+                
+                if email_integration:
+                    logger.debug(f"Found active email integration for user {user.id}")
+        else:
+            logger.warning("No user email found in token")
     except Exception as e:
         logger.error(f"Error checking for email integration: {str(e)}")
         
