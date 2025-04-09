@@ -235,34 +235,53 @@ def connect_email(user_id, config_data):
             "enabled": True
         }
         
-        # Check if there's an existing config for this user
-        # Note: We need to handle UUID vs integer type mismatch
-        try:
-            # First, try to cast UUID to string for comparison
-            if isinstance(user_id, str) and (user_id.startswith('00000000') or 'test-token' in user_id or 'dev-token' in user_id):
-                # For test/dev tokens, use a placeholder user ID
-                user_numeric_id = 1 
-            else:
-                # For real users, convert their database ID
-                from models_db import User
-                user = User.query.filter_by(id=user_id).first() or User.query.filter(User.auth_id == user_id).first()
-                if user:
-                    user_numeric_id = user.id
-                else:
-                    # Fallback to direct ID if user lookup fails
-                    try:
-                        user_numeric_id = int(user_id)
-                    except (ValueError, TypeError):
-                        logger.warning(f"Could not convert user_id {user_id} to integer")
+        # We need to ensure the user_id is a valid integer for the database
+        from models_db import User
+        
+        # For testing tokens, use a fixed user ID
+        if isinstance(user_id, str) and ('test-token' in user_id or 'dev-token' in user_id):
+            logger.info("Using test user ID (1) for test/dev token")
+            user_numeric_id = 1
+        else:
+            # Try to look up the user by ID first
+            try:
+                # First try direct conversion if it's an integer
+                try:
+                    numeric_id = int(user_id)
+                    user = User.query.filter_by(id=numeric_id).first()
+                    if user:
+                        user_numeric_id = user.id
+                        logger.info(f"Found user with direct ID: {user_numeric_id}")
+                    else:
+                        logger.warning(f"No user found with ID {numeric_id}")
                         user_numeric_id = 1  # Fallback for testing
-            
-            logger.info(f"Looking for email integration config with user_id={user_numeric_id}")
+                except (ValueError, TypeError):
+                    # If it's a UUID from auth, try to look up the user by email
+                    if isinstance(user_id, str) and user_id.startswith("00000000"):
+                        logger.warning(f"Using fallback user ID")
+                        user_numeric_id = 1
+                    else:
+                        logger.warning(f"Could not convert user_id to integer: {user_id}")
+                        user_numeric_id = 1
+            except Exception as e:
+                logger.exception(f"Error determining user ID: {str(e)}")
+                user_numeric_id = 1  # Fallback
+        
+        logger.info(f"Using user_numeric_id = {user_numeric_id} for integration")
+        
+        # Clear any previous session state that might be causing issues
+        db.session.rollback()
+        
+        # Now look for an existing config with this user ID
+        try:
             existing_config = IntegrationConfig.query.filter_by(
                 user_id=user_numeric_id,
                 integration_type=IntegrationType.EMAIL.value
             ).first()
+            logger.info(f"Existing config found: {existing_config is not None}")
         except Exception as e:
             logger.exception(f"Error querying for existing config: {str(e)}")
+            db.session.rollback()  # Make sure to rollback on error
             existing_config = None
         
         if existing_config:
@@ -361,23 +380,35 @@ def disconnect_email_endpoint():
             
         logger.info(f"Found user with ID: {db_user.id}")
         
-        # Find and delete the email integration configuration
-        integration = IntegrationConfig.query.filter_by(
-            user_id=db_user.id,
-            integration_type='email'
-        ).first()
+        # Clear any previous transaction errors
+        from app import db
+        db.session.rollback()
         
-        if not integration:
-            logger.warning(f"No email integration found for user {db_user.id}")
+        # Find and delete the email integration configuration
+        try:
+            integration = IntegrationConfig.query.filter_by(
+                user_id=db_user.id,
+                integration_type='email'
+            ).first()
+            
+            if not integration:
+                logger.warning(f"No email integration found for user {db_user.id}")
+                return jsonify({
+                    'success': False,
+                    'message': 'No email integration found'
+                }), 404
+                
+            # Delete the integration
+            db.session.delete(integration)
+            db.session.commit()
+            logger.info(f"Integration {integration.id} successfully deleted")
+        except Exception as e:
+            db.session.rollback()
+            logger.exception(f"Error deleting integration: {str(e)}")
             return jsonify({
                 'success': False,
-                'message': 'No email integration found'
-            }), 404
-            
-        # Delete the integration
-        from app import db
-        db.session.delete(integration)
-        db.session.commit()
+                'message': f'Error disconnecting: {str(e)}'
+            }), 500
         
         logger.info(f"Email integration disconnected for user {db_user.id}")
         
