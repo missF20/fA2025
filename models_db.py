@@ -13,14 +13,14 @@ class User(UserMixin, db.Model):
     """User model for authentication and authorization"""
     __tablename__ = 'users'
     
-    id = db.Column(db.String(255), primary_key=True)
+    id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64), nullable=False)
     email = db.Column(db.String(120), nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
     is_admin = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime)
-    updated_at = db.Column(db.DateTime)
-    role = db.Column(db.String(50))
+    date_created = db.Column(db.DateTime)
+    date_updated = db.Column(db.DateTime)
+    # role column removed as it doesn't exist in the public schema
     
     # Relationships
     profile = db.relationship('Profile', backref='user', uselist=False, cascade='all, delete-orphan')
@@ -37,7 +37,7 @@ class Profile(db.Model):
     __tablename__ = 'profiles'
     
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.String(255), db.ForeignKey('users.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     email = db.Column(db.String(120), nullable=False)
     company = db.Column(db.String(128))
     account_setup_complete = db.Column(db.Boolean, default=False)
@@ -332,7 +332,7 @@ class KnowledgeItem(db.Model):
     __tablename__ = 'knowledge_items'
     
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.String(255), db.ForeignKey('users.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     title = db.Column(db.String(255), nullable=False)
     content = db.Column(db.Text, nullable=False)
     type = db.Column(db.String(50), nullable=False)  # document, snippet, note, etc.
