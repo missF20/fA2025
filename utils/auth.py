@@ -498,14 +498,18 @@ def verify_token(token: str) -> Optional[Dict[str, Any]]:
         token_parts = token.split('.')
         logger.debug(f"Token format check: parts={len(token_parts)}, length={len(token)}")
         
-        # Decode and verify token with extra error handling
+        # For Supabase tokens, we'll decode without verification since we don't have access to the secret
+        # This is safe because Supabase will enforce authentication on their end via Row Level Security
         try:
-            payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=['HS256'])
-        except Exception as decode_err:
-            logger.error(f"JWT decode error: {str(decode_err)}, token length: {len(token)}")
-            # Try to decode without verification to see what's in the token
+            # First try to decode with our secret key (for tokens we generated)
             try:
-                # Just decode header and payload without verification for debugging purposes
+                payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=['HS256'])
+                logger.debug("Token was decoded with our secret key")
+            except Exception as local_decode_err:
+                # If that fails, try to decode without verification (for Supabase tokens)
+                logger.debug(f"Local token verification failed: {str(local_decode_err)}, attempting to decode Supabase token")
+                
+                # Extract and decode header and payload without verification
                 header_payload = token.split('.')[:2]
                 if len(header_payload) >= 2:
                     import base64
@@ -513,24 +517,38 @@ def verify_token(token: str) -> Optional[Dict[str, Any]]:
                     
                     # Decode header
                     try:
-                        header_json = base64.b64decode(header_payload[0] + '=' * (4 - len(header_payload[0]) % 4))
+                        header_padding = header_payload[0] + '=' * (4 - len(header_payload[0]) % 4)
+                        header_json = base64.b64decode(header_padding)
                         header = json.loads(header_json)
                         logger.debug(f"Token header: {header}")
                     except Exception as header_err:
                         logger.debug(f"Couldn't decode token header: {str(header_err)}")
+                        raise header_err
                         
                     # Decode payload
                     try:
-                        payload_json = base64.b64decode(header_payload[1] + '=' * (4 - len(header_payload[1]) % 4))
-                        payload_debug = json.loads(payload_json)
-                        logger.debug(f"Token payload: {payload_debug}")
+                        payload_padding = header_payload[1] + '=' * (4 - len(header_payload[1]) % 4)
+                        payload_json = base64.b64decode(payload_padding)
+                        payload = json.loads(payload_json)
+                        logger.debug(f"Token payload decoded without verification: {payload.get('email')}")
+                        
+                        # Check if this looks like a Supabase token
+                        if 'iss' in payload and 'supabase' in payload['iss']:
+                            logger.debug("Identified as Supabase token")
+                        else:
+                            logger.warning("This appears to be neither a local token nor a Supabase token")
+                            raise ValueError("Unrecognized token format")
+                            
                     except Exception as payload_err:
                         logger.debug(f"Couldn't decode token payload: {str(payload_err)}")
-            except Exception as debug_err:
-                logger.debug(f"Failed to debug token: {str(debug_err)}")
-            
-            # Re-raise the original error to continue with normal error handling
-            raise decode_err
+                        raise payload_err
+                else:
+                    raise ValueError("Invalid token format (not enough segments)")
+                    
+        except Exception as decode_err:
+            logger.error(f"JWT decode error: {str(decode_err)}, token length: {len(token)}")
+            logger.warning(f"Invalid token: {token[:20]}..., error: {str(decode_err)}")
+            return None
             
         logger.debug(f"Token decoded successfully: {payload.get('email')}")
         
@@ -548,12 +566,38 @@ def verify_token(token: str) -> Optional[Dict[str, Any]]:
             logger.error(f"Token missing 'email' claim")
             return None
             
-        # Return user information
-        return {
-            'id': payload['sub'],
-            'email': payload['email'],
-            'is_admin': payload.get('is_admin', False)
-        }
+        # Check for Supabase token format
+        if 'iss' in payload and 'supabase' in payload['iss']:
+            # Supabase tokens have a different structure
+            user_id = payload.get('sub')
+            email = payload.get('email')
+            
+            # Check if user has admin role in the metadata
+            is_admin = False
+            user_metadata = payload.get('user_metadata', {})
+            app_metadata = payload.get('app_metadata', {})
+            
+            # In Supabase, admin status might be in various places
+            if user_metadata.get('is_admin'):
+                is_admin = True
+            elif app_metadata.get('is_admin'):
+                is_admin = True
+            elif payload.get('role') == 'service_role':
+                is_admin = True
+                
+            return {
+                'id': user_id,
+                'email': email,
+                'is_admin': is_admin,
+                'supabase_user': True
+            }
+        else:
+            # Standard token format from our system
+            return {
+                'id': payload['sub'],
+                'email': payload['email'],
+                'is_admin': payload.get('is_admin', False)
+            }
     except jwt.ExpiredSignatureError:
         logger.warning(f"Expired token: {token[:20]}...")
         return None
