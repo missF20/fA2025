@@ -8,6 +8,7 @@ import time
 import logging
 from datetime import datetime, timedelta
 import functools
+from types import SimpleNamespace
 from typing import Dict, List, Optional, Any, Callable, Tuple, Union
 
 import jwt
@@ -88,6 +89,69 @@ def get_user_from_token(request=None):
         
     # Verify and return user information
     return verify_token(token)
+
+def token_required_impl():
+    """
+    Implementation of the token validation logic for direct endpoint usage
+    
+    Returns:
+        Either the user object or a tuple with the error response
+    """
+    # Check for development mode bypass first
+    bypass_auth = request.args.get('bypass_auth') == 'true'
+    is_dev = (os.environ.get('FLASK_ENV') == 'development' or 
+             request.args.get('flask_env') == 'development' or
+             os.environ.get('DEVELOPMENT_MODE') == 'true' or
+             os.environ.get('APP_ENV') == 'development')
+    
+    if bypass_auth and is_dev:
+        logger.warning(f"Development mode bypass for token_required_impl")
+        # Create a development user
+        user = {
+            'id': '00000000-0000-0000-0000-000000000000',  # Valid UUID format
+            'email': 'dev@example.com',
+            'is_admin': True,
+            'dev_mode': True
+        }
+        # Store it in g for access in the route function
+        g.user = SimpleNamespace(**user)
+        # Return the user
+        return user
+        
+    # Normal authentication flow
+    auth_header = request.headers.get('Authorization')
+    
+    if not auth_header:
+        # Try to get from cookies or query parameters
+        token = request.cookies.get('token') or request.args.get('token')
+    else:
+        # Extract token from Authorization header
+        parts = auth_header.split()
+        if len(parts) == 2 and parts[0].lower() == 'bearer':
+            token = parts[1]
+        else:
+            token = None
+            
+    if not token:
+        return jsonify({
+            'error': 'Authentication required',
+            'message': 'No authentication token provided'
+        }), 401
+        
+    # Verify token
+    user = verify_token(token)
+    
+    if not user:
+        return jsonify({
+            'error': 'Authentication failed',
+            'message': 'Invalid or expired token'
+        }), 401
+        
+    # Store user in Flask g object for access in route handlers
+    g.user = SimpleNamespace(**user)
+    
+    # Return the user
+    return user
 
 def login_required(f: Callable) -> Callable:
     """

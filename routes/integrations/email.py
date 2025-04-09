@@ -68,7 +68,7 @@ def connect_email(user_id, config_data):
     try:
         # Placeholder for email connection logic
         email_provider = config_data.get('provider', 'generic')
-        email_server = config_data.get('server')
+        email_server = config_data.get('server') or config_data.get('host')  # Accept either server or host
         email_port = config_data.get('port')
         email_username = config_data.get('username')
         email_password = config_data.get('password')

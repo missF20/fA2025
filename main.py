@@ -97,7 +97,28 @@ def test_integrations_direct():
         'message': 'Integrations API is working (direct route)',
         'version': '1.0.0'
     })
-    
+
+# Main integrations endpoints
+@app.route('/api/integrations/status', methods=['GET'])
+def get_integrations_status_direct():
+    """Get all integrations status - direct endpoint"""
+    try:
+        from utils.auth import token_required_impl
+        from routes.integrations.routes import get_integrations_status_impl
+        
+        # Check authentication manually
+        auth_result = token_required_impl()
+        if isinstance(auth_result, tuple):
+            # Auth failed, return the error response
+            return auth_result
+            
+        # Call the implementation function
+        return get_integrations_status_impl()
+    except Exception as e:
+        logger.error(f"Error in direct integrations status endpoint: {str(e)}")
+        return jsonify({"error": "Integrations status API error", "details": str(e)}), 500
+
+# Email integration endpoints
 @app.route('/api/integrations/email/test', methods=['GET'])
 def test_email_direct():
     """Test endpoint for Email integration that doesn't require authentication"""
@@ -107,6 +128,52 @@ def test_email_direct():
         'version': '1.0.0'
     })
     
+@app.route('/api/integrations/email/connect', methods=['POST'])
+def connect_email_direct():
+    """Connect to email integration - direct endpoint"""
+    try:
+        from utils.auth import token_required_impl
+        from routes.integrations.email import connect_email
+        from flask import g
+        import json
+        
+        # Check authentication manually
+        auth_result = token_required_impl()
+        if isinstance(auth_result, tuple):
+            # Auth failed, return the error response
+            return auth_result
+            
+        # Extract config data from request
+        data = request.get_json() or {}
+        config = data.get('config', {})
+        
+        # Call the implementation function
+        success, message, status_code = connect_email(g.user.id, config_data=config)
+        return jsonify({'success': success, 'message': message}), status_code
+    except Exception as e:
+        logger.error(f"Error in direct email connect endpoint: {str(e)}")
+        return jsonify({"success": False, "message": f"Email connect API error: {str(e)}"}), 500
+    
+@app.route('/api/integrations/email/send', methods=['POST'])
+def send_email_direct():
+    """Send email - direct endpoint"""
+    try:
+        from utils.auth import token_required_impl
+        from routes.integrations.email import send_email
+        
+        # Check authentication manually
+        auth_result = token_required_impl()
+        if isinstance(auth_result, tuple):
+            # Auth failed, return the error response
+            return auth_result
+            
+        # Call the original implementation which handles the request body extraction
+        return send_email()
+    except Exception as e:
+        logger.error(f"Error in direct email send endpoint: {str(e)}")
+        return jsonify({"success": False, "message": f"Email send API error: {str(e)}"}), 500
+
+# HubSpot integration endpoints
 @app.route('/api/integrations/hubspot/test', methods=['GET'])
 def test_hubspot_direct():
     """Test endpoint for HubSpot integration that doesn't require authentication"""
@@ -116,6 +183,32 @@ def test_hubspot_direct():
         'version': '1.0.0'
     })
     
+@app.route('/api/integrations/hubspot/connect', methods=['POST'])
+def connect_hubspot_direct():
+    """Connect to HubSpot integration - direct endpoint"""
+    try:
+        from utils.auth import token_required_impl
+        from routes.integrations.hubspot import connect_hubspot
+        from flask import g
+        
+        # Check authentication manually
+        auth_result = token_required_impl()
+        if isinstance(auth_result, tuple):
+            # Auth failed, return the error response
+            return auth_result
+            
+        # Extract config data from request
+        data = request.get_json() or {}
+        config = data.get('config', {})
+        
+        # Call the implementation function
+        success, message, status_code = connect_hubspot(g.user.id, config_data=config)
+        return jsonify({'success': success, 'message': message}), status_code
+    except Exception as e:
+        logger.error(f"Error in direct hubspot connect endpoint: {str(e)}")
+        return jsonify({"success": False, "message": f"HubSpot connect API error: {str(e)}"}), 500
+    
+# Salesforce integration endpoints
 @app.route('/api/integrations/salesforce/test', methods=['GET'])
 def test_salesforce_direct():
     """Test endpoint for Salesforce integration that doesn't require authentication"""
@@ -124,6 +217,31 @@ def test_salesforce_direct():
         'message': 'Salesforce integration API is working (direct route)',
         'version': '1.0.0'
     })
+    
+@app.route('/api/integrations/salesforce/connect', methods=['POST'])
+def connect_salesforce_direct():
+    """Connect to Salesforce integration - direct endpoint"""
+    try:
+        from utils.auth import token_required_impl
+        from routes.integrations.salesforce import connect_salesforce
+        from flask import g
+        
+        # Check authentication manually
+        auth_result = token_required_impl()
+        if isinstance(auth_result, tuple):
+            # Auth failed, return the error response
+            return auth_result
+            
+        # Extract config data from request
+        data = request.get_json() or {}
+        config = data.get('config', {})
+        
+        # Call the implementation function
+        success, message, status_code = connect_salesforce(g.user.id, config_data=config)
+        return jsonify({'success': success, 'message': message}), status_code
+    except Exception as e:
+        logger.error(f"Error in direct salesforce connect endpoint: {str(e)}")
+        return jsonify({"success": False, "message": f"Salesforce connect API error: {str(e)}"}), 500
 
 # Direct knowledge API endpoints
 @app.route('/api/knowledge/files', methods=['GET'])

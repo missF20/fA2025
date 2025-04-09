@@ -90,6 +90,16 @@ def get_integrations_status():
     Returns:
         JSON response with integrations list
     """
+    return get_integrations_status_impl()
+    
+def get_integrations_status_impl():
+    """
+    Implementation function for getting integrations status
+    Can be called directly from other routes
+    
+    Returns:
+        JSON response with integrations list
+    """
     # In a real implementation, we would fetch this from the database
     # based on the authenticated user ID
     
