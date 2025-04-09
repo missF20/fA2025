@@ -8,6 +8,7 @@ from flask_login import UserMixin
 from sqlalchemy.dialects.postgresql import JSON as PostgresJSON
 
 from app import db
+from sqlalchemy import cast, String
 
 class User(UserMixin, db.Model):
     """User model for authentication and authorization"""
@@ -34,7 +35,7 @@ class User(UserMixin, db.Model):
         backref='user',
         lazy='dynamic',
         cascade='all, delete-orphan',
-        primaryjoin="or_(User.id.cast(db.String) == IntegrationConfig.user_id, User.auth_id == IntegrationConfig.user_id)",
+        primaryjoin="or_(cast(User.id, String) == IntegrationConfig.user_id, User.auth_id == IntegrationConfig.user_id)",
         foreign_keys="IntegrationConfig.user_id"
     )
     subscriptions = db.relationship('UserSubscription', backref='user', lazy='dynamic', cascade='all, delete-orphan')
