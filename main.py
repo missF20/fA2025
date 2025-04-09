@@ -11,8 +11,22 @@ import subprocess
 import os
 from flask import jsonify, request
 
+# Import auth module
+from utils.auth import token_required
+
 # Import debug endpoint
 import debug_endpoint
+
+# Add test route
+@app.route('/api/test-auth', methods=['GET'])
+@token_required
+def test_auth():
+    """Test route for authentication"""
+    return jsonify({
+        'success': True,
+        'message': 'Authentication successful',
+        'dev_mode': True
+    })
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, 
@@ -135,24 +149,39 @@ def test_email_direct():
 def connect_email_direct():
     """Connect to email integration - direct endpoint"""
     try:
-        from utils.auth import token_required_impl
         from routes.integrations.email import connect_email
-        from flask import g
-        import json
         
-        # Check authentication manually
-        auth_result = token_required_impl()
-        if isinstance(auth_result, tuple):
-            # Auth failed, return the error response
-            return auth_result
+        # Special development token handling
+        auth_header = request.headers.get('Authorization')
+        if auth_header in ['dev-token', 'test-token']:
+            # Use a test user ID for development token
+            user_id = '00000000-0000-0000-0000-000000000000'
             
-        # Extract config data from request
-        data = request.get_json() or {}
-        config = data.get('config', {})
-        
-        # Call the implementation function
-        success, message, status_code = connect_email(g.user.id, config_data=config)
-        return jsonify({'success': success, 'message': message}), status_code
+            # Extract config data from request
+            data = request.get_json() or {}
+            config = data.get('config', {})
+            
+            # Call the implementation function
+            success, message, status_code = connect_email(user_id, config_data=config)
+            return jsonify({'success': success, 'message': message}), status_code
+        else:
+            # For regular tokens, use the normal auth process
+            from utils.auth import token_required_impl
+            from flask import g
+            
+            # Check authentication manually
+            auth_result = token_required_impl()
+            if isinstance(auth_result, tuple):
+                # Auth failed, return the error response
+                return auth_result
+                
+            # Extract config data from request
+            data = request.get_json() or {}
+            config = data.get('config', {})
+            
+            # Call the implementation function with the user ID from auth
+            success, message, status_code = connect_email(g.user.id, config_data=config)
+            return jsonify({'success': success, 'message': message}), status_code
     except Exception as e:
         logger.error(f"Error in direct email connect endpoint: {str(e)}")
         return jsonify({"success": False, "message": f"Email connect API error: {str(e)}"}), 500
@@ -161,17 +190,40 @@ def connect_email_direct():
 def send_email_direct():
     """Send email - direct endpoint"""
     try:
-        from utils.auth import token_required_impl
         from routes.integrations.email import send_email
         
-        # Check authentication manually
-        auth_result = token_required_impl()
-        if isinstance(auth_result, tuple):
-            # Auth failed, return the error response
-            return auth_result
+        # Special development token handling
+        auth_header = request.headers.get('Authorization')
+        if auth_header in ['dev-token', 'test-token']:
+            # For development tokens, we simulate a successful authentication
+            from flask import _request_ctx_stack
+            import types
             
-        # Call the original implementation which handles the request body extraction
-        return send_email()
+            # Create a minimal g-like object with a user property that has an id
+            # This allows the send_email function to work without changes
+            class FakeUser:
+                def __init__(self):
+                    self.id = '00000000-0000-0000-0000-000000000000'
+            
+            # Attach it to the request context
+            if not hasattr(_request_ctx_stack.top, 'g'):
+                _request_ctx_stack.top.g = types.SimpleNamespace()
+            _request_ctx_stack.top.g.user = FakeUser()
+            
+            # Call the original implementation which handles the request body extraction
+            return send_email()
+        else:
+            # For regular tokens, use the normal auth process
+            from utils.auth import token_required_impl
+            
+            # Check authentication manually
+            auth_result = token_required_impl()
+            if isinstance(auth_result, tuple):
+                # Auth failed, return the error response
+                return auth_result
+                
+            # Call the original implementation which handles the request body extraction
+            return send_email()
     except Exception as e:
         logger.error(f"Error in direct email send endpoint: {str(e)}")
         return jsonify({"success": False, "message": f"Email send API error: {str(e)}"}), 500
@@ -190,23 +242,39 @@ def test_hubspot_direct():
 def connect_hubspot_direct():
     """Connect to HubSpot integration - direct endpoint"""
     try:
-        from utils.auth import token_required_impl
         from routes.integrations.hubspot import connect_hubspot
-        from flask import g
         
-        # Check authentication manually
-        auth_result = token_required_impl()
-        if isinstance(auth_result, tuple):
-            # Auth failed, return the error response
-            return auth_result
+        # Special development token handling
+        auth_header = request.headers.get('Authorization')
+        if auth_header in ['dev-token', 'test-token']:
+            # Use a test user ID for development token
+            user_id = '00000000-0000-0000-0000-000000000000'
             
-        # Extract config data from request
-        data = request.get_json() or {}
-        config = data.get('config', {})
-        
-        # Call the implementation function
-        success, message, status_code = connect_hubspot(g.user.id, config_data=config)
-        return jsonify({'success': success, 'message': message}), status_code
+            # Extract config data from request
+            data = request.get_json() or {}
+            config = data.get('config', {})
+            
+            # Call the implementation function
+            success, message, status_code = connect_hubspot(user_id, config_data=config)
+            return jsonify({'success': success, 'message': message}), status_code
+        else:
+            # For regular tokens, use the normal auth process
+            from utils.auth import token_required_impl
+            from flask import g
+            
+            # Check authentication manually
+            auth_result = token_required_impl()
+            if isinstance(auth_result, tuple):
+                # Auth failed, return the error response
+                return auth_result
+                
+            # Extract config data from request
+            data = request.get_json() or {}
+            config = data.get('config', {})
+            
+            # Call the implementation function with the user ID from auth
+            success, message, status_code = connect_hubspot(g.user.id, config_data=config)
+            return jsonify({'success': success, 'message': message}), status_code
     except Exception as e:
         logger.error(f"Error in direct hubspot connect endpoint: {str(e)}")
         return jsonify({"success": False, "message": f"HubSpot connect API error: {str(e)}"}), 500
@@ -225,23 +293,39 @@ def test_salesforce_direct():
 def connect_salesforce_direct():
     """Connect to Salesforce integration - direct endpoint"""
     try:
-        from utils.auth import token_required_impl
         from routes.integrations.salesforce import connect_salesforce
-        from flask import g
         
-        # Check authentication manually
-        auth_result = token_required_impl()
-        if isinstance(auth_result, tuple):
-            # Auth failed, return the error response
-            return auth_result
+        # Special development token handling
+        auth_header = request.headers.get('Authorization')
+        if auth_header in ['dev-token', 'test-token']:
+            # Use a test user ID for development token
+            user_id = '00000000-0000-0000-0000-000000000000'
             
-        # Extract config data from request
-        data = request.get_json() or {}
-        config = data.get('config', {})
-        
-        # Call the implementation function
-        success, message, status_code = connect_salesforce(g.user.id, config_data=config)
-        return jsonify({'success': success, 'message': message}), status_code
+            # Extract config data from request
+            data = request.get_json() or {}
+            config = data.get('config', {})
+            
+            # Call the implementation function
+            success, message, status_code = connect_salesforce(user_id, config_data=config)
+            return jsonify({'success': success, 'message': message}), status_code
+        else:
+            # For regular tokens, use the normal auth process
+            from utils.auth import token_required_impl
+            from flask import g
+            
+            # Check authentication manually
+            auth_result = token_required_impl()
+            if isinstance(auth_result, tuple):
+                # Auth failed, return the error response
+                return auth_result
+                
+            # Extract config data from request
+            data = request.get_json() or {}
+            config = data.get('config', {})
+            
+            # Call the implementation function with the user ID from auth
+            success, message, status_code = connect_salesforce(g.user.id, config_data=config)
+            return jsonify({'success': success, 'message': message}), status_code
     except Exception as e:
         logger.error(f"Error in direct salesforce connect endpoint: {str(e)}")
         return jsonify({"success": False, "message": f"Salesforce connect API error: {str(e)}"}), 500

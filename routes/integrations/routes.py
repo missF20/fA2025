@@ -121,11 +121,11 @@ def get_integrations_status_impl():
     # Add placeholder for other integrations
     # Email integration
     # Check if there's an active email integration for this user
-    from models_db import IntegrationConfig
+    from models_db import IntegrationConfig, User
     email_integration = None
     try:
-        from routes.integrations.email import get_or_create_user
-        user = get_or_create_user(g.user.email)
+        # Get the user ID as an integer
+        user = User.query.filter_by(email=g.user.email).first()
         if user:
             email_integration = IntegrationConfig.query.filter_by(
                 user_id=user.id,
@@ -232,17 +232,49 @@ def connect_integration(integration_type):
         elif integration_type == 'google_analytics':
             response, status_code = connect_google_analytics(config)
         elif integration_type == 'shopify':
-            success, message, status_code = connect_shopify(g.user.id, config_data=config)
+            # Get integer user ID from database since g.user.id might be UUID string
+            from models_db import User
+            user = User.query.filter_by(email=g.user.email).first()
+            if not user:
+                return jsonify({
+                    'success': False,
+                    'message': 'User not found in database'
+                }), 400
+            success, message, status_code = connect_shopify(user.id, config_data=config)
             response = {'success': success, 'message': message}
 
         elif integration_type == 'hubspot':
-            success, message, status_code = connect_hubspot(g.user.id, config_data=config)
+            # Get integer user ID from database since g.user.id might be UUID string
+            from models_db import User
+            user = User.query.filter_by(email=g.user.email).first()
+            if not user:
+                return jsonify({
+                    'success': False,
+                    'message': 'User not found in database'
+                }), 400
+            success, message, status_code = connect_hubspot(user.id, config_data=config)
             response = {'success': success, 'message': message}
         elif integration_type == 'salesforce':
-            success, message, status_code = connect_salesforce(g.user.id, config_data=config)
+            # Get integer user ID from database since g.user.id might be UUID string
+            from models_db import User
+            user = User.query.filter_by(email=g.user.email).first()
+            if not user:
+                return jsonify({
+                    'success': False,
+                    'message': 'User not found in database'
+                }), 400
+            success, message, status_code = connect_salesforce(user.id, config_data=config)
             response = {'success': success, 'message': message}
         elif integration_type == 'email':
-            success, message, status_code = connect_email(g.user.id, config_data=config)
+            # Get integer user ID from database since g.user.id might be UUID string
+            from models_db import User
+            user = User.query.filter_by(email=g.user.email).first()
+            if not user:
+                return jsonify({
+                    'success': False,
+                    'message': 'User not found in database'
+                }), 400
+            success, message, status_code = connect_email(user.id, config_data=config)
             response = {'success': success, 'message': message}
         else:
             return jsonify({
@@ -320,16 +352,48 @@ def sync_integration(integration_id):
         elif integration_id == 'google_analytics':
             result = sync_google_analytics(integration_id, config)
         elif integration_id == 'shopify':
-            success, message, status_code = sync_shopify(g.user.id, integration_id)
+            # Get integer user ID from database since g.user.id might be UUID string
+            from models_db import User
+            user = User.query.filter_by(email=g.user.email).first()
+            if not user:
+                return jsonify({
+                    'success': False,
+                    'message': 'User not found in database'
+                }), 400
+            success, message, status_code = sync_shopify(user.id, integration_id)
             result = {'success': success, 'message': message}
         elif integration_id == 'hubspot':
-            success, message, status_code = sync_hubspot(g.user.id, integration_id)
+            # Get integer user ID from database since g.user.id might be UUID string
+            from models_db import User
+            user = User.query.filter_by(email=g.user.email).first()
+            if not user:
+                return jsonify({
+                    'success': False,
+                    'message': 'User not found in database'
+                }), 400
+            success, message, status_code = sync_hubspot(user.id, integration_id)
             result = {'success': success, 'message': message}
         elif integration_id == 'salesforce':
-            success, message, status_code = sync_salesforce(g.user.id, integration_id)
+            # Get integer user ID from database since g.user.id might be UUID string
+            from models_db import User
+            user = User.query.filter_by(email=g.user.email).first()
+            if not user:
+                return jsonify({
+                    'success': False,
+                    'message': 'User not found in database'
+                }), 400
+            success, message, status_code = sync_salesforce(user.id, integration_id)
             result = {'success': success, 'message': message}
         elif integration_id == 'email':
-            success, message, status_code = sync_email(g.user.id, integration_id)
+            # Get integer user ID from database since g.user.id might be UUID string
+            from models_db import User
+            user = User.query.filter_by(email=g.user.email).first()
+            if not user:
+                return jsonify({
+                    'success': False,
+                    'message': 'User not found in database'
+                }), 400
+            success, message, status_code = sync_email(user.id, integration_id)
             result = {'success': success, 'message': message}
         else:
             return jsonify({
