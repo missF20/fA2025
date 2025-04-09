@@ -276,6 +276,7 @@ def register_blueprints():
         from routes.subscription_management import subscription_mgmt_bp
         from routes.pdf_analysis import pdf_analysis_bp
         from routes.knowledge import knowledge_bp
+        from routes.knowledge_binary import knowledge_binary_bp
         from routes.usage import usage_bp
         from routes.auth import auth_bp
         
@@ -284,9 +285,11 @@ def register_blueprints():
         app.register_blueprint(subscription_mgmt_bp)
         app.register_blueprint(pdf_analysis_bp)
         app.register_blueprint(knowledge_bp)
+        app.register_blueprint(knowledge_binary_bp)
         app.register_blueprint(usage_bp)
         app.register_blueprint(auth_bp)
         logger.info("Knowledge blueprint registered successfully")
+        logger.info("Knowledge binary upload blueprint registered successfully")
         logger.info("Token usage blueprint registered successfully")
         logger.info("Auth blueprint registered successfully")
         

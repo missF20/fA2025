@@ -57,8 +57,8 @@ def get_knowledge_files(user=None):
     try:
         # Use direct SQL to get files
         files_sql = """
-        SELECT id, user_id, file_name, file_size, file_type, created_at, updated_at, 
-               category, tags, metadata
+        SELECT id, user_id, filename, file_size, file_type, created_at, updated_at, 
+               category, tags, binary_data
         FROM knowledge_files 
         WHERE user_id = %s
         ORDER BY created_at DESC
@@ -125,8 +125,8 @@ def get_knowledge_file(file_id, user=None):
         # Determine what fields to select
         if exclude_content:
             select_sql = """
-            SELECT id, user_id, file_name, file_size, file_type, created_at, updated_at, 
-                   category, tags, metadata
+            SELECT id, user_id, filename, file_size, file_type, created_at, updated_at, 
+                   category, tags, binary_data
             FROM knowledge_files 
             WHERE id = %s AND user_id = %s
             """

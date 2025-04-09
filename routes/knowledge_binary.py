@@ -6,17 +6,30 @@ This module provides binary file upload endpoints for the Knowledge API.
 import logging
 import base64
 import uuid
+import json
 import datetime
 from flask import Blueprint, request, jsonify
 from utils.auth import require_auth, get_user_from_token
 from utils.file_parser import FileParser
 from utils.supabase import get_supabase_client
+from utils.db_connection import get_db_connection
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
 # Create blueprint
 knowledge_binary_bp = Blueprint('knowledge_binary', __name__, url_prefix='/api/knowledge')
+
+# Add test route that's accessible without authentication
+@knowledge_binary_bp.route('/test', methods=['GET'])
+def test_binary_endpoint():
+    """Test endpoint to verify binary upload blueprint is registered"""
+    return jsonify({
+        'status': 'success',
+        'message': 'Knowledge binary upload blueprint is registered',
+        'endpoint': 'test',
+        'timestamp': datetime.datetime.now().isoformat()
+    })
 
 @knowledge_binary_bp.route('/files/binary', methods=['POST'])
 @require_auth
@@ -107,53 +120,72 @@ def upload_binary_file(user=None):
             file_data = file.read()
             file_size = len(file_data)
             
-            # Create a FileParser instance and parse the file
-            try:
-                parser = FileParser()
-                content = parser.parse_file(file_data, file_type)
-            except Exception as parser_error:
-                logger.error(f"Error parsing file: {str(parser_error)}")
-                content = f"Error parsing file: {str(parser_error)}"
+            # Parse the file content
+            parser = FileParser()
+            content = parser.parse_file(file_data, file_type)
             
             # Base64 encode the file data for storage
             encoded_data = base64.b64encode(file_data).decode('utf-8')
             
-            # Store file metadata and content in the database
-            supabase = get_supabase_client()
-            
-            # Create the knowledge file entry
-            new_file = {
-                'user_id': user_id,
-                'file_name': filename,
-                'file_size': file_size,
-                'file_type': file_type,
-                'content': content,
-                'binary_data': encoded_data,
-                'category': category,
-                'tags': tags_str,
-                'created_at': datetime.datetime.now().isoformat(),
-                'updated_at': datetime.datetime.now().isoformat()
-            }
-            
-            # Insert the file using Supabase SDK
+            # Store file metadata and content in the database using direct connection
             try:
-                result = supabase.table('knowledge_files').insert(new_file).execute()
+                # Get direct database connection
+                conn = get_db_connection()
                 
-                if hasattr(result, 'error') and result.error:
-                    return jsonify({'error': result.error}), 500
+                # Create insert SQL
+                insert_sql = """
+                INSERT INTO knowledge_files 
+                    (id, user_id, filename, file_size, file_type, content, 
+                    binary_data, category, tags, created_at, updated_at)
+                VALUES 
+                    (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id, user_id, filename, file_size, file_type, 
+                         category, tags, created_at, updated_at
+                """
                 
-                # Extract file data from result and return in response
-                file_response = result.data[0] if hasattr(result, 'data') and result.data else {}
+                # Generate a UUID for the file ID
+                file_id = str(uuid.uuid4())
+                current_time = datetime.datetime.now().isoformat()
                 
-                # Remove binary data from response (too large)
-                if 'binary_data' in file_response:
-                    del file_response['binary_data']
+                # Execute the insert
+                with conn.cursor() as cursor:
+                    cursor.execute(insert_sql, (
+                        file_id,
+                        user_id,
+                        filename,
+                        file_size,
+                        file_type,
+                        content,
+                        encoded_data,
+                        category,
+                        tags_str,
+                        current_time,
+                        current_time
+                    ))
+                    
+                    # Get the inserted row
+                    result = cursor.fetchone()
+                    
+                conn.commit()
+                
+                # Build a response object that doesn't depend on the cursor format
+                file_response = {
+                    'id': file_id,
+                    'user_id': user_id,
+                    'filename': filename,
+                    'file_size': file_size,
+                    'file_type': file_type,
+                    'category': category,
+                    'created_at': current_time,
+                    'updated_at': current_time
+                }
                 
                 return jsonify({
                     'success': True,
                     'file': file_response,
                     'message': f'File {filename} uploaded successfully'
                 }), 201
+                
             except Exception as db_error:
                 logger.error(f"Database error: {str(db_error)}")
                 return jsonify({'error': f'Database error: {str(db_error)}'}), 500
@@ -203,30 +235,71 @@ def upload_binary_file(user=None):
             
             try:
                 # Add timestamps if not present
-                if 'created_at' not in data:
-                    data['created_at'] = datetime.datetime.now().isoformat()
-                if 'updated_at' not in data:
-                    data['updated_at'] = datetime.datetime.now().isoformat()
+                created_at = data.get('created_at', datetime.datetime.now().isoformat())
+                updated_at = data.get('updated_at', datetime.datetime.now().isoformat())
                 
-                # Insert the file
-                supabase = get_supabase_client()
-                result = supabase.table('knowledge_files').insert(data).execute()
+                # Get direct database connection
+                conn = get_db_connection()
                 
-                if hasattr(result, 'error') and result.error:
-                    return jsonify({'error': result.error}), 500
+                # Create insert SQL
+                insert_sql = """
+                INSERT INTO knowledge_files 
+                    (id, user_id, filename, file_size, file_type, content, 
+                    binary_data, category, tags, created_at, updated_at)
+                VALUES 
+                    (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id, user_id, filename, file_size, file_type, 
+                         category, tags, created_at, updated_at
+                """
                 
-                # Extract file data from result and return in response
-                file_response = result.data[0] if hasattr(result, 'data') and result.data else {}
+                # Generate a UUID for the file ID
+                file_id = data.get('id', str(uuid.uuid4()))
                 
-                # Remove binary data from response (too large)
-                if 'binary_data' in file_response:
-                    del file_response['binary_data']
+                # Extract values from data dictionary
+                filename = data.get('file_name', '')
+                file_size = data.get('file_size', 0)
+                file_type = data.get('file_type', '')
+                content = data.get('content', '')
+                binary_data = data.get('binary_data', '')
+                category = data.get('category', '')
+                tags_json = data.get('tags', '[]')
+                
+                # Execute the insert
+                with conn.cursor() as cursor:
+                    cursor.execute(insert_sql, (
+                        file_id,
+                        user_id,
+                        filename,
+                        file_size,
+                        file_type,
+                        content,
+                        binary_data,
+                        category,
+                        tags_json,
+                        created_at,
+                        updated_at
+                    ))
+                
+                conn.commit()
+                
+                # Build a response object manually
+                file_response = {
+                    'id': file_id,
+                    'user_id': user_id,
+                    'filename': filename,
+                    'file_size': file_size,
+                    'file_type': file_type,
+                    'category': category,
+                    'created_at': created_at,
+                    'updated_at': updated_at
+                }
                 
                 return jsonify({
                     'success': True,
                     'file': file_response,
-                    'message': f'File {data.get("file_name")} uploaded successfully'
+                    'message': f'File {filename} uploaded successfully'
                 }), 201
+                
             except Exception as db_error:
                 logger.error(f"Database error: {str(db_error)}")
                 return jsonify({'error': f'Database error: {str(db_error)}'}), 500
