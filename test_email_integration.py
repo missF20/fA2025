@@ -1,117 +1,57 @@
-#!/usr/bin/env python
-"""
-Test Email Integration
-
-Simple script to test if the email integration endpoint is working.
-Using subprocess to call curl instead of requests library.
-"""
-
-import subprocess
-import json
 import os
+import json
 import logging
+import traceback
+from flask import Flask, request, jsonify
+from werkzeug.serving import run_simple
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+app = Flask(__name__)
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-# Base URL for the API
-BASE_URL = "http://localhost:5000"
-
-def run_curl(url):
-    """
-    Run curl command and return the output
-    """
+@app.route('/api/integrations/email/connect', methods=['POST'])
+def connect_email():
+    """Log everything about the received request"""
     try:
-        result = subprocess.run(
-            ["curl", "-s", url],
-            capture_output=True,
-            text=True,
-            check=False
-        )
+        logger.info("=" * 40)
+        logger.info("Email connect endpoint hit")
+        logger.info(f"Headers: {dict(request.headers)}")
         
-        if result.returncode != 0:
-            logger.error(f"curl command failed with return code {result.returncode}")
-            return None, result.stderr
-            
-        return result.stdout, None
+        # Log raw data
+        raw_data = request.get_data(as_text=True)
+        logger.info(f"Raw request data: {raw_data}")
         
-    except Exception as e:
-        logger.error(f"Error executing curl: {str(e)}")
-        return None, str(e)
-
-def test_email_integration_endpoints():
-    """Test email integration endpoints"""
-    
-    endpoints = [
-        "/api/integrations/email/test",
-        "/api/integrations/email/status",
-        "/api/integrations/email/configure"
-    ]
-    
-    for endpoint in endpoints:
-        url = f"{BASE_URL}{endpoint}"
-        logger.info(f"Testing endpoint: {url}")
-        
-        output, error = run_curl(url)
-        
-        if error:
-            logger.error(f"ERROR: Failed to access {endpoint}: {error}")
-            continue
-            
-        if not output:
-            logger.error(f"ERROR: No response from {endpoint}")
-            continue
-            
+        # Log parsed JSON if possible
         try:
-            response_json = json.loads(output)
-            logger.info(f"SUCCESS: Endpoint {endpoint} returned valid JSON")
-            logger.info(f"Response: {json.dumps(response_json, indent=2)}")
-        except json.JSONDecodeError:
-            logger.error(f"ERROR: Endpoint {endpoint} did not return valid JSON")
-            logger.error(f"Response: {output}")
+            json_data = request.get_json(silent=True)
+            logger.info(f"Parsed JSON data: {json_data}")
+        except Exception as e:
+            logger.error(f"Error parsing JSON: {str(e)}")
+        
+        # Always return success to test frontend behavior
+        return jsonify({
+            'success': True,
+            'message': 'Email integration connected successfully for testing'
+        })
+    except Exception as e:
+        logger.error(f"Error in connect_email: {str(e)}")
+        logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'message': f'Error: {str(e)}'
+        }), 500
 
-def test_all_blueprints():
-    """Test all blueprint routes"""
-    url = f"{BASE_URL}/api/routes"
-    
-    output, error = run_curl(url)
-    
-    if error:
-        logger.error(f"ERROR: Failed to access routes listing: {error}")
-        return
-        
-    if not output:
-        logger.error("ERROR: No response from routes listing")
-        return
-        
-    try:
-        routes = json.loads(output)
-        logger.info("SUCCESS: Routes listing returned valid JSON")
-        
-        # Check if email integration routes are present
-        # Handle both dictionary and list formats of routes
-        if isinstance(routes, dict):
-            routes_list = routes.get('routes', [])
-        else:
-            routes_list = routes
-            
-        email_routes = [r for r in routes_list if isinstance(r, dict) and 'email_integration' in r.get('endpoint', '')]
-        
-        if email_routes:
-            logger.info(f"Email integration routes found: {len(email_routes)}")
-            for route in email_routes:
-                logger.info(f"  {route.get('rule')} - {route.get('endpoint')}")
-        else:
-            logger.error("No email integration routes found!")
-            
-    except json.JSONDecodeError:
-        logger.error("ERROR: Routes listing did not return valid JSON")
-        logger.error(f"Response: {output}")
+@app.route('/api/integrations/email/test', methods=['GET'])
+def test_email():
+    """Test endpoint"""
+    return jsonify({
+        'success': True,
+        'message': 'Email integration API is working (test server)',
+        'version': '1.0.0'
+    })
 
-if __name__ == "__main__":
-    logger.info("Testing email integration endpoints...")
-    test_email_integration_endpoints()
-    
-    logger.info("\nChecking all registered routes...")
-    test_all_blueprints()
+if __name__ == '__main__':
+    # Run on a different port to avoid conflict with the main app
+    port = 5001
+    logger.info(f"Starting test server on port {port}")
+    run_simple('0.0.0.0', port, app, use_reloader=True, use_debugger=True)

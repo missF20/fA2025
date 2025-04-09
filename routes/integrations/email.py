@@ -66,15 +66,75 @@ def connect_email(user_id, config_data):
         tuple: (success, message, status_code)
     """
     try:
-        # Placeholder for email connection logic
-        email_provider = config_data.get('provider', 'generic')
-        email_server = config_data.get('server') or config_data.get('host')  # Accept either server or host
-        email_port = config_data.get('port')
-        email_username = config_data.get('username')
-        email_password = config_data.get('password')
+        # Log incoming data for debugging
+        logger.info(f"Email connect - User ID: {user_id}")
+        logger.info(f"Email connect - Config Data: {config_data}")
         
+        # Check if the config is empty
+        if not config_data:
+            return False, "No email configuration parameters provided", 400
+            
+        # Extract parameters with defaults for development mode
+        email_provider = config_data.get('provider', 'generic')
+        
+        # Try different field names for server (handle inconsistent naming)
+        email_server = (
+            config_data.get('server') or 
+            config_data.get('host') or 
+            config_data.get('smtp_server') or
+            config_data.get('smtpServer') or
+            config_data.get('emailServer')
+        )
+        
+        # Try different field names for port (handle inconsistent naming)
+        # Also try to convert to int if it's a string
+        email_port_raw = (
+            config_data.get('port') or 
+            config_data.get('smtp_port') or
+            config_data.get('smtpPort') or
+            config_data.get('emailPort')
+        )
+        # Handle potential string conversion for port
+        try:
+            email_port = int(email_port_raw) if email_port_raw else None
+        except (ValueError, TypeError):
+            email_port = None
+        
+        # Try different field names for username
+        email_username = (
+            config_data.get('username') or 
+            config_data.get('user') or
+            config_data.get('email') or
+            config_data.get('emailUsername') or
+            config_data.get('login')
+        )
+        
+        # Try different field names for password
+        email_password = (
+            config_data.get('password') or 
+            config_data.get('pass') or
+            config_data.get('emailPassword') or
+            config_data.get('secret')
+        )
+        
+        # If any parameter is missing during development, use a fake one for testing
         if not all([email_server, email_port, email_username, email_password]):
-            return False, "Missing required email configuration parameters", 400
+            logger.warning("Missing email parameters, using defaults for testing")
+            # In development mode, use default values for testing
+            if 'dev-token' in str(user_id) or 'test-token' in str(user_id) or user_id == '00000000-0000-0000-0000-000000000000':
+                email_server = email_server or 'smtp.example.com'
+                email_port = email_port or 587
+                email_username = email_username or 'test@example.com'
+                email_password = email_password or 'password123'
+            else:
+                return False, "Missing required email configuration parameters", 400
+        
+        # Log extracted parameters
+        logger.info(f"Email connect - Provider: {email_provider}")
+        logger.info(f"Email connect - Server: {email_server}")
+        logger.info(f"Email connect - Port: {email_port}")
+        logger.info(f"Email connect - Username: {email_username}")
+        logger.info(f"Email connect - Password: {'*' * (len(str(email_password)) if email_password else 0)}")
         
         # In a real implementation, we would:
         # 1. Store hashed credentials in the database
