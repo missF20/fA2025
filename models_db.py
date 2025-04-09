@@ -18,6 +18,7 @@ class User(UserMixin, db.Model):
     email = db.Column(db.String(120), nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
     is_admin = db.Column(db.Boolean, default=False)
+    auth_id = db.Column(db.String(36))  # UUID from Supabase auth.users
     date_created = db.Column(db.DateTime)
     date_updated = db.Column(db.DateTime)
     # role column removed as it doesn't exist in the public schema
@@ -26,7 +27,16 @@ class User(UserMixin, db.Model):
     profile = db.relationship('Profile', backref='user', uselist=False, cascade='all, delete-orphan')
     conversations = db.relationship('Conversation', backref='user', lazy='dynamic', cascade='all, delete-orphan')
     tasks = db.relationship('Task', backref='user', lazy='dynamic', cascade='all, delete-orphan')
-    integration_configs = db.relationship('IntegrationConfig', backref='user', lazy='dynamic', cascade='all, delete-orphan')
+    # Explicitly define the join condition between User and IntegrationConfig
+    # since we're now using a UUID string for the user_id in IntegrationConfig
+    integration_configs = db.relationship(
+        'IntegrationConfig',
+        backref='user',
+        lazy='dynamic',
+        cascade='all, delete-orphan',
+        primaryjoin="or_(User.id.cast(db.String) == IntegrationConfig.user_id, User.auth_id == IntegrationConfig.user_id)",
+        foreign_keys="IntegrationConfig.user_id"
+    )
     subscriptions = db.relationship('UserSubscription', backref='user', lazy='dynamic', cascade='all, delete-orphan')
     
     def __repr__(self):

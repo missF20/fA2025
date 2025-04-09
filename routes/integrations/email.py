@@ -109,11 +109,17 @@ def connect_email_endpoint():
                 'success': False,
                 'message': 'User not found'
             }), 404
-            
-        logger.info(f"Found user with ID: {db_user.id}")
         
-        # Call the implementation function with the database user ID
-        success, message, status_code = connect_email(db_user.id, data)
+        # Use auth_id if available, otherwise fall back to user_id
+        if hasattr(db_user, 'auth_id') and db_user.auth_id:
+            user_id_to_use = db_user.auth_id
+            logger.info(f"Found user with auth_id: {user_id_to_use}")
+        else:
+            user_id_to_use = db_user.id
+            logger.info(f"Found user with ID: {user_id_to_use} (no auth_id available)")
+        
+        # Call the implementation function with the appropriate ID
+        success, message, status_code = connect_email(user_id_to_use, data)
         
         return jsonify({
             'success': success,
@@ -422,15 +428,36 @@ def disconnect_email_endpoint():
                     'message': 'User not found'
                 }), 404
                 
-            # Check if user has auth_id (UUID)
+            # Use auth_id if available, otherwise try integer ID as string
             if hasattr(db_user, 'auth_id') and db_user.auth_id:
                 user_uuid = db_user.auth_id
                 logger.info(f"Found user with auth_id: {user_uuid}")
             else:
-                # Fallback to test UUID
-                test_uuid = '00000000-0000-0000-0000-000000000000'
-                logger.warning(f"No auth_id found for user, using test UUID: {test_uuid}")
-                user_uuid = test_uuid
+                # First try using the ID as a string
+                user_id_as_string = str(db_user.id)
+                logger.info(f"No auth_id found, trying user.id as string: {user_id_as_string}")
+                
+                # Check if there's an integration with this string ID first
+                try:
+                    existing_with_string_id = IntegrationConfig.query.filter_by(
+                        user_id=user_id_as_string,
+                        integration_type='email'
+                    ).first()
+                    
+                    if existing_with_string_id:
+                        user_uuid = user_id_as_string
+                        logger.info(f"Found integration with user.id as string, using: {user_uuid}")
+                    else:
+                        # Fallback to test UUID
+                        test_uuid = '00000000-0000-0000-0000-000000000000'
+                        logger.warning(f"No integration found with user.id as string, using test UUID: {test_uuid}")
+                        user_uuid = test_uuid
+                except Exception as e:
+                    logger.exception(f"Error checking for string ID integration: {str(e)}")
+                    # Fallback to test UUID
+                    test_uuid = '00000000-0000-0000-0000-000000000000'
+                    logger.warning(f"Error checking string ID, using test UUID: {test_uuid}")
+                    user_uuid = test_uuid
                 
         logger.info(f"Using UUID for database operation: {user_uuid}")
         
