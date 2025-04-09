@@ -11,6 +11,9 @@ import subprocess
 import os
 from flask import jsonify, request
 
+# Import debug endpoint
+import debug_endpoint
+
 # Set up logging
 logging.basicConfig(level=logging.INFO, 
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
