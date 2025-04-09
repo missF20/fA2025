@@ -101,6 +101,9 @@ def slack_status():
         if not channel_id:
             missing.append('SLACK_CHANNEL_ID')
         
+        # Log the status for debugging
+        logger.debug(f"Slack status: bot_token exists={bool(bot_token)}, channel_id={channel_id}, missing={missing}")
+        
         # Return the status in the format expected by the frontend
         return jsonify({
             "valid": len(missing) == 0,
@@ -173,18 +176,18 @@ def get_history():
         latest = request.args.get('latest')
         
         # Get messages from the imported slack.py module
-        result = get_channel_history(limit=limit, oldest=oldest, latest=latest)
+        messages = get_channel_history(limit=limit, oldest=oldest, latest=latest)
         
         # Return the exact format expected by the frontend
-        if result.get('success', False):
+        if messages is not None:
             return jsonify({
                 "success": True,
-                "messages": result.get('messages', [])
+                "messages": messages
             })
         else:
             return jsonify({
                 "success": False,
-                "message": result.get('message', 'Failed to get channel history')
+                "message": "Failed to get channel history"
             }), 400
     
     except Exception as e:

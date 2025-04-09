@@ -358,12 +358,21 @@ def register_blueprints():
         except ImportError as e:
             logger.warning(f"Could not register AI responses blueprint: {e}")
             
+        # Register the main slack.py blueprint
         try:
-            from routes.slack.routes import slack_bp
-            app.register_blueprint(slack_bp)
-            logger.info("Slack blueprint registered successfully")
+            from routes.slack import slack_bp as slack_main_bp
+            app.register_blueprint(slack_main_bp)
+            logger.info("Slack main blueprint registered successfully")
         except ImportError as e:
-            logger.warning(f"Could not register slack blueprint: {e}")
+            logger.warning(f"Could not register slack main blueprint: {e}")
+            
+            # Fall back to routes.slack.routes blueprint if the main one fails
+            try:
+                from routes.slack.routes import slack_bp
+                app.register_blueprint(slack_bp)
+                logger.info("Slack routes blueprint registered successfully")
+            except ImportError as e:
+                logger.warning(f"Could not register slack/routes blueprint: {e}")
             
         try:
             from routes.integrations import integrations_bp, hubspot_bp, salesforce_bp, email_integration_bp

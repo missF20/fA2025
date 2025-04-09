@@ -19,6 +19,7 @@ from .integrations.hubspot import hubspot_bp
 from .integrations.salesforce import salesforce_bp
 
 # Import core modules that will be needed in the application 
+from .slack import slack_bp as slack_main_bp  # Renaming to avoid conflicts
 import routes.integrations.slack
 import routes.integrations.zendesk
 import routes.integrations.google_analytics
@@ -34,6 +35,7 @@ blueprints = [
     integrations_bp,
     email_integration_bp,
     hubspot_bp,
-    salesforce_bp
+    salesforce_bp,
+    slack_main_bp
     # test_blueprint_bp removed (file doesn't exist)
 ]

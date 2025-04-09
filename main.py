@@ -9,6 +9,7 @@ import threading
 import logging
 import subprocess
 import os
+from datetime import datetime
 from flask import jsonify, request
 
 # Import auth module
@@ -352,6 +353,151 @@ def connect_salesforce_direct():
     except Exception as e:
         logger.error(f"Error in direct salesforce connect endpoint: {str(e)}")
         return jsonify({"success": False, "message": f"Salesforce connect API error: {str(e)}"}), 500
+
+# Direct Slack API endpoints
+@app.route('/api/slack/test', methods=['GET'])
+def test_slack_direct():
+    """Test endpoint for Slack integration that doesn't require authentication"""
+    return jsonify({
+        'success': True,
+        'message': 'Slack API is working (direct route)',
+        'version': '1.0.0'
+    })
+
+@app.route('/api/slack/status', methods=['GET'])
+def slack_status_direct():
+    """Get Slack status - direct endpoint"""
+    try:
+        # Check if the environment variables are set
+        bot_token = os.environ.get('SLACK_BOT_TOKEN')
+        channel_id = os.environ.get('SLACK_CHANNEL_ID')
+        
+        missing = []
+        if not bot_token:
+            missing.append('SLACK_BOT_TOKEN')
+        if not channel_id:
+            missing.append('SLACK_CHANNEL_ID')
+        
+        # Log the status for debugging
+        logger.debug(f"Slack status: bot_token exists={bool(bot_token)}, channel_id={channel_id}, missing={missing}")
+        
+        # Return the status in the format expected by the frontend
+        return jsonify({
+            "valid": len(missing) == 0,
+            "channel_id": channel_id if channel_id else None,
+            "missing": missing
+        })
+    
+    except Exception as e:
+        logger.error(f"Error checking Slack status: {str(e)}")
+        return jsonify({
+            "valid": False,
+            "error": str(e),
+            "missing": []
+        }), 500
+
+@app.route('/api/slack/history', methods=['GET'])
+def slack_history_direct():
+    """Get Slack history - direct endpoint"""
+    try:
+        # Check if the token exists first
+        bot_token = os.environ.get('SLACK_BOT_TOKEN')
+        channel_id = os.environ.get('SLACK_CHANNEL_ID')
+        
+        if not bot_token or not channel_id:
+            return jsonify({
+                "success": False,
+                "message": "Slack credentials are not configured"
+            }), 400
+            
+        # For now we're returning placeholder data because of "not_allowed_token_type" error
+        # We'll need to add the proper permission scopes to the token
+        logger.warning("Returning placeholder data for Slack history due to permission issues")
+        
+        # Return a simplified response with a single message about permissions
+        return jsonify({
+            "success": True,
+            "messages": [
+                {
+                    "text": "Slack history API needs additional permissions. Contact administrator to update the Slack app permissions.",
+                    "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                    "ts": str(datetime.now().timestamp()),
+                    "user": "system",
+                    "bot_id": "",
+                    "thread_ts": None,
+                    "reply_count": 0,
+                    "reactions": []
+                }
+            ]
+        })
+    
+    except Exception as e:
+        logger.error(f"Error getting Slack history: {str(e)}")
+        return jsonify({
+            "success": False,
+            "message": f"Error getting Slack history: {str(e)}"
+        }), 500
+
+@app.route('/api/slack/send', methods=['POST'])
+def slack_send_direct():
+    """Send a message to Slack - direct endpoint"""
+    try:
+        # Import the Slack utility functions
+        from utils.slack import post_message
+        
+        # Get request data
+        data = request.get_json()
+        
+        if not data or 'message' not in data:
+            return jsonify({
+                "success": False,
+                "message": "Message text is required"
+            }), 400
+        
+        message_text = data.get('message', '')
+        use_formatting = data.get('formatted', False)
+        
+        # Send message
+        if use_formatting:
+            from datetime import datetime
+            # Prepare blocks for formatted message
+            blocks = [
+                {
+                    "type": "header",
+                    "text": {
+                        "type": "plain_text",
+                        "text": "Dana AI Platform Message",
+                        "emoji": True
+                    }
+                },
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": message_text
+                    }
+                },
+                {
+                    "type": "context",
+                    "elements": [
+                        {
+                            "type": "mrkdwn",
+                            "text": f"Sent from Dana AI Platform at {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}"
+                        }
+                    ]
+                }
+            ]
+            result = post_message(message="Dana AI Platform Message", blocks=blocks)
+        else:
+            result = post_message(message=message_text)
+        
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"Error sending Slack message: {str(e)}")
+        return jsonify({
+            "success": False,
+            "message": f"Error sending message: {str(e)}"
+        }), 500
 
 # Direct knowledge API endpoints
 @app.route('/api/knowledge/files', methods=['GET'])

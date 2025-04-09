@@ -33,10 +33,36 @@ export default function SlackDashboard() {
   
   async function fetchSlackStatus() {
     try {
-      const response = await fetch('/api/slack/status');
+      // Use the general integrations status endpoint
+      const response = await fetch('/api/integrations/status', {
+        headers: {
+          'Authorization': 'Bearer dev-token', // Use development token for testing
+          'Content-Type': 'application/json'
+        }
+      });
+      
       const data = await response.json();
-      setStatus(data);
+      
+      if (data.success && data.integrations) {
+        // Find the Slack integration data
+        const slackIntegration = data.integrations.find(i => i.id === 'slack');
+        
+        if (slackIntegration) {
+          // Transform the data to match the expected SlackStatus format
+          setStatus({
+            valid: slackIntegration.status === 'active',
+            channel_id: slackIntegration.config?.channel_id || null,
+            missing: slackIntegration.status !== 'active' ? ['configuration'] : []
+          });
+          console.log("Slack status:", slackIntegration);
+        } else {
+          setError('Slack integration not found in response');
+        }
+      } else {
+        setError('Failed to fetch integrations data');
+      }
     } catch (err) {
+      console.error("Error fetching Slack status:", err);
       setError('Failed to fetch Slack integration status');
     }
   }
@@ -44,7 +70,23 @@ export default function SlackDashboard() {
   async function fetchSlackMessages() {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/slack/history?limit=10');
+      const response = await fetch('/api/slack/history?limit=10', {
+        headers: {
+          'Authorization': 'Bearer dev-token', // Use development token for testing
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        // If the endpoint doesn't exist, show a more specific error
+        if (response.status === 404) {
+          setError('Slack history endpoint not found (HTTP 404)');
+          console.error("Slack history endpoint not found:", await response.text());
+          setMessages([]);
+          return;
+        }
+      }
+      
       const data = await response.json();
       
       if (data.success) {
@@ -55,6 +97,7 @@ export default function SlackDashboard() {
         setMessages([]);
       }
     } catch (err) {
+      console.error("Error fetching Slack messages:", err);
       setError('Error fetching messages from Slack');
       setMessages([]);
     } finally {
@@ -87,10 +130,20 @@ export default function SlackDashboard() {
       const response = await fetch('/api/slack/send', {
         method: 'POST',
         headers: {
+          'Authorization': 'Bearer dev-token', // Use development token for testing
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ message: messageText })
       });
+      
+      if (!response.ok) {
+        // If the endpoint doesn't exist, show a more specific error
+        if (response.status === 404) {
+          setError('Slack send endpoint not found (HTTP 404)');
+          console.error("Slack send endpoint not found:", await response.text());
+          return;
+        }
+      }
       
       const data = await response.json();
       
@@ -103,6 +156,7 @@ export default function SlackDashboard() {
         setError(data.message || 'Failed to send message');
       }
     } catch (err) {
+      console.error("Error sending Slack message:", err);
       setError('Error sending message to Slack');
     } finally {
       setSendingMessage(false);
