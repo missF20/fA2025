@@ -125,14 +125,15 @@ def get_knowledge_file(file_id, user=None):
         # Determine what fields to select
         if exclude_content:
             select_sql = """
-            SELECT id, user_id, filename, file_size, file_type, created_at, updated_at, 
-                   category, tags, binary_data
+            SELECT id, user_id, file_name, file_size, file_type, created_at, updated_at, 
+                   category, tags, metadata
             FROM knowledge_files 
             WHERE id = %s AND user_id = %s
             """
         else:
             select_sql = """
-            SELECT * 
+            SELECT id, user_id, file_name, file_size, file_type, created_at, updated_at, 
+                   category, tags, metadata, content
             FROM knowledge_files 
             WHERE id = %s AND user_id = %s
             """
@@ -140,10 +141,13 @@ def get_knowledge_file(file_id, user=None):
         params = (file_id, user['id'])
         result = query_sql(select_sql, params)
         
-        if not result:
+        if not result or len(result) == 0:
             return jsonify({'error': 'File not found'}), 404
         
-        return jsonify(result[0]), 200
+        # Process the result
+        file_data = result[0]
+        # Return in a format expected by the frontend
+        return jsonify({'file': file_data}), 200
         
     except Exception as e:
         logger.error(f"Error getting knowledge file: {str(e)}", exc_info=True)

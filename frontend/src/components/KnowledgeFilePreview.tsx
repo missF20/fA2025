@@ -40,10 +40,26 @@ export function KnowledgeFilePreview({ fileId, onClose, onUpdate }: KnowledgeFil
         setLoading(true);
         setError(null);
         const fileData = await getKnowledgeFile(fileId);
-        setFile(fileData);
+        
+        // Make sure we have the correct file data structure
+        if (fileData) {
+          // Normalize the data to ensure we have consistent field names
+          const normalizedFile: KnowledgeFileWithContent = {
+            ...fileData,
+            // Ensure we have file_name (some endpoints return filename instead)
+            file_name: fileData.file_name || fileData.filename || 'Unnamed file',
+            // Ensure proper text content
+            content: fileData.content || ''
+          };
+          
+          setFile(normalizedFile);
+          console.log("File details loaded successfully:", normalizedFile.file_name);
+        } else {
+          setError('File data is incomplete or invalid');
+        }
       } catch (err) {
         console.error('Error fetching file details:', err);
-        setError('Failed to load file details');
+        setError('Failed to load file details for file preview');
       } finally {
         setLoading(false);
       }
