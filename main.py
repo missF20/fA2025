@@ -955,6 +955,33 @@ def knowledge_files_api():
             'offset': 0
         }), 200
 
+# Add direct endpoint for deleting knowledge files
+@app.route('/api/knowledge/files/<file_id>', methods=['DELETE'])
+def knowledge_file_delete_api(file_id):
+    """Direct endpoint for deleting knowledge files"""
+    try:
+        # Get the user from the token
+        user = get_user_from_token(request)
+        if not user:
+            # Special handling for dev token
+            auth_header = request.headers.get('Authorization')
+            if auth_header in ['dev-token', 'test-token']:
+                user = {
+                    'id': '00000000-0000-0000-0000-000000000000',
+                    'email': 'test@example.com',
+                    'role': 'user'
+                }
+            else:
+                return jsonify({'error': 'Unauthorized'}), 401
+        
+        # Import the delete function from routes
+        from routes.knowledge import delete_knowledge_file
+        # Call the function with the file_id and user
+        return delete_knowledge_file(file_id, user)
+    except Exception as e:
+        logger.error(f"Error in direct knowledge file delete endpoint: {str(e)}")
+        return jsonify({'error': 'Error deleting knowledge file'}), 500
+
 # Add direct binary routes to bypass blueprint issues
 @app.route('/api/knowledge/binary/test', methods=['GET'])
 def binary_test_api():

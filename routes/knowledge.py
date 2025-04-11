@@ -508,25 +508,52 @@ def delete_knowledge_file(file_id, user=None):
         user = get_user_from_token(request)
     
     try:
-        # Verify file belongs to user using direct SQL
+        # Get database connection
+        from utils.db_connection import get_db_connection
+        import psycopg2.extras
+        
+        # Get a fresh connection to avoid "connection already closed" errors
+        conn = get_db_connection()
+        
+        # Verify file belongs to user using direct SQL with RealDictCursor
         verify_sql = """
         SELECT id FROM knowledge_files 
         WHERE id = %s AND user_id = %s
         """
         verify_params = (file_id, user['id'])
-        verify_result = query_sql(verify_sql, verify_params)
+        
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+            cursor.execute(verify_sql, verify_params)
+            verify_result = cursor.fetchall()
+            
+            # Convert RealDictRow objects to regular dictionaries
+            if verify_result:
+                verify_result = [dict(row) for row in verify_result]
         
         if not verify_result:
+            logger.warning(f"Attempt to delete non-existent file {file_id} by user {user['id']}")
             return jsonify({'error': 'File not found'}), 404
         
-        # Delete file with direct SQL
+        # Delete file with direct SQL using RealDictCursor
         delete_sql = """
         DELETE FROM knowledge_files 
         WHERE id = %s AND user_id = %s
         RETURNING id
         """
         delete_params = (file_id, user['id'])
-        delete_result = query_sql(delete_sql, delete_params)
+        
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+            cursor.execute(delete_sql, delete_params)
+            delete_result = cursor.fetchall()
+            
+            # Convert RealDictRow objects to regular dictionaries
+            if delete_result:
+                delete_result = [dict(row) for row in delete_result]
+                logger.info(f"Successfully deleted file {file_id} for user {user['id']}")
+            else:
+                logger.error(f"Failed to delete file {file_id} for user {user['id']}")
+        
+        conn.commit()
         
         if not delete_result:
             return jsonify({'error': 'Failed to delete file'}), 500
