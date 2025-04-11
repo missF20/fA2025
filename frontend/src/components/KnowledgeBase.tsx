@@ -58,7 +58,7 @@ export function KnowledgeBase() {
   
   // State for file deletion
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [fileToDelete, setFileToDelete] = useState<{id: string, name: string} | null>(null);
+  const [fileToDelete, setFileToDelete] = useState<string | null>(null);
   const [deleteSuccess, setDeleteSuccess] = useState<string | null>(null);
   const [isFileInUse, setIsFileInUse] = useState(false);
   
@@ -157,8 +157,8 @@ export function KnowledgeBase() {
     const fileToBeDeleted = files.find(file => file.id === fileId);
     if (!fileToBeDeleted) return;
     
-    const fileName = fileToBeDeleted.filename || fileToBeDeleted.file_name || 'Unnamed file';
-    setFileToDelete({ id: fileId, name: fileName });
+    // Set the ID of the file to delete
+    setFileToDelete(fileId);
     
     // Check if the file is in use
     const isInUse = checkIfFileInUse(fileId);
@@ -169,15 +169,22 @@ export function KnowledgeBase() {
   };
   
   // Handle file deletion after confirmation
-  const handleDeleteFile = async (fileId: string) => {
+  const handleDeleteFile = async (fileId: string | null) => {
     // Close the confirm dialog
     setShowDeleteConfirm(false);
+    
+    // If fileId is null, do nothing
+    if (!fileId) {
+      console.error('No file ID provided for deletion');
+      setError('Failed to delete the file: Invalid file ID');
+      setTimeout(() => setError(null), 5000);
+      return;
+    }
     
     try {
       console.log(`Attempting to delete file with ID: ${fileId}`);
       const response = await deleteKnowledgeFile(fileId);
-      console.log(`Delete API response status: ${response?.status || 'unknown'}`);
-      console.log(`Delete API response text:`, response?.data || response);
+      console.log(`Delete API response:`, response);
       
       // Update the UI
       setFiles(files.filter(file => file.id !== fileId));
@@ -1083,7 +1090,7 @@ export function KnowledgeBase() {
           <div className="p-4">
             <p className="mb-3">Are you sure you want to delete this file?</p>
             <p className="text-sm text-gray-700 mb-4">
-              {files.find(f => f.id === fileToDelete)?.file_name}
+              {fileToDelete ? files.find(f => f.id === fileToDelete)?.file_name || files.find(f => f.id === fileToDelete)?.filename || 'Unnamed file' : ''}
             </p>
             
             {isFileInUse && (
