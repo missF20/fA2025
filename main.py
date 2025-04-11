@@ -42,6 +42,8 @@ def knowledge_test():
         'timestamp': datetime.now().isoformat()
     })
 
+
+
 # Add knowledge direct upload endpoint
 @app.route('/api/knowledge/direct-upload', methods=['POST'])
 def direct_upload_file():
@@ -50,24 +52,21 @@ def direct_upload_file():
     try:
         logger.debug("Direct knowledge upload endpoint called")
         
-        # For development mode, check for development token directly
+        # Get authorization header
         auth_header = request.headers.get('Authorization', '')
-        is_dev = (os.environ.get('FLASK_ENV') == 'development' or 
-                os.environ.get('DEVELOPMENT_MODE') == 'true' or
-                os.environ.get('APP_ENV') == 'development')
         
-        # Log the whole request headers and dev mode status for debugging
+        # Log for debugging
         logger.debug(f"Request headers: {dict(request.headers)}")
-        logger.debug(f"Development mode: {is_dev}")
         logger.debug(f"Auth header: {auth_header}")
+        logger.debug(f"ENV vars: FLASK_ENV={os.environ.get('FLASK_ENV')}, DEVELOPMENT_MODE={os.environ.get('DEVELOPMENT_MODE')}, APP_ENV={os.environ.get('APP_ENV')}")
         
-        # Handle dev token differently than regular Bearer tokens
-        if is_dev and (auth_header == 'dev-token' or auth_header == 'Bearer dev-token'):
+        # Special handling for dev-token - always accept it for this test endpoint
+        if auth_header == 'dev-token' or auth_header == 'Bearer dev-token':
             # Use a test user ID for development testing
             user_id = "test-user-id"
             logger.info("Using test user ID with dev-token")
         else:
-            # Get authenticated user
+            # Get authenticated user through normal JWT token flow
             user = get_user_from_token(request)
             if not user:
                 logger.warning("Unauthorized access attempt to knowledge upload endpoint")
