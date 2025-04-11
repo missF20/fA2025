@@ -34,6 +34,7 @@ def test_auth():
 
 # Add PDF direct upload endpoint
 @app.route('/api/knowledge/pdf-upload', methods=['POST', 'OPTIONS'])
+@require_auth
 def pdf_upload_file():
     """Special PDF upload endpoint for testing."""
     logger = logging.getLogger(__name__)
@@ -66,8 +67,25 @@ def pdf_upload_file():
             logger.warning(f"Not a PDF file: {file.filename}")
             return jsonify({"error": "Only PDF files are accepted"}), 400
             
-        # Generate a user ID (for testing, use a fixed UUID)
-        user_id = "00000000-0000-0000-0000-000000000000"
+        # Get authentication token
+        auth_header = request.headers.get('Authorization', '')
+        
+        # Special handling for dev-token in development mode
+        if auth_header == 'dev-token' or auth_header == 'Bearer dev-token':
+            # Use a test user ID for development testing
+            user_id = "00000000-0000-0000-0000-000000000000"  # UUID format
+            logger.info("Using test user ID with dev-token")
+        else:
+            # Parse the token to get the user ID
+            try:
+                user = get_user_from_token(auth_header)
+                user_id = user.get('id', "00000000-0000-0000-0000-000000000000")
+                logger.debug(f"Authenticated user ID: {user_id}")
+            except Exception as auth_err:
+                logger.error(f"Authentication error: {str(auth_err)}")
+                # Fall back to development user ID if authentication fails
+                user_id = "00000000-0000-0000-0000-000000000000"
+                logger.warning("Using fallback user ID due to auth error")
         
         # Extract metadata
         category = request.form.get('category', '')

@@ -6,9 +6,10 @@ import { getKnowledgeFile } from '../services/knowledgeService';
 interface KnowledgeFilePreviewProps {
   fileId: string;
   onClose: () => void;
+  onUpdate?: (updatedFile: KnowledgeFileWithContent) => void;
 }
 
-export function KnowledgeFilePreview({ fileId, onClose }: KnowledgeFilePreviewProps) {
+export function KnowledgeFilePreview({ fileId, onClose, onUpdate }: KnowledgeFilePreviewProps) {
   const [file, setFile] = useState<KnowledgeFileWithContent | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
