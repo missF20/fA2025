@@ -57,6 +57,7 @@ def get_knowledge_files(user=None):
     try:
         # Use direct SQL to get files
         from utils.db_connection import get_db_connection
+        import psycopg2.extras
         
         # Get a fresh connection to avoid "connection already closed" errors
         conn = get_db_connection()
@@ -71,24 +72,33 @@ def get_knowledge_files(user=None):
         """
         files_params = (user['id'], limit, offset)
         
-        # Use direct connection instead of query_sql helper
-        with conn.cursor() as cursor:
+        # Use direct connection with RealDictCursor for dictionary-like results
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
             cursor.execute(files_sql, files_params)
             files_result = cursor.fetchall()
+            
+            # Convert RealDictRow objects to regular dictionaries
+            if files_result:
+                files_result = [dict(row) for row in files_result]
+                
+            logger.debug(f"Found {len(files_result) if files_result else 0} files for user {user['id']}")
         
         # Get total count using the same connection
         count_sql = "SELECT COUNT(*) as total FROM knowledge_files WHERE user_id = %s"
         count_params = (user['id'],)
         
-        with conn.cursor() as cursor:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
             cursor.execute(count_sql, count_params)
             count_result = cursor.fetchall()
             
-        # Process the count result, which is usually just a dictionary with a 'total' key
+        # Process the count result properly
         total_count = 0
         if count_result and len(count_result) > 0:
-            # Access the count result directly, we know it has a 'total' key
-            total_count = count_result[0]['total'] if 'total' in count_result[0] else 0
+            # Convert RealDictRow to dict and access the 'total' key
+            count_dict = dict(count_result[0])
+            if 'total' in count_dict:
+                total_count = count_dict['total']
+                logger.debug(f"Total count: {total_count}")
         
         return jsonify({
             'files': files_result if files_result else [],
@@ -156,22 +166,28 @@ def get_knowledge_file(file_id, user=None):
             """
         
         from utils.db_connection import get_db_connection
+        import psycopg2.extras
         
         # Get a fresh connection to avoid "connection already closed" errors
         conn = get_db_connection()
         
         params = (file_id, user['id'])
         
-        # Use direct connection instead of query_sql helper
-        with conn.cursor() as cursor:
+        # Use direct connection with RealDictCursor for dictionary-like results
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
             cursor.execute(select_sql, params)
             result = cursor.fetchall()
+            
+            # Convert RealDictRow objects to regular dictionaries
+            if result:
+                result = [dict(row) for row in result]
         
         if not result or len(result) == 0:
             return jsonify({'error': 'File not found'}), 404
         
         # Process the result
         file_data = result[0]
+        logger.debug(f"Retrieved file: {file_data.get('id')} for user: {user['id']}")
         # Return in a format expected by the frontend
         return jsonify({'file': file_data}), 200
         
