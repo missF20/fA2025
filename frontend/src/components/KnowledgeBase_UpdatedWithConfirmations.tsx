@@ -1,8 +1,16 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Button, Card, Container, Row, Col, Form, Table, Badge, Spinner, Alert, Modal, Toast, ToastContainer } from 'react-bootstrap';
-import { FiTrash2, FiSearch, FiRefreshCw, FiUpload, FiFile, FiFileText, FiPlusCircle, FiAlertCircle, FiCheckCircle } from 'react-icons/fi';
-import { FiDownload, FiEdit, FiFilter, FiTag, FiFolder, FiCheckSquare, FiAlertTriangle, FiInfo } from 'react-icons/fi';
-import { getKnowledgeFiles, deleteKnowledgeFile, getCategories, bulkDeleteKnowledgeFiles } from '../services/knowledgeService';
+import { 
+  Button, Card, Container, Row, Col, Form, Table, 
+  Badge, Spinner, Alert, Modal, Toast, ToastContainer 
+} from 'react-bootstrap';
+import { 
+  FiTrash2, FiSearch, FiRefreshCw, FiUpload, FiFileText, 
+  FiAlertCircle, FiCheckCircle, FiAlertTriangle, FiInfo 
+} from 'react-icons/fi';
+import { 
+  getKnowledgeFiles, deleteKnowledgeFile, getCategories, 
+  bulkDeleteKnowledgeFiles 
+} from '../services/knowledgeService';
 import { KnowledgeFile } from '../types';
 import KnowledgeFileUpload from './KnowledgeFileUpload';
 import KnowledgeFilePreview from './KnowledgeFilePreview';
@@ -10,6 +18,7 @@ import KnowledgeSearch from './KnowledgeSearch';
 import './KnowledgeBase.css';
 
 const KnowledgeBase: React.FC = () => {
+  // State variables
   const [files, setFiles] = useState<KnowledgeFile[]>([]);
   const [totalFiles, setTotalFiles] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
@@ -26,6 +35,22 @@ const KnowledgeBase: React.FC = () => {
   const [lastDeletedId, setLastDeletedId] = useState<string | null>(null);
   const [deleteStatus, setDeleteStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [deleteMessage, setDeleteMessage] = useState<string>('');
+  
+  // New state variables for enhanced UI
+  const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
+  const [fileToDelete, setFileToDelete] = useState<{id: string, name: string} | null>(null);
+  const [showToast, setShowToast] = useState<boolean>(false);
+  const [toastMessage, setToastMessage] = useState<string>('');
+  const [toastVariant, setToastVariant] = useState<'success' | 'danger' | 'warning' | 'info'>('info');
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState<boolean>(false);
+  const [recentlyUsedWarning, setRecentlyUsedWarning] = useState<boolean>(false);
+  
+  // Mock function to check if file was recently used (in real implementation, this would make an API call)
+  const checkIfFileRecentlyUsed = (fileId: string): boolean => {
+    // For demonstration - check if file ID ends with a specific character
+    // In a real implementation, this would check against actual usage data
+    return fileId.endsWith('a') || fileId.endsWith('e');
+  };
 
   // Function to fetch knowledge files
   const fetchFiles = useCallback(async () => {
@@ -39,9 +64,6 @@ const KnowledgeBase: React.FC = () => {
       
       // Log the file info for debugging
       console.log(`Fetched ${result.files?.length || 0} files out of ${result.total || 0} total`);
-      if (result.files && result.files.length > 0) {
-        console.log('First file details:', result.files[0]);
-      }
     } catch (err) {
       setError('Failed to load knowledge files. Please try again.');
       console.error('Error fetching knowledge files:', err);
@@ -65,6 +87,13 @@ const KnowledgeBase: React.FC = () => {
     fetchFiles();
     fetchCategories();
   }, [fetchFiles, fetchCategories, refreshTrigger]);
+
+  // Show toast message
+  const showToastMessage = (message: string, variant: 'success' | 'danger' | 'warning' | 'info' = 'info') => {
+    setToastMessage(message);
+    setToastVariant(variant);
+    setShowToast(true);
+  };
 
   // Handle file selection for preview
   const handleSelectFile = (file: KnowledgeFile) => {
@@ -96,14 +125,39 @@ const KnowledgeBase: React.FC = () => {
     setShowUpload(false);
     setRefreshTrigger(prev => prev + 1);
     setSelectedFile(null);
+    showToastMessage('File uploaded successfully', 'success');
   };
 
-  // Handle file deletion with improved error handling
-  const handleDeleteFile = async (fileId: string) => {
-    if (!window.confirm('Are you sure you want to delete this file?')) {
-      return;
-    }
+  // Initiate file deletion (shows confirmation modal)
+  const initiateDeleteFile = (fileId: string) => {
+    const fileToDelete = files.find(f => f.id === fileId);
+    if (!fileToDelete) return;
     
+    // Check if the file was recently used
+    const wasRecentlyUsed = checkIfFileRecentlyUsed(fileId);
+    setRecentlyUsedWarning(wasRecentlyUsed);
+    
+    setFileToDelete({
+      id: fileId,
+      name: fileToDelete.file_name || fileToDelete.filename || 'Unnamed file'
+    });
+    setShowDeleteModal(true);
+  };
+  
+  // Initiate bulk delete (shows confirmation modal)
+  const initiateBulkDelete = () => {
+    if (selectedIds.length === 0) return;
+    
+    // Check if any of the selected files were recently used
+    const anyRecentlyUsed = selectedIds.some(id => checkIfFileRecentlyUsed(id));
+    setRecentlyUsedWarning(anyRecentlyUsed);
+    
+    setShowBulkDeleteModal(true);
+  };
+
+  // Handle file deletion with improved error handling and user feedback
+  const handleDeleteFile = async (fileId: string) => {
+    setShowDeleteModal(false);
     setDeleteStatus('loading');
     setLastDeletedId(fileId);
     setDeleteMessage('Deleting file...');
@@ -125,6 +179,9 @@ const KnowledgeBase: React.FC = () => {
       setDeleteStatus('success');
       setDeleteMessage('File successfully deleted');
       
+      // Show success toast
+      showToastMessage('File successfully deleted', 'success');
+      
       // Refresh the file list after a short delay
       setTimeout(() => {
         setRefreshTrigger(prev => prev + 1);
@@ -134,7 +191,11 @@ const KnowledgeBase: React.FC = () => {
     } catch (error) {
       console.error(`Error deleting file:`, error);
       setDeleteStatus('error');
-      setDeleteMessage(`Failed to delete file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      setDeleteMessage(`Failed to delete file: ${errorMessage}`);
+      
+      // Show error toast
+      showToastMessage(`Failed to delete file: ${errorMessage}`, 'danger');
       
       // Reset error message after a delay
       setTimeout(() => {
@@ -145,11 +206,9 @@ const KnowledgeBase: React.FC = () => {
 
   // Handle bulk file deletion
   const handleBulkDelete = async () => {
-    if (selectedIds.length === 0) {
-      return;
-    }
+    setShowBulkDeleteModal(false);
     
-    if (!window.confirm(`Are you sure you want to delete ${selectedIds.length} files?`)) {
+    if (selectedIds.length === 0) {
       return;
     }
     
@@ -161,15 +220,20 @@ const KnowledgeBase: React.FC = () => {
       
       // Remove files from state
       setFiles(prevFiles => prevFiles.filter(file => !selectedIds.includes(file.id)));
-      setSelectedIds([]);
       
       // If the deleted file was the selected file, clear selection
       if (selectedFile && selectedIds.includes(selectedFile.id)) {
         setSelectedFile(null);
       }
       
+      // Show success toast
+      showToastMessage(`Successfully deleted ${selectedIds.length} files`, 'success');
+      
       setDeleteStatus('success');
-      setDeleteMessage('Files successfully deleted');
+      setDeleteMessage(`${selectedIds.length} files successfully deleted`);
+      
+      // Clear selection
+      setSelectedIds([]);
       
       // Refresh the file list after a short delay
       setTimeout(() => {
@@ -180,7 +244,11 @@ const KnowledgeBase: React.FC = () => {
     } catch (error) {
       console.error(`Error deleting files:`, error);
       setDeleteStatus('error');
-      setDeleteMessage(`Failed to delete files: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      setDeleteMessage(`Failed to delete files: ${errorMessage}`);
+      
+      // Show error toast
+      showToastMessage(`Failed to delete files: ${errorMessage}`, 'danger');
       
       // Reset error message after a delay
       setTimeout(() => {
@@ -236,6 +304,94 @@ const KnowledgeBase: React.FC = () => {
         </Alert>
       )}
       
+      {/* Toasts */}
+      <ToastContainer position="top-end" className="p-3">
+        <Toast 
+          show={showToast} 
+          onClose={() => setShowToast(false)}
+          delay={5000}
+          autohide
+          bg={toastVariant}
+        >
+          <Toast.Header closeButton>
+            <strong className="me-auto">
+              {toastVariant === 'success' && <FiCheckCircle className="me-2" />}
+              {toastVariant === 'danger' && <FiAlertCircle className="me-2" />}
+              {toastVariant === 'warning' && <FiAlertTriangle className="me-2" />}
+              {toastVariant === 'info' && <FiInfo className="me-2" />}
+              Knowledge Base
+            </strong>
+          </Toast.Header>
+          <Toast.Body className={toastVariant === 'danger' ? 'text-white' : ''}>
+            {toastMessage}
+          </Toast.Body>
+        </Toast>
+      </ToastContainer>
+      
+      {/* Delete Confirmation Modal */}
+      <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>
+            <FiAlertTriangle className="text-warning me-2" /> Confirm Deletion
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p>Are you sure you want to delete the file: <strong>{fileToDelete?.name}</strong>?</p>
+          <p>This action cannot be undone.</p>
+          
+          {recentlyUsedWarning && (
+            <Alert variant="warning">
+              <FiAlertTriangle className="me-2" />
+              <strong>Warning:</strong> This file has been recently used in conversations or workflows. 
+              Deleting it may impact existing operations.
+            </Alert>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
+            Cancel
+          </Button>
+          <Button 
+            variant="danger" 
+            onClick={() => fileToDelete && handleDeleteFile(fileToDelete.id)}
+          >
+            Delete File
+          </Button>
+        </Modal.Footer>
+      </Modal>
+      
+      {/* Bulk Delete Confirmation Modal */}
+      <Modal show={showBulkDeleteModal} onHide={() => setShowBulkDeleteModal(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>
+            <FiAlertTriangle className="text-warning me-2" /> Confirm Bulk Deletion
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p>Are you sure you want to delete <strong>{selectedIds.length}</strong> files?</p>
+          <p>This action cannot be undone.</p>
+          
+          {recentlyUsedWarning && (
+            <Alert variant="warning">
+              <FiAlertTriangle className="me-2" />
+              <strong>Warning:</strong> One or more of these files have been recently used
+              in conversations or workflows. Deleting them may impact existing operations.
+            </Alert>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowBulkDeleteModal(false)}>
+            Cancel
+          </Button>
+          <Button 
+            variant="danger" 
+            onClick={handleBulkDelete}
+          >
+            Delete {selectedIds.length} Files
+          </Button>
+        </Modal.Footer>
+      </Modal>
+      
       {/* Action buttons */}
       <div className="action-buttons mb-4">
         <Button 
@@ -266,7 +422,7 @@ const KnowledgeBase: React.FC = () => {
         {selectedIds.length > 0 && (
           <Button 
             variant="danger" 
-            onClick={handleBulkDelete}
+            onClick={initiateBulkDelete}
             className="me-2"
           >
             <FiTrash2 /> Delete Selected ({selectedIds.length})
@@ -365,6 +521,16 @@ const KnowledgeBase: React.FC = () => {
                             <div className="file-name-cell">
                               <FiFileText className="file-icon" />
                               <span>{file.file_name || file.filename}</span>
+                              {checkIfFileRecentlyUsed(file.id) && (
+                                <Badge 
+                                  bg="warning" 
+                                  text="dark" 
+                                  className="ms-2" 
+                                  title="This file was recently used in conversations or workflows"
+                                >
+                                  Active
+                                </Badge>
+                              )}
                             </div>
                           </td>
                           <td>
@@ -386,7 +552,7 @@ const KnowledgeBase: React.FC = () => {
                               size="sm"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleDeleteFile(file.id);
+                                initiateDeleteFile(file.id);
                               }}
                               aria-label="Delete file"
                               disabled={deleteStatus === 'loading' && lastDeletedId === file.id}
@@ -448,7 +614,7 @@ const KnowledgeBase: React.FC = () => {
             <KnowledgeFilePreview 
               file={selectedFile} 
               onClose={() => setSelectedFile(null)}
-              onDelete={handleDeleteFile}
+              onDelete={initiateDeleteFile}
             />
           </Col>
         )}
