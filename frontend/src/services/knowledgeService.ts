@@ -31,9 +31,6 @@ export const getKnowledgeFiles = async (limit = 20, offset = 0): Promise<{ files
   } catch (error) {
     console.error('Error fetching knowledge files:', error);
     // Return empty results instead of throwing - better UX
-    if (data) {
-      return data;
-    }
     return { files: [], total: 0 };
   }
 };

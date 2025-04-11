@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, FileText, Tag, Folder, X, AlertCircle, Loader2 } from 'lucide-react';
-import { KnowledgeSearchResult, KnowledgeCategory, KnowledgeTag } from '../types';
-import { searchKnowledgeBase, getCategories, getTags } from '../services/knowledgeService';
+import { Search, Filter, FileText, Tag, Folder, X, AlertCircle, Loader2, Trash2, Clock } from 'lucide-react';
+import { KnowledgeSearchResult, KnowledgeCategory, KnowledgeTag, KnowledgeFile } from '../types';
+import { searchKnowledgeBase, getCategories, getTags, getKnowledgeFiles, deleteKnowledgeFile } from '../services/knowledgeService';
 
 interface KnowledgeSearchProps {
   onSelectFile: (fileId: string) => void;
@@ -19,6 +19,11 @@ export function KnowledgeSearch({ onSelectFile }: KnowledgeSearchProps) {
   const [error, setError] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [selectedResult, setSelectedResult] = useState<string | null>(null);
+  
+  // For the file list display
+  const [files, setFiles] = useState<KnowledgeFile[]>([]);
+  const [isLoadingFiles, setIsLoadingFiles] = useState(false);
+  const [fileListError, setFileListError] = useState<string | null>(null);
 
   // Load categories and tags
   useEffect(() => {
@@ -37,6 +42,52 @@ export function KnowledgeSearch({ onSelectFile }: KnowledgeSearchProps) {
 
     loadFilters();
   }, []);
+  
+  // Load the file list
+  useEffect(() => {
+    const fetchFiles = async () => {
+      try {
+        setIsLoadingFiles(true);
+        setFileListError(null);
+        
+        const { files: fetchedFiles } = await getKnowledgeFiles();
+        // Sort files from oldest to newest
+        const sortedFiles = [...fetchedFiles].sort((a, b) => {
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        });
+        
+        setFiles(sortedFiles);
+      } catch (err) {
+        console.error('Error loading file list:', err);
+        setFileListError('Failed to load file list');
+      } finally {
+        setIsLoadingFiles(false);
+      }
+    };
+    
+    fetchFiles();
+  }, []);
+  
+  // Handle file deletion
+  const handleDeleteFile = async (fileId: string) => {
+    if (!confirm('Are you sure you want to delete this file? This action cannot be undone.')) {
+      return;
+    }
+    
+    try {
+      await deleteKnowledgeFile(fileId);
+      // Remove the file from the list
+      setFiles(files.filter(file => file.id !== fileId));
+      
+      // If the deleted file was selected, clear selection
+      if (selectedResult === fileId) {
+        setSelectedResult(null);
+      }
+    } catch (err) {
+      console.error('Error deleting file:', err);
+      alert('Failed to delete file');
+    }
+  };
 
   // Handle search
   const handleSearch = async () => {
@@ -51,9 +102,7 @@ export function KnowledgeSearch({ onSelectFile }: KnowledgeSearchProps) {
 
       const searchResults = await searchKnowledgeBase(query, {
         category: selectedCategory,
-        fileType: selectedFileType,
-        tags: selectedTags.length > 0 ? selectedTags : undefined,
-        includeSnippets: true
+        tags: selectedTags.length > 0 ? selectedTags : undefined
       });
 
       setResults(searchResults);
@@ -344,7 +393,104 @@ export function KnowledgeSearch({ onSelectFile }: KnowledgeSearchProps) {
               <p>No results found for "{query}"</p>
               <p className="text-sm mt-2">Try changing your search terms or filters</p>
             </div>
-          ) : null}
+          ) : (
+            // When not searching, display the file list
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium text-gray-700 flex items-center">
+                <Clock size={16} className="mr-1" />
+                File History (Oldest to Newest)
+              </h3>
+              
+              {isLoadingFiles ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 size={32} className="animate-spin text-blue-500" />
+                </div>
+              ) : fileListError ? (
+                <div className="p-4 bg-red-50 text-red-700 rounded-lg text-sm">
+                  <AlertCircle size={16} className="inline-block mr-1" />
+                  {fileListError}
+                </div>
+              ) : files.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <p>No files found in the knowledge base</p>
+                  <p className="text-sm mt-2">Try uploading a document first</p>
+                </div>
+              ) : (
+                <div className="border rounded-lg overflow-hidden">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Name
+                        </th>
+                        <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Type
+                        </th>
+                        <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Created
+                        </th>
+                        <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {files.map((file) => {
+                        // Format the date
+                        const date = new Date(file.created_at);
+                        const formattedDate = date.toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                        });
+                        
+                        return (
+                          <tr 
+                            key={file.id} 
+                            className="hover:bg-gray-50 cursor-pointer"
+                            onClick={() => {
+                              setSelectedResult(file.id);
+                              onSelectFile(file.id);
+                            }}
+                          >
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <FileText size={16} className="text-blue-600 mr-2" />
+                                <span className="text-sm font-medium text-gray-900 truncate max-w-xs">
+                                  {file.file_name}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <span className="px-2 py-1 inline-flex text-xs leading-5 font-medium rounded-full bg-gray-100 text-gray-800">
+                                {formatFileType(file.file_type)}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                              {formattedDate}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteFile(file.id);
+                                }}
+                                className="text-red-600 hover:text-red-900 ml-3"
+                                title="Delete file"
+                                aria-label="Delete file"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
