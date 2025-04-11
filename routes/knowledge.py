@@ -884,7 +884,10 @@ def get_knowledge_tags(user=None):
       500:
         description: Server error
     """
-    logger.debug("get_knowledge_tags endpoint called")
+    logger.info(f"----------------------")
+    logger.info(f"get_knowledge_tags endpoint called at /files/tags")
+    logger.info(f"Request path: {request.path}")
+    logger.info(f"----------------------")
     
     # If user isn't provided by require_auth decorator, try to get it from token
     if user is None:
