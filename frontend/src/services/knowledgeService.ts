@@ -7,11 +7,44 @@ import {
   KnowledgeSearchResult 
 } from '../types';
 
+// Simple cache implementation
+const cache = {
+  files: new Map<string, {data: any, timestamp: number}>(),
+  categories: null as {data: KnowledgeCategory[], timestamp: number} | null,
+  tags: null as {data: KnowledgeTag[], timestamp: number} | null,
+  
+  // Cache expiration in milliseconds (5 minutes)
+  EXPIRATION: 5 * 60 * 1000,
+  
+  // Check if cache entry is valid
+  isValid: function(timestamp: number) {
+    return (Date.now() - timestamp) < this.EXPIRATION;
+  },
+  
+  // Clear all cache
+  clear: function() {
+    this.files.clear();
+    this.categories = null;
+    this.tags = null;
+  }
+};
+
 /**
  * Fetch all knowledge files - Use API only, no Supabase fallback due to schema cache issues
+ * With caching for improved performance
  */
 export const getKnowledgeFiles = async (limit = 20, offset = 0): Promise<{ files: KnowledgeFile[], total: number }> => {
   try {
+    // Check cache first
+    const cacheKey = `files-${limit}-${offset}`;
+    const cachedData = cache.files.get(cacheKey);
+    
+    if (cachedData && cache.isValid(cachedData.timestamp)) {
+      console.log('Using cached knowledge files data');
+      return cachedData.data;
+    }
+    
+    console.log('Fetching fresh knowledge files data');
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('Not authenticated');
 
@@ -36,6 +69,12 @@ export const getKnowledgeFiles = async (limit = 20, offset = 0): Promise<{ files
         file_name: file.file_name || file.filename || 'Unnamed file'
       }));
     }
+    
+    // Cache the results
+    cache.files.set(cacheKey, {
+      data,
+      timestamp: Date.now()
+    });
     
     return data;
   } catch (error) {
