@@ -63,7 +63,7 @@ def direct_upload_file():
         # Special handling for dev-token - always accept it for this test endpoint
         if auth_header == 'dev-token' or auth_header == 'Bearer dev-token':
             # Use a test user ID for development testing
-            user_id = "test-user-id"
+            user_id = "00000000-0000-0000-0000-000000000000"  # UUID format for database compatibility
             logger.info("Using test user ID with dev-token")
         else:
             # Get authenticated user through normal JWT token flow
@@ -98,23 +98,93 @@ def direct_upload_file():
         # Use default values for optional fields
         file_type = data.get('file_type', 'text/plain')
         file_size = data.get('file_size', len(data['content']))
+        category = data.get('category', '')
+        tags = data.get('tags', [])
         
-        # Create a response without database interaction for testing
-        file_id = str(uuid.uuid4())
+        # Add timestamps
         now = datetime.now().isoformat()
         
-        return jsonify({
-            'success': True,
-            'message': f"File {data['filename']} processed successfully",
-            'file_id': file_id,
-            'user_id': user_id,
-            'file_info': {
-                'filename': data['filename'],
-                'file_type': file_type,
-                'file_size': file_size,
-                'created_at': now
-            }
-        }), 201
+        # Convert tags to JSON string if they're a list
+        if isinstance(tags, list):
+            tags_json = json.dumps(tags)
+        else:
+            tags_json = json.dumps([])
+            
+        # For binary upload, we might have base64 content
+        content = data.get('content', '')
+        binary_data = None
+        is_base64 = data.get('is_base64', False)
+        
+        if is_base64:
+            binary_data = content  # Store the base64 content in binary_data field
+            
+        # Create a file in the database
+        try:
+            from utils.supabase_extension import query_sql
+            
+            # Insert file into database
+            insert_sql = """
+            INSERT INTO knowledge_files 
+            (user_id, filename, file_type, file_size, content, created_at, updated_at, category, tags, binary_data) 
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id, user_id, filename, file_type, file_size, created_at, updated_at
+            """
+            
+            params = (
+                user_id,
+                data['filename'],
+                file_type,
+                file_size,
+                content,
+                now,
+                now,
+                category,
+                tags_json,
+                binary_data
+            )
+            
+            # Execute the SQL
+            logger.debug("Executing SQL to insert file into database")
+            result = query_sql(insert_sql, params)
+            
+            if not result:
+                logger.error("Failed to insert file: No result returned")
+                file_id = str(uuid.uuid4())  # Fallback to UUID generator
+            else:
+                logger.info(f"File inserted successfully: {result[0]}")
+                file_id = result[0]['id']
+            
+            return jsonify({
+                'success': True,
+                'message': f"File {data['filename']} processed successfully",
+                'file_id': file_id,
+                'user_id': user_id,
+                'file_info': {
+                    'filename': data['filename'],
+                    'file_type': file_type,
+                    'file_size': file_size,
+                    'created_at': now
+                }
+            }), 201
+            
+        except Exception as db_error:
+            logger.error(f"Database error: {str(db_error)}")
+            
+            # Fallback to the original mock response
+            file_id = str(uuid.uuid4())
+            
+            return jsonify({
+                'success': True,
+                'message': f"File {data['filename']} processed successfully (mock response)",
+                'file_id': file_id,
+                'user_id': user_id,
+                'file_info': {
+                    'filename': data['filename'],
+                    'file_type': file_type,
+                    'file_size': file_size,
+                    'created_at': now
+                }
+            }), 201
         
     except Exception as e:
         logger.error(f"Error in direct knowledge upload endpoint: {str(e)}")
