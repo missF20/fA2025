@@ -36,11 +36,17 @@ try:
     # List all routes
     logger.info("Registered routes:")
     for rule in app.url_map.iter_rules():
-        logger.info(f"Route: {rule}, Endpoint: {rule.endpoint}, Methods: {rule.methods}")
+        print(f"Route: {rule}, Endpoint: {rule.endpoint}, Methods: {rule.methods}")
     
     # Count the routes
     route_count = len(list(app.url_map.iter_rules()))
-    logger.info(f"Total registered routes: {route_count}")
+    print(f"\nTotal registered routes: {route_count}")
+    
+    # Special check for knowledge file deletion
+    print("\nSearching for knowledge file delete endpoints...")
+    for rule in app.url_map.iter_rules():
+        if "knowledge" in str(rule) and "delete" in str(rule.endpoint).lower() or "file" in str(rule) and "delete" in str(rule.endpoint).lower():
+            print(f"Found delete endpoint: {rule}, Endpoint: {rule.endpoint}, Methods: {rule.methods}")
     
 except Exception as e:
     logger.error(f"Error listing routes: {str(e)}")
