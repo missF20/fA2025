@@ -1,7 +1,25 @@
 import { useState, useEffect } from 'react';
-import { X, FileText, Calendar, Tag, Loader2, Eye, Download, File } from 'lucide-react';
+import { X, FileText, Calendar, Tag, Loader2, Eye, Download, FileType } from 'lucide-react';
 import { KnowledgeFile, KnowledgeFileWithContent } from '../types';
 import { getKnowledgeFile } from '../services/knowledgeService';
+
+// Helper functions
+const isPdfFile = (file: KnowledgeFile | KnowledgeFileWithContent): boolean => {
+  return file.file_type === 'pdf' || file.file_type === 'application/pdf';
+};
+
+const isImageFile = (file: KnowledgeFile | KnowledgeFileWithContent): boolean => {
+  const imageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml', 'jpeg', 'png', 'gif', 'svg'];
+  return imageTypes.includes(file.file_type);
+};
+
+const isDocFile = (file: KnowledgeFile | KnowledgeFileWithContent): boolean => {
+  const docTypes = ['application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 
+                    'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+                    'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'];
+  return docTypes.includes(file.file_type);
+};
 
 interface KnowledgeFilePreviewProps {
   fileId: string;
@@ -108,6 +126,80 @@ export function KnowledgeFilePreview({ fileId, onClose, onUpdate }: KnowledgeFil
         {file.content}
       </div>
     );
+  };
+  
+  // Render file preview based on file type
+  const renderFilePreview = () => {
+    if (!file) {
+      return <div className="italic text-gray-500">No file to preview</div>;
+    }
+    
+    if (isPdfFile(file)) {
+      // For PDF files, create an embedded preview
+      // Use content as base64
+      const pdfSrc = `data:application/pdf;base64,${file.content}`;
+      
+      return (
+        <div className="relative w-full h-[60vh]">
+          <iframe 
+            src={pdfSrc}
+            title={file.file_name || 'PDF Preview'} 
+            className="w-full h-full border-0 rounded"
+            allowFullScreen
+          >
+            Your browser does not support PDF previews.
+          </iframe>
+        </div>
+      );
+    } else if (isImageFile(file)) {
+      // For image files
+      const imageSrc = `data:${file.file_type};base64,${file.content}`;
+      
+      return (
+        <div className="flex justify-center">
+          <img 
+            src={imageSrc} 
+            alt={file.file_name || 'Image Preview'} 
+            className="max-w-full max-h-[60vh] object-contain"
+          />
+        </div>
+      );
+    } else {
+      // For unsupported preview types
+      return (
+        <div className="flex flex-col items-center justify-center py-10">
+          <FileType size={48} className="text-gray-400 mb-4" />
+          <h3 className="text-lg font-medium text-gray-700 mb-2">
+            Preview not available
+          </h3>
+          <p className="text-gray-500 text-center max-w-md mb-4">
+            This file type doesn't support preview. You can view the extracted content 
+            in the Content tab or download the file.
+          </p>
+          <button
+            onClick={() => {
+              setIsDownloading(true);
+              // Implement download logic here
+              setTimeout(() => setIsDownloading(false), 1000);
+            }}
+            className="px-4 py-2 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors inline-flex items-center"
+            disabled={isDownloading}
+          >
+            {isDownloading ? (
+              <>
+                <Loader2 size={16} className="animate-spin mr-2" />
+                Downloading...
+              </>
+            ) : (
+              <>
+                <Download size={16} className="mr-2" />
+                Download File
+              </>
+            )}
+          </button>
+        </div>
+      );
+    }
   };
 
   // Render the metadata section of the preview
@@ -244,7 +336,7 @@ export function KnowledgeFilePreview({ fileId, onClose, onUpdate }: KnowledgeFil
                     <Tag size={16} className="mr-1" />
                     Metadata
                   </button>
-                  {file && isPdfFile(file) && (
+                  {file && (isPdfFile(file) || isImageFile(file)) && (
                     <button
                       onClick={() => setActiveTab('preview')}
                       className={`pb-3 px-1 border-b-2 font-medium text-sm transition-colors flex items-center ${
