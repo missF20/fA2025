@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   FileText, Folder, Tag, Upload, Search, Trash2, Filter,
   PlusCircle, Loader2, AlertCircle, X, CheckCircle, 
-  RefreshCw, Download, Edit
+  RefreshCw, Download, Edit, AlertTriangle, Info
 } from 'lucide-react';
 import { 
   KnowledgeFile, 
@@ -55,6 +55,16 @@ export function KnowledgeBase() {
   // State for bulk operations
   const [bulkActionOpen, setBulkActionOpen] = useState(false);
   const [bulkProcessing, setBulkProcessing] = useState(false);
+  
+  // State for file deletion
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [fileToDelete, setFileToDelete] = useState<{id: string, name: string} | null>(null);
+  const [deleteSuccess, setDeleteSuccess] = useState<string | null>(null);
+  const [isFileInUse, setIsFileInUse] = useState(false);
+  
+  // State for bulk deletion
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [areSomeFilesInUse, setAreSomeFilesInUse] = useState(false);
   
   // Refs
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -135,17 +145,51 @@ export function KnowledgeBase() {
     }
   };
 
-  // Handle file deletion
+  // Check if file is recently used or in use (mock function)
+  const checkIfFileInUse = (fileId: string): boolean => {
+    // In a real implementation, this would check against recent conversation or usage data
+    // Currently we'll use fileId characteristics to simulate some files being in use
+    return fileId.endsWith('3') || fileId.endsWith('7'); // Example condition
+  };
+  
+  // Initiate the file deletion process
+  const initiateDeleteFile = (fileId: string) => {
+    const fileToBeDeleted = files.find(file => file.id === fileId);
+    if (!fileToBeDeleted) return;
+    
+    const fileName = fileToBeDeleted.filename || fileToBeDeleted.file_name || 'Unnamed file';
+    setFileToDelete({ id: fileId, name: fileName });
+    
+    // Check if the file is in use
+    const isInUse = checkIfFileInUse(fileId);
+    setIsFileInUse(isInUse);
+    
+    // Show confirmation dialog
+    setShowDeleteConfirm(true);
+  };
+  
+  // Handle file deletion after confirmation
   const handleDeleteFile = async (fileId: string) => {
-    if (!confirm('Are you sure you want to delete this file?')) return;
+    // Close the confirm dialog
+    setShowDeleteConfirm(false);
     
     try {
-      await deleteKnowledgeFile(fileId);
+      console.log(`Attempting to delete file with ID: ${fileId}`);
+      const response = await deleteKnowledgeFile(fileId);
+      console.log(`Delete API response status: ${response?.status || 'unknown'}`);
+      console.log(`Delete API response text:`, response?.data || response);
+      
+      // Update the UI
       setFiles(files.filter(file => file.id !== fileId));
       setTotalFiles(prev => prev - 1);
+      
+      // Show success message
+      setDeleteSuccess(`File successfully deleted`);
+      setTimeout(() => setDeleteSuccess(null), 5000);
     } catch (err) {
       console.error('Error deleting file:', err);
-      alert('Failed to delete the file. Please try again.');
+      setError('Failed to delete the file. Please try again.');
+      setTimeout(() => setError(null), 5000);
     }
   };
 
