@@ -473,6 +473,7 @@ export function KnowledgeSearch({ onSelectFile }: KnowledgeSearchProps) {
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
+                                  e.preventDefault(); 
                                   handleDeleteFile(file.id);
                                 }}
                                 className="text-red-600 hover:text-red-900 ml-3"
