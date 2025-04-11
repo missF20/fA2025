@@ -12,6 +12,7 @@ const cache = {
   files: new Map<string, {data: any, timestamp: number}>(),
   categories: null as {data: KnowledgeCategory[], timestamp: number} | null,
   tags: null as {data: KnowledgeTag[], timestamp: number} | null,
+  searches: {} as Record<string, {data: KnowledgeSearchResult[], timestamp: number}>,
   
   // Cache expiration in milliseconds (5 minutes)
   EXPIRATION: 5 * 60 * 1000,
@@ -26,6 +27,7 @@ const cache = {
     this.files.clear();
     this.categories = null;
     this.tags = null;
+    this.searches = {};
   }
 };
 
@@ -490,10 +492,17 @@ export const bulkUpdateKnowledgeFiles = async (
 };
 
 /**
- * Get list of categories
+ * Get list of categories with caching for improved performance
  */
 export const getCategories = async (): Promise<KnowledgeCategory[]> => {
   try {
+    // Check cache first
+    if (cache.categories && cache.isValid(cache.categories.timestamp)) {
+      console.log('Using cached categories data');
+      return cache.categories.data;
+    }
+    
+    console.log('Fetching fresh categories data');
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('Not authenticated');
 
@@ -509,6 +518,13 @@ export const getCategories = async (): Promise<KnowledgeCategory[]> => {
     }
     
     const data = await response.json();
+    
+    // Cache the results
+    cache.categories = {
+      data: data.categories,
+      timestamp: Date.now()
+    };
+    
     return data.categories;
   } catch (error) {
     console.error('Error fetching categories:', error);
@@ -517,10 +533,17 @@ export const getCategories = async (): Promise<KnowledgeCategory[]> => {
 };
 
 /**
- * Get list of tags
+ * Get list of tags with caching for improved performance
  */
 export const getTags = async (): Promise<KnowledgeTag[]> => {
   try {
+    // Check cache first
+    if (cache.tags && cache.isValid(cache.tags.timestamp)) {
+      console.log('Using cached tags data');
+      return cache.tags.data;
+    }
+    
+    console.log('Fetching fresh tags data');
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('Not authenticated');
 
@@ -536,6 +559,13 @@ export const getTags = async (): Promise<KnowledgeTag[]> => {
     }
     
     const data = await response.json();
+    
+    // Cache the results
+    cache.tags = {
+      data: data.tags,
+      timestamp: Date.now()
+    };
+    
     return data.tags;
   } catch (error) {
     console.error('Error fetching tags:', error);
@@ -544,7 +574,7 @@ export const getTags = async (): Promise<KnowledgeTag[]> => {
 };
 
 /**
- * Search the knowledge base
+ * Search the knowledge base with caching for improved performance
  */
 export const searchKnowledgeBase = async (
   query: string,
@@ -556,6 +586,16 @@ export const searchKnowledgeBase = async (
   }
 ): Promise<KnowledgeSearchResult[]> => {
   try {
+    // Generate a cache key based on query and filters
+    const cacheKey = `search_${query}_${JSON.stringify(filters || {})}`;
+    
+    // Check cache first
+    if (cache.searches && cache.searches[cacheKey] && cache.isValid(cache.searches[cacheKey].timestamp)) {
+      console.log('Using cached search results');
+      return cache.searches[cacheKey].data;
+    }
+    
+    console.log('Performing fresh search');
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('Not authenticated');
 
@@ -585,15 +625,25 @@ export const searchKnowledgeBase = async (
     const data = await response.json();
     
     // Normalize search results to ensure consistent field names
+    let results = [];
     if (data.results && Array.isArray(data.results)) {
-      return data.results.map(result => ({
+      results = data.results.map(result => ({
         ...result,
         // Ensure we have file_name (some endpoints return filename instead)
         file_name: result.file_name || result.filename || 'Unnamed file'
       }));
+    } else {
+      results = data.results || [];
     }
     
-    return data.results;
+    // Cache the search results
+    if (!cache.searches) cache.searches = {};
+    cache.searches[cacheKey] = {
+      data: results,
+      timestamp: Date.now()
+    };
+    
+    return results;
   } catch (error) {
     console.error('Error searching knowledge base:', error);
     return [];
