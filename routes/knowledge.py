@@ -56,6 +56,11 @@ def get_knowledge_files(user=None):
     
     try:
         # Use direct SQL to get files
+        from utils.db_connection import get_db_connection
+        
+        # Get a fresh connection to avoid "connection already closed" errors
+        conn = get_db_connection()
+        
         files_sql = """
         SELECT id, user_id, filename AS file_name, file_size, file_type, created_at, updated_at, 
                category, tags, binary_data
@@ -65,13 +70,25 @@ def get_knowledge_files(user=None):
         LIMIT %s OFFSET %s
         """
         files_params = (user['id'], limit, offset)
-        files_result = query_sql(files_sql, files_params)
         
-        # Get total count
+        # Use direct connection instead of query_sql helper
+        with conn.cursor() as cursor:
+            cursor.execute(files_sql, files_params)
+            files_result = cursor.fetchall()
+        
+        # Get total count using the same connection
         count_sql = "SELECT COUNT(*) as total FROM knowledge_files WHERE user_id = %s"
         count_params = (user['id'],)
-        count_result = query_sql(count_sql, count_params)
-        total_count = count_result[0]['total'] if count_result else 0
+        
+        with conn.cursor() as cursor:
+            cursor.execute(count_sql, count_params)
+            count_result = cursor.fetchall()
+            
+        # Process the count result, which is usually just a dictionary with a 'total' key
+        total_count = 0
+        if count_result and len(count_result) > 0:
+            # Access the count result directly, we know it has a 'total' key
+            total_count = count_result[0]['total'] if 'total' in count_result[0] else 0
         
         return jsonify({
             'files': files_result if files_result else [],
@@ -138,8 +155,17 @@ def get_knowledge_file(file_id, user=None):
             WHERE id = %s AND user_id = %s
             """
         
+        from utils.db_connection import get_db_connection
+        
+        # Get a fresh connection to avoid "connection already closed" errors
+        conn = get_db_connection()
+        
         params = (file_id, user['id'])
-        result = query_sql(select_sql, params)
+        
+        # Use direct connection instead of query_sql helper
+        with conn.cursor() as cursor:
+            cursor.execute(select_sql, params)
+            result = cursor.fetchall()
         
         if not result or len(result) == 0:
             return jsonify({'error': 'File not found'}), 404
