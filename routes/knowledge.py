@@ -646,7 +646,7 @@ def search_knowledge_base(user=None):
                 # Prepare result object
                 result = {
                     'id': file['id'],
-                    'filename': file['filename'],
+                    'filename': file['file_name'],
                     'file_type': file['file_type'],
                     'category': file.get('category'),
                     'tags': file.get('tags'),
@@ -972,7 +972,7 @@ def upload_binary_file(user=None):
         INSERT INTO knowledge_files 
         (user_id, filename, file_type, file_size, content, created_at, updated_at, category, tags, binary_data) 
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        RETURNING id, user_id, filename, file_type, file_size, created_at, updated_at, category, tags, binary_data
+        RETURNING id, user_id, filename AS file_name, file_type, file_size, created_at, updated_at, category, tags, binary_data
         """
         params = (
             data['user_id'],
@@ -1060,7 +1060,7 @@ def get_knowledge_stats(user=None):
         
         # Get most recent files
         recent_files_sql = """
-            SELECT id, filename, file_type, category, created_at 
+            SELECT id, filename AS file_name, file_type, category, created_at 
             FROM knowledge_files 
             WHERE user_id = %s 
             ORDER BY created_at DESC 
@@ -1070,7 +1070,7 @@ def get_knowledge_stats(user=None):
         recent_files = [
             {
                 "id": row['id'],
-                "filename": row['filename'],
+                "filename": row['file_name'],
                 "file_type": row['file_type'],
                 "category": row['category'],
                 "created_at": row['created_at'].isoformat() if row['created_at'] else None
