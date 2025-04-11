@@ -57,7 +57,7 @@ def get_knowledge_files(user=None):
     try:
         # Use direct SQL to get files
         files_sql = """
-        SELECT id, user_id, filename, file_size, file_type, created_at, updated_at, 
+        SELECT id, user_id, filename AS file_name, file_size, file_type, created_at, updated_at, 
                category, tags, binary_data
         FROM knowledge_files 
         WHERE user_id = %s
@@ -125,15 +125,15 @@ def get_knowledge_file(file_id, user=None):
         # Determine what fields to select
         if exclude_content:
             select_sql = """
-            SELECT id, user_id, file_name, file_size, file_type, created_at, updated_at, 
+            SELECT id, user_id, filename AS file_name, file_size, file_type, created_at, updated_at, 
                    category, tags, metadata
             FROM knowledge_files 
             WHERE id = %s AND user_id = %s
             """
         else:
             select_sql = """
-            SELECT id, user_id, file_name, file_size, file_type, created_at, updated_at, 
-                   category, tags, metadata, content
+            SELECT id, user_id, filename AS file_name, file_size, file_type, created_at, updated_at, 
+                   category, tags, metadata, content, binary_data
             FROM knowledge_files 
             WHERE id = %s AND user_id = %s
             """
@@ -229,7 +229,7 @@ def update_knowledge_file(file_id, user=None):
         UPDATE knowledge_files 
         SET {', '.join(update_fields)} 
         WHERE id = %s AND user_id = %s
-        RETURNING id, user_id, filename, file_type, file_size, created_at, updated_at, category, tags, binary_data
+        RETURNING id, user_id, filename AS file_name, file_type, file_size, created_at, updated_at, category, tags, binary_data
         """
         
         # Execute update
@@ -602,7 +602,7 @@ def search_knowledge_base(user=None):
         if include_snippets:
             # If we need snippets, we need to include content
             select_sql = f"""
-            SELECT id, filename, file_type, category, tags, binary_data, created_at, updated_at, content
+            SELECT id, filename AS file_name, file_type, category, tags, binary_data, created_at, updated_at, content
             FROM knowledge_files
             WHERE {where_clause}
             ORDER BY updated_at DESC
@@ -611,7 +611,7 @@ def search_knowledge_base(user=None):
         else:
             # Otherwise, exclude content for efficiency
             select_sql = f"""
-            SELECT id, filename, file_type, category, tags, binary_data, created_at, updated_at
+            SELECT id, filename AS file_name, file_type, category, tags, binary_data, created_at, updated_at
             FROM knowledge_files
             WHERE {where_clause}
             ORDER BY updated_at DESC
