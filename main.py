@@ -9,11 +9,14 @@ import threading
 import logging
 import subprocess
 import os
+import json
+import uuid
+import base64
 from datetime import datetime
 from flask import jsonify, request
 
 # Import auth module
-from utils.auth import token_required, require_auth
+from utils.auth import token_required, require_auth, get_user_from_token
 
 # Import debug endpoint
 import debug_endpoint
@@ -28,6 +31,95 @@ def test_auth():
         'message': 'Authentication successful',
         'dev_mode': True
     })
+
+# Add knowledge test endpoint
+@app.route('/api/knowledge/test', methods=['GET'])
+def knowledge_test():
+    """Test endpoint to verify knowledge routes are accessible"""
+    return jsonify({
+        'status': 'success',
+        'message': 'Knowledge API test endpoint is working',
+        'timestamp': datetime.now().isoformat()
+    })
+
+# Add knowledge direct upload endpoint
+@app.route('/api/knowledge/direct-upload', methods=['POST'])
+def direct_upload_file():
+    """Direct endpoint for knowledge file upload."""
+    logger = logging.getLogger(__name__)
+    try:
+        logger.debug("Direct knowledge upload endpoint called")
+        
+        # For development mode, check for development token directly
+        auth_header = request.headers.get('Authorization', '')
+        is_dev = (os.environ.get('FLASK_ENV') == 'development' or 
+                os.environ.get('DEVELOPMENT_MODE') == 'true' or
+                os.environ.get('APP_ENV') == 'development')
+        
+        # Log the whole request headers and dev mode status for debugging
+        logger.debug(f"Request headers: {dict(request.headers)}")
+        logger.debug(f"Development mode: {is_dev}")
+        logger.debug(f"Auth header: {auth_header}")
+        
+        # Handle dev token differently than regular Bearer tokens
+        if is_dev and (auth_header == 'dev-token' or auth_header == 'Bearer dev-token'):
+            # Use a test user ID for development testing
+            user_id = "test-user-id"
+            logger.info("Using test user ID with dev-token")
+        else:
+            # Get authenticated user
+            user = get_user_from_token(request)
+            if not user:
+                logger.warning("Unauthorized access attempt to knowledge upload endpoint")
+                return jsonify({"error": "Unauthorized"}), 401
+            
+            # Extract user ID
+            user_id = user.id if hasattr(user, 'id') else user.get('id')
+            if not user_id:
+                return jsonify({"error": "User ID not found"}), 401
+        
+        # Extract data from request
+        if not request.is_json:
+            return jsonify({"error": "Request must be JSON"}), 400
+            
+        data = request.json
+        if not data:
+            logger.warning("No data provided for upload")
+            return jsonify({"error": "No data provided"}), 400
+        
+        logger.debug(f"Received data keys: {list(data.keys())}")
+        
+        # Validate required fields
+        required_fields = ['filename', 'content']
+        for field in required_fields:
+            if field not in data:
+                logger.warning(f"Missing required field: {field}")
+                return jsonify({"error": f"Missing required field: {field}"}), 400
+        
+        # Use default values for optional fields
+        file_type = data.get('file_type', 'text/plain')
+        file_size = data.get('file_size', len(data['content']))
+        
+        # Create a response without database interaction for testing
+        file_id = str(uuid.uuid4())
+        now = datetime.now().isoformat()
+        
+        return jsonify({
+            'success': True,
+            'message': f"File {data['filename']} processed successfully",
+            'file_id': file_id,
+            'user_id': user_id,
+            'file_info': {
+                'filename': data['filename'],
+                'file_type': file_type,
+                'file_size': file_size,
+                'created_at': now
+            }
+        }), 201
+        
+    except Exception as e:
+        logger.error(f"Error in direct knowledge upload endpoint: {str(e)}")
+        return jsonify({"error": f"Server error: {str(e)}"}), 500
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, 
