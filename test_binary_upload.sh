@@ -12,7 +12,6 @@ JSON_DATA=$(cat <<EOF
   "file_size": ${#CONTENT},
   "content": "$BASE64_CONTENT",
   "is_base64": true,
-  "category": "test",
   "tags": ["test", "binary", "upload"]
 }
 EOF

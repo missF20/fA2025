@@ -98,7 +98,13 @@ def direct_upload_file():
         # Use default values for optional fields
         file_type = data.get('file_type', 'text/plain')
         file_size = data.get('file_size', len(data['content']))
-        category = data.get('category', '')
+        
+        # Make sure category is valid or NULL
+        category = data.get('category')
+        # Pass NULL for category if not provided (to avoid foreign key constraint)
+        if category == '':
+            category = None
+            
         tags = data.get('tags', [])
         
         # Add timestamps
@@ -122,17 +128,25 @@ def direct_upload_file():
         try:
             from utils.supabase_extension import query_sql
             
+            # Generate a UUID for the file
+            file_id = str(uuid.uuid4())
+            
             # Insert file into database
             insert_sql = """
             INSERT INTO knowledge_files 
-            (user_id, filename, file_type, file_size, content, created_at, updated_at, category, tags, binary_data) 
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            (id, user_id, filename, file_path, file_type, file_size, content, created_at, updated_at, category, tags, binary_data) 
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id, user_id, filename, file_type, file_size, created_at, updated_at
             """
             
+            # Generate a file path using the file_id and filename
+            file_path = f"knowledge/{file_id}/{data['filename']}"
+            
             params = (
+                file_id,
                 user_id,
                 data['filename'],
+                file_path,
                 file_type,
                 file_size,
                 content,
