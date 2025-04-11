@@ -75,7 +75,10 @@ export function KnowledgeSearch({ onSelectFile }: KnowledgeSearchProps) {
     }
     
     try {
+      console.log(`Attempting to delete file with ID: ${fileId}`);
       await deleteKnowledgeFile(fileId);
+      
+      console.log(`File deleted successfully, updating UI`);
       // Remove the file from the list
       setFiles(files.filter(file => file.id !== fileId));
       
@@ -83,9 +86,13 @@ export function KnowledgeSearch({ onSelectFile }: KnowledgeSearchProps) {
       if (selectedResult === fileId) {
         setSelectedResult(null);
       }
+      
+      // Success feedback
+      alert(`File deleted successfully`);
     } catch (err) {
       console.error('Error deleting file:', err);
-      alert('Failed to delete file');
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      alert(`Failed to delete file: ${errorMessage}`);
     }
   };
 

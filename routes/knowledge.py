@@ -515,23 +515,34 @@ def delete_knowledge_file(file_id, user=None):
         # Get a fresh connection to avoid "connection already closed" errors
         conn = get_db_connection()
         
+        # Log debugging information
+        logger.info(f"Deleting file ID: {file_id} for user ID: {user.get('id', 'None')}")
+        
         # Verify file belongs to user using direct SQL with RealDictCursor
         verify_sql = """
         SELECT id FROM knowledge_files 
         WHERE id = %s AND user_id = %s
         """
-        verify_params = (file_id, user['id'])
+        user_id = user.get('id')
+        if not user_id:
+            logger.error("User ID is missing or null")
+            return jsonify({'error': 'Invalid user ID'}), 400
+            
+        verify_params = (file_id, user_id)
+        logger.debug(f"SQL params: file_id={file_id}, user_id={user_id}")
         
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
             cursor.execute(verify_sql, verify_params)
             verify_result = cursor.fetchall()
+            logger.debug(f"Verify query result: {verify_result}")
             
             # Convert RealDictRow objects to regular dictionaries
             if verify_result:
                 verify_result = [dict(row) for row in verify_result]
+                logger.debug(f"Converted result: {verify_result}")
         
         if not verify_result:
-            logger.warning(f"Attempt to delete non-existent file {file_id} by user {user['id']}")
+            logger.warning(f"Attempt to delete non-existent file {file_id} by user {user_id}")
             return jsonify({'error': 'File not found'}), 404
         
         # Delete file with direct SQL using RealDictCursor
@@ -540,18 +551,23 @@ def delete_knowledge_file(file_id, user=None):
         WHERE id = %s AND user_id = %s
         RETURNING id
         """
-        delete_params = (file_id, user['id'])
+        
+        # Use the previously fetched user_id variable
+        delete_params = (file_id, user_id)
+        
+        logger.debug(f"Delete SQL params: file_id={file_id}, user_id={user_id}")
         
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
             cursor.execute(delete_sql, delete_params)
             delete_result = cursor.fetchall()
+            logger.debug(f"Delete query result: {delete_result}")
             
             # Convert RealDictRow objects to regular dictionaries
             if delete_result:
                 delete_result = [dict(row) for row in delete_result]
-                logger.info(f"Successfully deleted file {file_id} for user {user['id']}")
+                logger.info(f"Successfully deleted file {file_id} for user {user_id}")
             else:
-                logger.error(f"Failed to delete file {file_id} for user {user['id']}")
+                logger.error(f"Failed to delete file {file_id} for user {user_id}")
         
         conn.commit()
         
@@ -563,7 +579,8 @@ def delete_knowledge_file(file_id, user=None):
             if hasattr(current_app, 'socketio'):
                 current_app.socketio.emit('knowledge_file_deleted', {
                     'file_id': file_id
-                }, room=user['id'])
+                }, room=user_id)
+                logger.debug(f"Emitted socket event to room: {user_id}")
             else:
                 logger.debug("SocketIO not available, skipping emit")
         except Exception as socket_err:
