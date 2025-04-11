@@ -64,7 +64,7 @@ export const getKnowledgeFile = async (fileId: string): Promise<KnowledgeFileWit
 
 /**
  * Upload a file to the knowledge base
- * Modified to use the binary upload endpoint as fallback
+ * Modified to use multiple upload endpoints with fallbacks
  */
 export const uploadKnowledgeFile = async (
   file: File, 
@@ -75,15 +75,41 @@ export const uploadKnowledgeFile = async (
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('Not authenticated');
 
-    // Use direct form upload to binary endpoint first
+    // Prepare form data for all attempts
     const formData = new FormData();
     formData.append('file', file);
     
     if (category) formData.append('category', category);
     if (tags && tags.length > 0) formData.append('tags', JSON.stringify(tags));
 
+    // Check if file is a PDF to use the PDF-specific endpoint
+    if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+      console.log('Using PDF-specific upload endpoint');
+      try {
+        // Try PDF-specific endpoint first
+        const pdfResponse = await fetch('/api/knowledge/pdf-upload', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`
+          },
+          body: formData
+        });
+        
+        if (pdfResponse.ok) {
+          const result = await pdfResponse.json();
+          console.log('PDF upload successful', result);
+          return result.file;
+        }
+        
+        console.warn('PDF upload failed, trying other methods...');
+      } catch (pdfError) {
+        console.error('PDF upload error:', pdfError);
+        // Continue to other methods
+      }
+    }
+
     try {
-      // Try binary upload first - this should support multipart/form-data
+      // Try binary upload endpoint
       const response = await fetch('/api/knowledge/files/binary', {
         method: 'POST',
         headers: {
@@ -100,8 +126,41 @@ export const uploadKnowledgeFile = async (
         return result.file || result;
       }
       
-      // If binary endpoint failed, try base64 approach as fallback
-      console.warn('Binary upload failed, falling back to standard upload...');
+      // Try direct-upload endpoint next
+      const directResponse = await fetch('/api/knowledge/direct-upload', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          filename: file.name,
+          file_type: file.type || determineMimeType(file.name),
+          file_size: file.size,
+          content: await readFileAsBase64(file),
+          category,
+          tags: tags && tags.length > 0 ? tags : [],
+          is_base64: true
+        })
+      });
+      
+      if (directResponse.ok) {
+        const result = await directResponse.json();
+        console.log('Direct upload successful', result);
+        // Format the response to match expected structure
+        return {
+          id: result.file_id,
+          user_id: result.user_id,
+          filename: result.file_info.filename,
+          file_size: result.file_info.file_size,
+          file_type: result.file_info.file_type,
+          created_at: result.file_info.created_at,
+          updated_at: result.file_info.created_at
+        };
+      }
+      
+      // If direct upload failed, try standard endpoint as last resort
+      console.warn('Direct upload failed, falling back to standard upload...');
       
       // Convert file to base64
       const base64Content = await readFileAsBase64(file);

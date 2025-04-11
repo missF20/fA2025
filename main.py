@@ -32,6 +32,126 @@ def test_auth():
         'dev_mode': True
     })
 
+# Add PDF direct upload endpoint
+@app.route('/api/knowledge/pdf-upload', methods=['POST', 'OPTIONS'])
+def pdf_upload_file():
+    """Special PDF upload endpoint for testing."""
+    logger = logging.getLogger(__name__)
+    
+    # Handle CORS preflight requests
+    if request.method == 'OPTIONS':
+        response = jsonify({'status': 'success'})
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'POST, OPTIONS')
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Credentials', 'true')
+        response.headers.add('Access-Control-Max-Age', '3600')
+        return response, 204
+    
+    try:
+        logger.debug("PDF upload endpoint called")
+        
+        # Check for file in request
+        if 'file' not in request.files:
+            logger.warning("No file provided in form")
+            return jsonify({"error": "No file provided"}), 400
+            
+        file = request.files['file']
+        if file.filename == '':
+            logger.warning("Empty filename")
+            return jsonify({"error": "Empty filename"}), 400
+        
+        # Check if file is a PDF
+        if not file.filename.lower().endswith('.pdf'):
+            logger.warning(f"Not a PDF file: {file.filename}")
+            return jsonify({"error": "Only PDF files are accepted"}), 400
+            
+        # Generate a user ID (for testing, use a fixed UUID)
+        user_id = "00000000-0000-0000-0000-000000000000"
+        
+        # Extract metadata
+        category = request.form.get('category', '')
+        tags_str = request.form.get('tags', '[]')
+        filename = file.filename
+        file_type = 'application/pdf'
+        
+        # Read file data
+        file_data = file.read()
+        file_size = len(file_data)
+        
+        # Base64 encode the file data
+        encoded_data = base64.b64encode(file_data).decode('utf-8')
+        
+        # Generate a UUID for the file
+        file_id = str(uuid.uuid4())
+        
+        # Generate a file path
+        file_path = f"knowledge/{file_id}/{filename}"
+        
+        # Current timestamp
+        now = datetime.now().isoformat()
+        
+        try:
+            # Import utils for database access
+            from utils.supabase_extension import query_sql
+            
+            # Insert into database
+            insert_sql = """
+            INSERT INTO knowledge_files 
+            (id, user_id, filename, file_path, file_type, file_size, content, created_at, updated_at, category, tags, binary_data) 
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id, user_id, filename, file_type, file_size, created_at, updated_at
+            """
+            
+            params = (
+                file_id,
+                user_id,
+                filename,
+                file_path,
+                file_type,
+                file_size,
+                "PDF content extracted",  # Placeholder for actual content extraction
+                now,
+                now,
+                category,
+                tags_str,
+                encoded_data
+            )
+            
+            # Execute SQL
+            logger.debug("Executing SQL to insert PDF into database")
+            result = query_sql(insert_sql, params)
+            
+            if not result:
+                logger.error("Failed to insert PDF: No result returned")
+                return jsonify({"error": "Database error"}), 500
+            
+            logger.info(f"PDF inserted successfully: {result[0]}")
+            
+            # Return success response
+            return jsonify({
+                'success': True,
+                'file': {
+                    'id': file_id,
+                    'user_id': user_id,
+                    'filename': filename,
+                    'file_size': file_size,
+                    'file_type': file_type,
+                    'category': category,
+                    'created_at': now,
+                    'updated_at': now
+                },
+                'message': f'PDF {filename} uploaded successfully'
+            }), 201
+                
+        except Exception as db_error:
+            logger.error(f"Database error during PDF upload: {str(db_error)}")
+            return jsonify({"error": f"Database error: {str(db_error)}"}), 500
+            
+    except Exception as e:
+        logger.error(f"Error in PDF upload endpoint: {str(e)}")
+        return jsonify({"error": f"Server error: {str(e)}"}), 500
+
 # Add knowledge test endpoint
 @app.route('/api/knowledge/test', methods=['GET'])
 def knowledge_test():
