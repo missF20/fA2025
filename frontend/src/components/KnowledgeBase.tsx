@@ -200,7 +200,7 @@ export function KnowledgeBase() {
     
     try {
       setBulkProcessing(true);
-      await bulkUpdateKnowledgeFiles(selectedFiles, { addTags: tagsToAdd });
+      await bulkUpdateKnowledgeFiles(selectedFiles, { tags: tagsToAdd });
       
       // Refresh file list
       fetchFiles();
@@ -367,8 +367,17 @@ export function KnowledgeBase() {
           const currentProgress = Math.round(((i) / totalFiles) * 100);
           setUploadProgress(currentProgress);
           
-          // Upload the file
-          await uploadKnowledgeFile(file, selectedCategory, selectedTags);
+          // Upload the file with progress callback
+          await uploadKnowledgeFile(
+            file, 
+            selectedCategory, 
+            selectedTags,
+            (progress) => {
+              // Use either the callback progress or calculate based on file count
+              const fileProgress = progress || Math.round(((i) / totalFiles) * 100);
+              setUploadProgress(fileProgress);
+            }
+          );
           successCount++;
           successFiles.push(file.name);
           

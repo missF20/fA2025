@@ -64,16 +64,20 @@ export const getKnowledgeFile = async (fileId: string): Promise<KnowledgeFileWit
 
 /**
  * Upload a file to the knowledge base
- * Modified to use multiple upload endpoints with fallbacks
+ * Modified to use multiple upload endpoints with fallbacks and progress tracking
  */
 export const uploadKnowledgeFile = async (
   file: File, 
   category?: string, 
-  tags?: string[]
+  tags?: string[],
+  onProgress?: (progress: number) => void
 ): Promise<KnowledgeFile> => {
   try {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('Not authenticated');
+
+    // Start progress immediately
+    onProgress?.(5);
 
     // Prepare form data for all attempts
     const formData = new FormData();
@@ -82,10 +86,16 @@ export const uploadKnowledgeFile = async (
     if (category) formData.append('category', category);
     if (tags && tags.length > 0) formData.append('tags', JSON.stringify(tags));
 
+    // Update progress to indicate request preparation
+    onProgress?.(10);
+
     // Check if file is a PDF to use the PDF-specific endpoint
     if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
       console.log('Using PDF-specific upload endpoint');
       try {
+        // Signal progress as request is sent
+        onProgress?.(25);
+        
         // Try PDF-specific endpoint first
         const pdfResponse = await fetch('/api/knowledge/pdf-upload', {
           method: 'POST',
@@ -95,15 +105,33 @@ export const uploadKnowledgeFile = async (
           body: formData
         });
         
+        // Signal progress as response is received
+        onProgress?.(75);
+        
         if (pdfResponse.ok) {
+          // Signal progress nearly complete
+          onProgress?.(90);
           const result = await pdfResponse.json();
           console.log('PDF upload successful', result);
+          onProgress?.(100);
+          
+          // Map the response to match the expected structure in KnowledgeFile
+          // Backend returns "filename" but frontend expects "file_name"
+          if (result.file && result.file.filename) {
+            return {
+              ...result.file,
+              file_name: result.file.filename, // Map to the correct property name
+            };
+          }
+          
           return result.file;
         }
         
         console.warn('PDF upload failed, trying other methods...');
+        onProgress?.(30); // Reset progress for next attempt
       } catch (pdfError) {
         console.error('PDF upload error:', pdfError);
+        onProgress?.(30); // Reset progress for next attempt
         // Continue to other methods
       }
     }
@@ -147,15 +175,19 @@ export const uploadKnowledgeFile = async (
       if (directResponse.ok) {
         const result = await directResponse.json();
         console.log('Direct upload successful', result);
+        
+        // Get the filename from the response
+        const filename = result.file_info?.filename || file.name;
+        
         // Format the response to match expected structure
         return {
           id: result.file_id,
           user_id: result.user_id,
-          filename: result.file_info.filename,
-          file_size: result.file_info.file_size,
-          file_type: result.file_info.file_type,
-          created_at: result.file_info.created_at,
-          updated_at: result.file_info.created_at
+          file_name: filename, // Use file_name to match the KnowledgeFile type
+          file_size: result.file_info?.file_size || file.size,
+          file_type: result.file_info?.file_type || file.type || determineMimeType(file.name),
+          created_at: result.file_info?.created_at || new Date().toISOString(),
+          updated_at: result.file_info?.created_at || new Date().toISOString()
         };
       }
       
