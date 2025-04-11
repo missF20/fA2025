@@ -320,6 +320,9 @@ export function KnowledgeBase() {
     }
   }, [selectedCategory, selectedTags]);
   
+  // Success message state
+  const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
+  
   // Process multiple files for upload
   const handleUploadFiles = async (filesToUpload: File[]) => {
     if (!filesToUpload || filesToUpload.length === 0) return;
@@ -327,11 +330,13 @@ export function KnowledgeBase() {
     setIsUploading(true);
     setUploadProgress(0);
     setUploadError(null);
+    setUploadSuccess(null);
     
     try {
       // Process each file
       const totalFiles = filesToUpload.length;
       let successCount = 0;
+      let successFiles: string[] = [];
       let errorFiles: string[] = [];
       
       for (let i = 0; i < totalFiles; i++) {
@@ -358,23 +363,42 @@ export function KnowledgeBase() {
             console.warn(`File type ${fileType} may not be fully supported`);
           }
           
+          // Show current progress visually
+          const currentProgress = Math.round(((i) / totalFiles) * 100);
+          setUploadProgress(currentProgress);
+          
           // Upload the file
           await uploadKnowledgeFile(file, selectedCategory, selectedTags);
           successCount++;
+          successFiles.push(file.name);
+          
+          // Update progress after successful upload
+          const newProgress = Math.round(((i + 1) / totalFiles) * 100);
+          setUploadProgress(newProgress);
         } catch (fileErr) {
           console.error(`Error uploading ${file.name}:`, fileErr);
           errorFiles.push(file.name);
           // Continue with next file despite error
         }
-        
-        // Update progress
-        setUploadProgress(Math.round(((i + 1) / totalFiles) * 100));
       }
       
       // Refresh file list
       fetchFiles();
       
-      // Show result message
+      // Show success message if any files were successful
+      if (successCount > 0) {
+        const successMessage = successCount === 1 
+          ? `Successfully uploaded ${successFiles[0]}`
+          : `Successfully uploaded ${successCount} files`;
+        setUploadSuccess(successMessage);
+        
+        // Auto dismiss success message after 5 seconds
+        setTimeout(() => {
+          setUploadSuccess(null);
+        }, 5000);
+      }
+      
+      // Show error message if any files failed
       if (errorFiles.length > 0) {
         if (successCount > 0) {
           setUploadError(`Successfully uploaded ${successCount} files, but failed to upload: ${errorFiles.join(', ')}`);
@@ -387,7 +411,10 @@ export function KnowledgeBase() {
       setUploadError('Failed to upload one or more files. Please try again.');
     } finally {
       setIsUploading(false);
-      setUploadProgress(0);
+      // Keep final progress value for a moment before resetting
+      setTimeout(() => {
+        setUploadProgress(0);
+      }, 1000);
     }
   };
 
@@ -952,6 +979,24 @@ export function KnowledgeBase() {
     );
   };
   
+  // Render upload success message
+  const renderUploadSuccess = () => {
+    if (!uploadSuccess) return null;
+    
+    return (
+      <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg text-green-700 flex items-center">
+        <CheckCircle size={20} className="mr-2 text-green-500" />
+        {uploadSuccess}
+        <button
+          onClick={() => setUploadSuccess(null)}
+          className="ml-auto text-green-500 hover:text-green-700"
+        >
+          <X size={18} />
+        </button>
+      </div>
+    );
+  };
+  
   // Render drag overlay
   const renderDragOverlay = () => {
     if (!isDragging) return null;
@@ -979,6 +1024,7 @@ export function KnowledgeBase() {
       {renderToolbar()}
       {renderError()}
       {renderUploadError()}
+      {renderUploadSuccess()}
       
       {searchMode ? (
         <KnowledgeSearch onSelectFile={(fileId) => {
