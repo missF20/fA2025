@@ -71,6 +71,10 @@ def pdf_upload_file():
         
         # Extract metadata
         category = request.form.get('category', '')
+        # Set category to NULL to avoid foreign key constraint if empty
+        if category == '':
+            category = None
+            
         tags_str = request.form.get('tags', '[]')
         filename = file.filename
         file_type = 'application/pdf'
@@ -92,8 +96,11 @@ def pdf_upload_file():
         now = datetime.now().isoformat()
         
         try:
-            # Import utils for database access
-            from utils.supabase_extension import query_sql
+            # Import direct db connection utilities
+            from utils.db_connection import get_db_connection
+            
+            # Get a fresh database connection
+            conn = get_db_connection()
             
             # Insert into database
             insert_sql = """
@@ -118,29 +125,34 @@ def pdf_upload_file():
                 encoded_data
             )
             
-            # Execute SQL
+            # Execute SQL with cursor
             logger.debug("Executing SQL to insert PDF into database")
-            result = query_sql(insert_sql, params)
+            with conn.cursor() as cursor:
+                cursor.execute(insert_sql, params)
+                result = cursor.fetchone()
+                conn.commit()
             
             if not result:
                 logger.error("Failed to insert PDF: No result returned")
                 return jsonify({"error": "Database error"}), 500
             
-            logger.info(f"PDF inserted successfully: {result[0]}")
+            # Dictionary from database results (cursor returns a tuple, not a dict)
+            result_dict = {
+                'id': result[0],
+                'user_id': result[1],
+                'filename': result[2],
+                'file_type': result[3],
+                'file_size': result[4],
+                'created_at': result[5].isoformat() if result[5] else now,
+                'updated_at': result[6].isoformat() if result[6] else now
+            }
+            
+            logger.info(f"PDF inserted successfully: {result_dict}")
             
             # Return success response
             return jsonify({
                 'success': True,
-                'file': {
-                    'id': file_id,
-                    'user_id': user_id,
-                    'filename': filename,
-                    'file_size': file_size,
-                    'file_type': file_type,
-                    'category': category,
-                    'created_at': now,
-                    'updated_at': now
-                },
+                'file': result_dict,
                 'message': f'PDF {filename} uploaded successfully'
             }), 201
                 
@@ -246,7 +258,8 @@ def direct_upload_file():
             
         # Create a file in the database
         try:
-            from utils.supabase_extension import query_sql
+            # Import direct db connection utilities
+            from utils.db_connection import get_db_connection
             
             # Generate a UUID for the file
             file_id = str(uuid.uuid4())
@@ -277,16 +290,32 @@ def direct_upload_file():
                 binary_data
             )
             
-            # Execute the SQL
+            # Get a fresh database connection
+            conn = get_db_connection()
+            
+            # Execute SQL with cursor
             logger.debug("Executing SQL to insert file into database")
-            result = query_sql(insert_sql, params)
+            with conn.cursor() as cursor:
+                cursor.execute(insert_sql, params)
+                result = cursor.fetchone()
+                conn.commit()
             
             if not result:
                 logger.error("Failed to insert file: No result returned")
                 file_id = str(uuid.uuid4())  # Fallback to UUID generator
             else:
-                logger.info(f"File inserted successfully: {result[0]}")
-                file_id = result[0]['id']
+                # Dictionary from database results (cursor returns a tuple, not a dict)
+                result_dict = {
+                    'id': result[0],
+                    'user_id': result[1],
+                    'filename': result[2],
+                    'file_type': result[3],
+                    'file_size': result[4],
+                    'created_at': result[5].isoformat() if result[5] else now,
+                    'updated_at': result[6].isoformat() if result[6] else now
+                }
+                logger.info(f"File inserted successfully: {result_dict}")
+                file_id = result[0]  # UUID as string
             
             return jsonify({
                 'success': True,
