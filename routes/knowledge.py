@@ -884,15 +884,23 @@ def get_knowledge_tags(user=None):
       500:
         description: Server error
     """
+    logger.debug("get_knowledge_tags endpoint called")
+    
     # If user isn't provided by require_auth decorator, try to get it from token
     if user is None:
+        logger.debug("User not provided by require_auth, trying to get from token")
         user = get_user_from_token(request)
     
+    logger.debug(f"User for tags request: {user}")
+    
     try:
+        logger.debug("Importing get_db_connection")
         from utils.db_connection import get_db_connection
         
         # Get a fresh database connection to avoid "connection already closed" error
+        logger.debug("Getting database connection")
         conn = get_db_connection()
+        logger.debug(f"Connection obtained: {conn}")
         
         # Use direct SQL to get tags with counts
         tags_sql = """
@@ -908,11 +916,16 @@ def get_knowledge_tags(user=None):
         ORDER BY tag
         """
         
+        logger.debug(f"User type: {type(user)}")
         user_id = user.get('id') if isinstance(user, dict) else user.id
+        logger.debug(f"User ID for tags query: {user_id}")
         
+        logger.debug("Executing query")
         with conn.cursor() as cursor:
             cursor.execute(tags_sql, (user_id,))
             tags_result = cursor.fetchall()
+        
+        logger.debug(f"Query results: {tags_result}")
         
         # Format the results
         tags = []
@@ -924,12 +937,15 @@ def get_knowledge_tags(user=None):
                         'count': row[1]
                     })
         
+        logger.debug(f"Returning tags: {tags}")
         return jsonify({
             'tags': tags
         }), 200
         
     except Exception as e:
         logger.error(f"Error getting knowledge tags: {str(e)}", exc_info=True)
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
         # Return empty tags list instead of error
         return jsonify({
             'tags': []
