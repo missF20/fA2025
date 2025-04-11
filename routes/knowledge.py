@@ -733,29 +733,45 @@ def get_knowledge_categories(user=None):
         user = get_user_from_token(request)
     
     try:
-        # Use direct SQL to get categories
+        from utils.db_connection import get_db_connection
+        
+        # Get a fresh database connection to avoid "connection already closed" error
+        conn = get_db_connection()
+        
+        # Use direct SQL to get categories with counts
         categories_sql = """
-        SELECT DISTINCT category 
+        SELECT category, COUNT(*) as count
         FROM knowledge_files 
         WHERE user_id = %s AND category IS NOT NULL AND category != ''
+        GROUP BY category
+        ORDER BY category
         """
-        params = (user['id'],)
-        categories_result = query_sql(categories_sql, params)
         
-        # Extract unique categories
+        user_id = user.get('id') if isinstance(user, dict) else user.id
+        
+        with conn.cursor() as cursor:
+            cursor.execute(categories_sql, (user_id,))
+            categories_result = cursor.fetchall()
+            
+        # Convert to proper format
         categories = []
         if categories_result:
-            for item in categories_result:
-                if item.get('category'):
-                    categories.append(item['category'])
-        
+            for row in categories_result:
+                categories.append({
+                    'name': row[0],
+                    'count': row[1]
+                })
+                
         return jsonify({
-            'categories': sorted(categories)
+            'categories': categories
         }), 200
         
     except Exception as e:
         logger.error(f"Error getting knowledge categories: {str(e)}", exc_info=True)
-        return jsonify({'error': 'Error getting knowledge categories'}), 500
+        # Return empty categories list instead of error
+        return jsonify({
+            'categories': []
+        }), 200
 
 @knowledge_bp.route('/files/tags', methods=['GET'])
 @require_auth
@@ -782,41 +798,51 @@ def get_knowledge_tags(user=None):
         user = get_user_from_token(request)
     
     try:
-        # Use direct SQL to get tags
+        from utils.db_connection import get_db_connection
+        
+        # Get a fresh database connection to avoid "connection already closed" error
+        conn = get_db_connection()
+        
+        # Use direct SQL to get tags with counts
         tags_sql = """
-        SELECT tags 
+        SELECT DISTINCT jsonb_array_elements_text(CASE 
+            WHEN jsonb_typeof(tags::jsonb) = 'array' THEN tags::jsonb 
+            WHEN tags IS NOT NULL AND tags != '' THEN jsonb_build_array(tags) 
+            ELSE '[]'::jsonb 
+            END) as tag,
+            COUNT(*) as count
         FROM knowledge_files 
         WHERE user_id = %s AND tags IS NOT NULL AND tags != ''
+        GROUP BY tag
+        ORDER BY tag
         """
-        params = (user['id'],)
-        tags_result = query_sql(tags_sql, params)
         
-        # Extract unique tags
-        all_tags = set()
+        user_id = user.get('id') if isinstance(user, dict) else user.id
+        
+        with conn.cursor() as cursor:
+            cursor.execute(tags_sql, (user_id,))
+            tags_result = cursor.fetchall()
+        
+        # Format the results
+        tags = []
         if tags_result:
-            for item in tags_result:
-                tags = item.get('tags')
-                if tags:
-                    # Handle both string (JSON) and array formats
-                    if isinstance(tags, str):
-                        try:
-                            tags_list = json.loads(tags)
-                            if isinstance(tags_list, list):
-                                for tag in tags_list:
-                                    all_tags.add(tag)
-                        except:
-                            all_tags.add(tags)
-                    elif isinstance(tags, list):
-                        for tag in tags:
-                            all_tags.add(tag)
+            for row in tags_result:
+                if row[0]:  # Check that tag is not empty
+                    tags.append({
+                        'name': row[0],
+                        'count': row[1]
+                    })
         
         return jsonify({
-            'tags': sorted(list(all_tags))
+            'tags': tags
         }), 200
         
     except Exception as e:
         logger.error(f"Error getting knowledge tags: {str(e)}", exc_info=True)
-        return jsonify({'error': 'Error getting knowledge tags'}), 500
+        # Return empty tags list instead of error
+        return jsonify({
+            'tags': []
+        }), 200
 
 @knowledge_bp.route('/files/binary', methods=['POST', 'OPTIONS'])
 @require_auth

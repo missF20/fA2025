@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, FileText, Calendar, Tag, Loader2 } from 'lucide-react';
+import { X, FileText, Calendar, Tag, Loader2, Eye, Download, File } from 'lucide-react';
 import { KnowledgeFile, KnowledgeFileWithContent } from '../types';
 import { getKnowledgeFile } from '../services/knowledgeService';
 
@@ -13,7 +13,8 @@ export function KnowledgeFilePreview({ fileId, onClose, onUpdate }: KnowledgeFil
   const [file, setFile] = useState<KnowledgeFileWithContent | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'content'|'metadata'>('content');
+  const [activeTab, setActiveTab] = useState<'content'|'metadata'|'preview'>('content');
+  const [isDownloading, setIsDownloading] = useState(false);
 
   useEffect(() => {
     const fetchFile = async () => {
@@ -223,30 +224,47 @@ export function KnowledgeFilePreview({ fileId, onClose, onUpdate }: KnowledgeFil
                 <nav className="-mb-px flex space-x-8">
                   <button
                     onClick={() => setActiveTab('content')}
-                    className={`pb-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+                    className={`pb-3 px-1 border-b-2 font-medium text-sm transition-colors flex items-center ${
                       activeTab === 'content'
                         ? 'border-blue-500 text-blue-600'
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
                   >
+                    <FileText size={16} className="mr-1" />
                     Content
                   </button>
                   <button
                     onClick={() => setActiveTab('metadata')}
-                    className={`pb-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+                    className={`pb-3 px-1 border-b-2 font-medium text-sm transition-colors flex items-center ${
                       activeTab === 'metadata'
                         ? 'border-blue-500 text-blue-600'
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
                   >
+                    <Tag size={16} className="mr-1" />
                     Metadata
                   </button>
+                  {file && isPdfFile(file) && (
+                    <button
+                      onClick={() => setActiveTab('preview')}
+                      className={`pb-3 px-1 border-b-2 font-medium text-sm transition-colors flex items-center ${
+                        activeTab === 'preview'
+                          ? 'border-blue-500 text-blue-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      }`}
+                    >
+                      <Eye size={16} className="mr-1" />
+                      Preview
+                    </button>
+                  )}
                 </nav>
               </div>
 
               {/* Tab Content */}
               <div className="p-2">
-                {activeTab === 'content' ? renderContent() : renderMetadata()}
+                {activeTab === 'content' ? renderContent() : 
+                 activeTab === 'metadata' ? renderMetadata() : 
+                 renderFilePreview()}
               </div>
             </>
           )}
