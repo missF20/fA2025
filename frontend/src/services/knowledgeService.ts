@@ -31,6 +31,9 @@ export const getKnowledgeFiles = async (limit = 20, offset = 0): Promise<{ files
   } catch (error) {
     console.error('Error fetching knowledge files:', error);
     // Return empty results instead of throwing - better UX
+    if (data) {
+      return data;
+    }
     return { files: [], total: 0 };
   }
 };
@@ -55,6 +58,17 @@ export const getKnowledgeFile = async (fileId: string): Promise<KnowledgeFileWit
     }
     
     const data = await response.json();
+    
+    // Ensure the file has the required fields
+    if (!data.file) {
+      throw new Error('No file data returned from API');
+    }
+    
+    // Make sure file_name is set (some endpoints return filename instead)
+    if (!data.file.file_name && data.file.filename) {
+      data.file.file_name = data.file.filename;
+    }
+    
     return data.file;
   } catch (error) {
     console.error('Error fetching knowledge file:', error);
