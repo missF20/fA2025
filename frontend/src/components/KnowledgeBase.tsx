@@ -945,6 +945,7 @@ export function KnowledgeBase() {
             <KnowledgeFilePreview 
               fileId={previewFileId} 
               onUpdate={handleFileUpdate}
+              onClose={() => setPreviewFileId(null)}
             />
           </div>
         </div>

@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { X, FileText, User, Calendar, Tag, DownloadCloud, Loader2 } from 'lucide-react';
-import { KnowledgeFileWithContent } from '../types';
+import { useState, useEffect } from 'react';
+import { X, FileText, Calendar, Tag, Loader2 } from 'lucide-react';
+import { KnowledgeFile, KnowledgeFileWithContent } from '../types';
 import { getKnowledgeFile } from '../services/knowledgeService';
 
 interface KnowledgeFilePreviewProps {
   fileId: string;
   onClose: () => void;
-  onUpdate?: (updatedFile: KnowledgeFileWithContent) => void;
+  onUpdate?: (updatedFile: KnowledgeFile | KnowledgeFileWithContent) => void;
 }
 
 export function KnowledgeFilePreview({ fileId, onClose, onUpdate }: KnowledgeFilePreviewProps) {
