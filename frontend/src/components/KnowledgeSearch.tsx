@@ -341,12 +341,26 @@ export function KnowledgeSearch({ onSelectFile }: KnowledgeSearchProps) {
                       onSelectFile(result.id);
                     }}
                   >
-                    <div className="flex items-center mb-2">
-                      <FileText size={16} className="text-blue-600 mr-2" />
-                      <h4 className="text-sm font-medium text-gray-800">{result.file_name}</h4>
-                      <span className="ml-2 px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-600">
-                        {formatFileType(result.file_type)}
-                      </span>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center">
+                        <FileText size={16} className="text-blue-600 mr-2" />
+                        <h4 className="text-sm font-medium text-gray-800">{result.file_name}</h4>
+                        <span className="ml-2 px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-600">
+                          {formatFileType(result.file_type)}
+                        </span>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          handleDeleteFile(result.id);
+                        }}
+                        className="text-red-600 hover:text-red-900"
+                        title="Delete file"
+                        aria-label="Delete file"
+                      >
+                        <Trash2 size={16} />
+                      </button>
                     </div>
                     
                     {result.category && (

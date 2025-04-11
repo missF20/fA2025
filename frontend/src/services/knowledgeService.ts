@@ -319,16 +319,31 @@ export const deleteKnowledgeFile = async (fileId: string): Promise<boolean> => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('Not authenticated');
 
-    // Use API endpoint
+    console.log(`Attempting to delete file with ID: ${fileId}`);
+    
+    // Use API endpoint with additional logging
     const response = await fetch(`/api/knowledge/files/${fileId}`, {
       method: 'DELETE',
       headers: {
-        'Authorization': `Bearer ${session.access_token}`
+        'Authorization': `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json'
       }
     });
     
+    // Log the response for debugging
+    console.log(`Delete API response status: ${response.status}`);
+    
+    // Try to parse the response as JSON for better error messages
+    let responseText = '';
+    try {
+      responseText = await response.text();
+      console.log('Delete API response text:', responseText);
+    } catch (e) {
+      console.error('Error reading response text:', e);
+    }
+    
     if (!response.ok) {
-      throw new Error(`API request failed with status: ${response.status}`);
+      throw new Error(`API request failed with status: ${response.status}, message: ${responseText}`);
     }
     
     return true;
