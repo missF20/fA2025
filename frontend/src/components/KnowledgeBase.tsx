@@ -806,7 +806,7 @@ export function KnowledgeBase() {
             <button
               onClick={e => {
                 e.stopPropagation();
-                handleDeleteFile(file.id);
+                initiateDeleteFile(file.id);
               }}
               className="text-gray-500 hover:text-red-600 p-1"
               title="Delete file"
@@ -920,7 +920,7 @@ export function KnowledgeBase() {
                   <button
                     onClick={e => {
                       e.stopPropagation();
-                      handleDeleteFile(file.id);
+                      initiateDeleteFile(file.id);
                     }}
                     className="text-red-600 hover:text-red-900"
                     title="Delete file"
@@ -1066,6 +1066,76 @@ export function KnowledgeBase() {
     );
   };
 
+  // Render delete confirmation dialog
+  const renderDeleteConfirmation = () => {
+    if (!showDeleteConfirm) return null;
+    
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+          <div className="p-4 border-b flex items-center">
+            <AlertTriangle size={24} className="text-red-500 mr-2" />
+            <h3 className="text-lg font-medium text-gray-900">
+              Confirm Deletion
+            </h3>
+          </div>
+          
+          <div className="p-4">
+            <p className="mb-3">Are you sure you want to delete this file?</p>
+            <p className="text-sm text-gray-700 mb-4">
+              {files.find(f => f.id === fileToDelete)?.file_name}
+            </p>
+            
+            {isFileInUse && (
+              <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-700 flex items-start">
+                <AlertTriangle size={18} className="mr-2 mt-0.5 flex-shrink-0 text-amber-500" />
+                <div>
+                  <p className="font-medium">Warning!</p>
+                  <p className="text-sm">This file is currently being used in conversations. Deleting it may affect ongoing AI responses.</p>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <div className="px-4 py-3 bg-gray-50 flex justify-end rounded-b-lg space-x-2">
+            <button
+              onClick={() => setShowDeleteConfirm(false)}
+              className="px-4 py-2 rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                handleDeleteFile(fileToDelete);
+              }}
+              className="px-4 py-2 rounded-md bg-red-600 text-white hover:bg-red-700"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Render delete success message
+  const renderDeleteSuccess = () => {
+    if (!deleteSuccess) return null;
+    
+    return (
+      <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg text-green-700 flex items-center">
+        <CheckCircle size={20} className="mr-2 text-green-500" />
+        {deleteSuccess}
+        <button
+          onClick={() => setDeleteSuccess(null)}
+          className="ml-auto text-green-500 hover:text-green-700"
+        >
+          <X size={18} />
+        </button>
+      </div>
+    );
+  };
+  
   return (
     <div 
       className="container mx-auto p-4"
@@ -1074,11 +1144,13 @@ export function KnowledgeBase() {
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
+      {renderDeleteConfirmation()}
       {renderDragOverlay()}
       {renderToolbar()}
       {renderError()}
       {renderUploadError()}
       {renderUploadSuccess()}
+      {renderDeleteSuccess()}
       
       {searchMode ? (
         <KnowledgeSearch onSelectFile={(fileId) => {
