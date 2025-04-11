@@ -548,7 +548,7 @@ export const getTags = async (): Promise<KnowledgeTag[]> => {
     if (!session) throw new Error('Not authenticated');
 
     // Use API endpoint
-    const response = await fetch(`/api/knowledge/tags`, {
+    const response = await fetch(`/api/knowledge/files/tags`, {
       headers: {
         'Authorization': `Bearer ${session.access_token}`
       }
