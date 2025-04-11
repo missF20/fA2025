@@ -61,12 +61,18 @@ export const getKnowledgeFile = async (fileId: string): Promise<KnowledgeFileWit
       throw new Error('No file data returned from API');
     }
     
-    // Make sure file_name is set (some endpoints return filename instead)
-    if (!data.file.file_name && data.file.filename) {
-      data.file.file_name = data.file.filename;
-    }
+    // Create a normalized version of the file that always has the expected field names
+    const normalizedFile: KnowledgeFileWithContent = {
+      ...data.file,
+      // Ensure we have file_name (some endpoints return filename instead)
+      file_name: data.file.file_name || data.file.filename || 'Unnamed file',
+      // Ensure proper text content
+      content: data.file.content || data.file.binary_data || '',
+      // Parse tags if needed
+      tags: data.file.tags
+    };
     
-    return data.file;
+    return normalizedFile;
   } catch (error) {
     console.error('Error fetching knowledge file:', error);
     throw error;

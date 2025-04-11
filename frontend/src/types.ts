@@ -52,7 +52,8 @@ export interface Task {
 export interface KnowledgeFile {
   id: string;
   user_id: string;
-  file_name: string;
+  file_name?: string;
+  filename?: string; // Support for legacy field name
   file_size: number;
   file_type: string;
   content?: string;
@@ -61,6 +62,7 @@ export interface KnowledgeFile {
   category?: string;
   tags?: string[] | string;
   metadata?: Record<string, any> | string;
+  binary_data?: string; // Support for legacy binary data
 }
 
 export interface KnowledgeFileWithContent extends KnowledgeFile {
@@ -77,10 +79,11 @@ export interface KnowledgeFileWithContent extends KnowledgeFile {
 
 export interface KnowledgeSearchResult {
   id: string;
-  file_name: string;
+  file_name?: string;
+  filename?: string; // Support for legacy field name
   file_type: string;
   category?: string;
-  tags?: string[];
+  tags?: string[] | string;
   created_at: string;
   snippets?: string[];
   relevance?: number;
