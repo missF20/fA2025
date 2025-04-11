@@ -984,13 +984,12 @@ def knowledge_file_delete_api(file_id):
                 
         logger.info(f"Authenticated user: {user.get('email', 'Unknown')} with ID: {user.get('id', 'Unknown')}")
         
-        # Import the delete function from routes
-        from routes.knowledge import delete_knowledge_file
+        # Import the delete route function from routes
+        from routes.knowledge import delete_knowledge_file_route
         
-        # Call the function with the file_id and user - but we need to pass as keyword arg
-        # since the function has a default value for user parameter
-        logger.info(f"Calling delete_knowledge_file with file_id: {file_id}")
-        result = delete_knowledge_file(file_id=file_id, user=user)
+        # Call the function with the file_id and user
+        logger.info(f"Calling delete_knowledge_file_route with file_id: {file_id}")
+        result = delete_knowledge_file_route(file_id, user=user)
         logger.info(f"Delete operation completed with status code: {result[1]}")
         return result
     except Exception as e:

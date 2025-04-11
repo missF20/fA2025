@@ -478,7 +478,7 @@ def create_knowledge_file(user=None):
 
 @knowledge_bp.route('/files/<file_id>', methods=['DELETE'])
 @require_auth
-def delete_knowledge_file(file_id, user=None):
+def delete_knowledge_file_route(file_id, user=None):
     """
     Delete a knowledge file
     ---
@@ -506,8 +506,9 @@ def delete_knowledge_file(file_id, user=None):
     # If user isn't provided by require_auth decorator, try to get it from token
     if user is None:
         user = get_user_from_token(request)
-    
+        
     try:
+        # Implementation moved directly into route handler to avoid circular dependencies
         # Get database connection
         from utils.db_connection import get_db_connection
         import psycopg2.extras
