@@ -27,6 +27,16 @@ export const getKnowledgeFiles = async (limit = 20, offset = 0): Promise<{ files
     }
     
     const data = await response.json();
+    
+    // Normalize file data to ensure consistent field names
+    if (data.files && Array.isArray(data.files)) {
+      data.files = data.files.map(file => ({
+        ...file,
+        // Ensure we have file_name (some endpoints return filename instead)
+        file_name: file.file_name || file.filename || 'Unnamed file'
+      }));
+    }
+    
     return data;
   } catch (error) {
     console.error('Error fetching knowledge files:', error);
@@ -519,6 +529,16 @@ export const searchKnowledgeBase = async (
     }
     
     const data = await response.json();
+    
+    // Normalize search results to ensure consistent field names
+    if (data.results && Array.isArray(data.results)) {
+      return data.results.map(result => ({
+        ...result,
+        // Ensure we have file_name (some endpoints return filename instead)
+        file_name: result.file_name || result.filename || 'Unnamed file'
+      }));
+    }
+    
     return data.results;
   } catch (error) {
     console.error('Error searching knowledge base:', error);
