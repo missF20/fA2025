@@ -382,7 +382,7 @@ def create_knowledge_file(user=None):
         INSERT INTO knowledge_files 
         (user_id, filename, file_type, file_size, content, created_at, updated_at, category, tags, binary_data) 
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        RETURNING id, user_id, filename, file_type, file_size, created_at, updated_at, category, tags, binary_data
+        RETURNING id, user_id, filename AS file_name, file_type, file_size, created_at, updated_at, category, tags
         """
         params = (
             data['user_id'],

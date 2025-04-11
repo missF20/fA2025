@@ -47,7 +47,7 @@ export function KnowledgeFilePreview({ fileId, onClose, onUpdate }: KnowledgeFil
           const normalizedFile: KnowledgeFileWithContent = {
             ...fileData,
             // Ensure we have file_name (some endpoints return filename instead)
-            file_name: fileData.file_name || fileData.filename || 'Unnamed file',
+            file_name: fileData.file_name || (fileData as any).filename || 'Unnamed file',
             // Ensure proper text content
             content: fileData.content || ''
           };
