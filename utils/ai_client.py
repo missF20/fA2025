@@ -2,14 +2,16 @@
 AI Client Module
 
 This module provides a unified interface for interacting with various AI providers,
-including OpenAI and Anthropic.
+including OpenAI and Anthropic. It implements intelligent retry mechanisms with
+exponential backoff and graceful error handling for rate limits.
 """
 
 import os
 import logging
 import json
 import time
-from typing import Dict, List, Any, Optional, Tuple, Union
+import random
+from typing import Dict, List, Any, Optional, Tuple, Union, Callable
 
 # Configure logging
 logger = logging.getLogger(__name__)
