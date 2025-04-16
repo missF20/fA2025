@@ -8,6 +8,7 @@ import os
 import json
 import logging
 import requests
+import time
 from flask import Blueprint, request, jsonify, g
 from utils.auth import require_auth, get_user_from_token
 from utils.ai_limiter import limit_ai_usage
@@ -24,9 +25,9 @@ ai_response_bp = Blueprint('ai_responses', __name__, url_prefix='/api/ai')
 @ai_response_bp.route('/completion', methods=['POST'])
 @require_auth
 @limit_ai_usage
-def ai_completion():
+async def ai_completion():
     """
-    Generate an AI completion
+    Generate an AI completion with knowledge base enhancement
     ---
     parameters:
       - name: Authorization
@@ -56,6 +57,9 @@ def ai_completion():
               type: integer
             temperature:
               type: number
+            use_knowledge_base:
+              type: boolean
+              description: Whether to enhance responses with knowledge base content
     responses:
       200:
         description: AI completion
@@ -80,11 +84,90 @@ def ai_completion():
         model = data.get('model', 'gpt-4o')
         max_tokens = data.get('max_tokens', 1000)
         temperature = data.get('temperature', 0.7)
+        use_knowledge_base = data.get('use_knowledge_base', True)
         
         # Ensure at least one message is provided
         if not messages:
             return jsonify({"error": "No messages provided"}), 400
         
+        # Get the latest user message for knowledge base search
+        user_messages = [m for m in messages if m.get('role') == 'user']
+        if not user_messages:
+            return jsonify({"error": "No user messages found"}), 400
+            
+        last_user_message = user_messages[-1]
+        last_user_content = last_user_message.get('content', '')
+        
+        # Enhanced response with knowledge base
+        if use_knowledge_base:
+            try:
+                # Import the AI client
+                from utils.ai_client import AIClient
+                
+                # Initialize AI client
+                ai_client = AIClient()
+                
+                # Create system message with enhanced context
+                system_message = """
+                You are an AI assistant with access to the organization's knowledge base.
+                Answer the user's questions accurately and concisely based on the provided information.
+                If the knowledge base information answers the question, use that information.
+                If the question cannot be answered using the provided knowledge, say so clearly
+                but try to provide helpful general information.
+                """
+                
+                # Use the AI client with knowledge base enhancement
+                response_data = await ai_client.generate_response(
+                    message=last_user_content,
+                    system_prompt=system_message,
+                    conversation_history=[
+                        {"role": msg["role"], "content": msg["content"]} 
+                        for msg in messages[:-1]  # Exclude the last message as it's handled separately
+                    ],
+                    provider="openai" if 'claude' not in model.lower() else "anthropic",
+                    user_id=user['id'],
+                    enhance_with_knowledge=True
+                )
+                
+                # Format response in the expected format
+                if 'error' in response_data:
+                    return jsonify({"error": response_data['error']}), 500
+                    
+                formatted_response = {
+                    "id": response_data.get('model', 'unknown') + "-" + str(int(time.time())),
+                    "object": "chat.completion",
+                    "created": int(time.time()),
+                    "model": response_data.get('model', model),
+                    "choices": [
+                        {
+                            "index": 0,
+                            "message": {
+                                "role": "assistant",
+                                "content": response_data.get('content', '')
+                            },
+                            "finish_reason": "stop"
+                        }
+                    ],
+                    "usage": response_data.get('usage', {
+                        "prompt_tokens": 0,
+                        "completion_tokens": 0,
+                        "total_tokens": 0
+                    })
+                }
+                
+                # Add knowledge metadata if available
+                if 'metadata' in response_data and 'knowledge_items' in response_data['metadata']:
+                    formatted_response['knowledge_used'] = True
+                    formatted_response['knowledge_sources'] = response_data['metadata']['knowledge_items']
+                
+                return jsonify(formatted_response), 200
+                
+            except Exception as knowledge_err:
+                logger.error(f"Error using knowledge-enhanced response: {str(knowledge_err)}")
+                logger.info("Falling back to standard completion without knowledge base")
+                # Fall back to standard completion
+        
+        # Standard completion without knowledge base integration
         # Perform prompt optimization if needed
         # This will reduce the token count while maintaining quality
         if 'claude' in model.lower():
@@ -92,27 +175,19 @@ def ai_completion():
             token_estimate = calculate_anthropic_tokens(messages, model)
             # If token count is high, optimize the prompt
             if token_estimate > max_tokens * 0.8:  # If we're using more than 80% of max tokens
-                # Optimize the user message
-                user_messages = [m for m in messages if m.get('role') == 'user']
-                if user_messages:
-                    last_user_message = user_messages[-1]
-                    original_content = last_user_message.get('content', '')
-                    optimized_content = optimize_prompt(original_content)
-                    last_user_message['content'] = optimized_content
+                original_content = last_user_message.get('content', '')
+                optimized_content = optimize_prompt(original_content)
+                last_user_message['content'] = optimized_content
         else:
             # Check for token count for OpenAI models
             token_estimate = calculate_openai_tokens(messages, model)
             # If token count is high, optimize the prompt
             if token_estimate > max_tokens * 0.8:  # If we're using more than 80% of max tokens
-                # Optimize the user message
-                user_messages = [m for m in messages if m.get('role') == 'user']
-                if user_messages:
-                    last_user_message = user_messages[-1]
-                    original_content = last_user_message.get('content', '')
-                    optimized_content = optimize_prompt(original_content)
-                    last_user_message['content'] = optimized_content
+                original_content = last_user_message.get('content', '')
+                optimized_content = optimize_prompt(original_content)
+                last_user_message['content'] = optimized_content
         
-        # Prepare OpenAI API call
+        # Prepare API call
         if 'claude' in model.lower():
             # Handle Anthropic Claude API call
             response = generate_anthropic_response(messages, model, max_tokens, temperature)

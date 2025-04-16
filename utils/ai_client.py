@@ -74,11 +74,58 @@ class AIClient:
         """
         return self.providers
         
-    def generate_response(self, 
+    async def enhance_with_knowledge(
+                        self,
+                        message: str,
+                        user_id: str) -> Tuple[str, List[Dict[str, Any]]]:
+        """
+        Enhance a message with relevant knowledge from the knowledge base
+        
+        Args:
+            message: Original user message
+            user_id: User ID for knowledge base access
+            
+        Returns:
+            Tuple of enhanced message and list of knowledge items used
+        """
+        try:
+            # Import here to avoid circular imports
+            from automation.knowledge.database import search_knowledge_base
+            
+            # Search the knowledge base for relevant content
+            knowledge_items = await search_knowledge_base(user_id, message, max_results=3)
+            
+            if not knowledge_items:
+                # No relevant knowledge found
+                return message, []
+                
+            # Prepare knowledge context to add to the message
+            knowledge_context = "\n\nRelevant information from knowledge base:\n"
+            for idx, item in enumerate(knowledge_items):
+                # Add source information
+                knowledge_context += f"\n[Source {idx+1}: {item.get('file_name', 'unnamed')}]\n"
+                # Add content snippet if available
+                if 'snippet' in item:
+                    knowledge_context += f"{item['snippet']}\n"
+                    
+            # Combine the original message with the knowledge context
+            enhanced_message = f"{message}\n{knowledge_context}"
+            
+            logger.info(f"Enhanced prompt with {len(knowledge_items)} knowledge items")
+            return enhanced_message, knowledge_items
+            
+        except Exception as e:
+            logger.error(f"Error enhancing with knowledge: {str(e)}", exc_info=True)
+            # Return original message if enhancement fails
+            return message, []
+    
+    async def generate_response(self, 
                         message: str, 
                         system_prompt: Optional[str] = None,
                         conversation_history: Optional[List[Dict[str, str]]] = None,
-                        provider: Optional[str] = None) -> Dict[str, Any]:
+                        provider: Optional[str] = None,
+                        user_id: Optional[str] = None,
+                        enhance_with_knowledge: bool = True) -> Dict[str, Any]:
         """
         Generate an AI response to a message
         
@@ -87,6 +134,8 @@ class AIClient:
             system_prompt: System prompt to set context
             conversation_history: Previous conversation messages
             provider: Specific provider to use
+            user_id: User ID for knowledge base access (required for knowledge enhancement)
+            enhance_with_knowledge: Whether to enhance the prompt with knowledge base content
             
         Returns:
             Dictionary with response content and metadata
@@ -96,15 +145,35 @@ class AIClient:
             system_prompt = """
             You are a helpful AI assistant. Answer the user's question 
             accurately, concisely, and with a friendly tone.
+            
+            If provided with information from the knowledge base, use it to inform your response,
+            but answer in a natural, conversational way. Do not explicitly reference the knowledge base
+            unless asked specifically about sources.
             """
+        
+        enhanced_message = message
+        knowledge_items = []
+        
+        # Enhance with knowledge if requested and user_id is provided
+        if enhance_with_knowledge and user_id:
+            enhanced_message, knowledge_items = await self.enhance_with_knowledge(message, user_id)
             
         # Send request via unified client
         response = self.send_chat_request(
             system_message=system_prompt,
-            user_message=message,
+            user_message=enhanced_message,
             conversation_history=conversation_history,
             provider=provider
         )
+        
+        # Add knowledge items to response metadata
+        if knowledge_items:
+            if 'metadata' not in response:
+                response['metadata'] = {}
+            response['metadata']['knowledge_items'] = [
+                {'id': item.get('id'), 'file_name': item.get('file_name')} 
+                for item in knowledge_items
+            ]
         
         return response
         
