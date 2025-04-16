@@ -1,104 +1,111 @@
 import { useState, useEffect } from 'react';
-import { getAuthToken } from '../utils/auth';
-import { TokenUsageStats, UserTokenUsage } from '../types';
+import { supabase } from '../lib/supabase';
+import type { TokenUsageStats, UserTokenUsage } from '../types';
 
-export const useUsageStats = (userId?: string, isAdmin: boolean = false) => {
+// Add these types to your types.ts file
+export interface UsageStatsResult {
+  stats: TokenUsageStats | null;
+  loading: boolean;
+  error: string | null;
+  allUserStats?: UserTokenUsage[];
+}
+
+export function useUsageStats(userId?: string, fetchAllUsers = false): UsageStatsResult {
   const [stats, setStats] = useState<TokenUsageStats | null>(null);
   const [allUserStats, setAllUserStats] = useState<UserTokenUsage[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchUsageStats = async () => {
+    let isMounted = true;
+    
+    async function fetchUsageStats() {
       try {
         setLoading(true);
         setError(null);
-
-        // Get the authentication token
-        const token = getAuthToken();
-        if (!token) {
-          throw new Error('No authentication token available');
-        }
-
-        if (isAdmin) {
-          // Fetch usage statistics for all users (admin view)
-          const response = await fetch('/api/admin/usage/stats', {
+        
+        // If fetchAllUsers is true, we fetch stats for all users (admin only)
+        if (fetchAllUsers) {
+          const response = await fetch('/api/admin/usage/all-users', {
+            method: 'GET',
             headers: {
-              'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json',
-            },
-          });
-
-          if (!response.ok) {
-            // Try to get detailed error message from response
-            let errorMessage = 'Failed to fetch token usage statistics';
-            try {
-              const errorData = await response.json();
-              errorMessage = errorData.message || errorData.error || errorMessage;
-            } catch {
-              // If we can't parse the JSON, use the status text
-              errorMessage = `${errorMessage}: ${response.status} ${response.statusText}`;
+              // Include authorization token from Supabase
+              'Authorization': `Bearer ${supabase.auth.session()?.access_token}`
             }
-            throw new Error(errorMessage);
-          }
-
-          const data = await response.json();
-          setAllUserStats(data.users || []);
+          });
           
-          // If a specific user ID is provided, extract that user's stats
-          if (userId) {
-            const userStats = data.users.find((user: UserTokenUsage) => user.userId === userId);
-            if (userStats) {
-              setStats(userStats.stats);
-            } else {
-              setError(`No usage data found for user ID: ${userId}`);
-            }
-          }
-        } else if (userId) {
-          // Fetch usage statistics for a specific user
-          const response = await fetch(`/api/usage/stats?user_id=${userId}`, {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
-          });
-
           if (!response.ok) {
-            // Try to get detailed error message from response
-            let errorMessage = 'Failed to fetch token usage statistics';
-            try {
-              const errorData = await response.json();
-              errorMessage = errorData.message || errorData.error || errorMessage;
-            } catch {
-              // If we can't parse the JSON, use the status text
-              errorMessage = `${errorMessage}: ${response.status} ${response.statusText}`;
-            }
-            throw new Error(errorMessage);
+            throw new Error(`Error fetching all user stats: ${response.statusText}`);
           }
-
+          
           const data = await response.json();
-          setStats(data);
-        } else {
-          setError('User ID is required for non-admin users');
+          if (isMounted) {
+            setAllUserStats(data.users || []);
+          }
         }
-      } catch (err) {
-        console.error('Error fetching token usage stats:', err);
-        setError(err instanceof Error ? err.message : 'Unknown error');
+        
+        // If userId is provided, fetch individual user stats
+        if (userId) {
+          const response = await fetch(`/api/usage/stats?user_id=${userId}`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              // Include authorization token from Supabase
+              'Authorization': `Bearer ${supabase.auth.session()?.access_token}`
+            }
+          });
+          
+          if (!response.ok) {
+            throw new Error(`Error fetching usage stats: ${response.statusText}`);
+          }
+          
+          const data = await response.json();
+          if (isMounted) {
+            setStats({
+              totals: {
+                total_tokens: data.total_tokens || 0,
+                request_count: data.request_count || 0,
+                prompt_tokens: data.prompt_tokens || 0,
+                completion_tokens: data.completion_tokens || 0
+              },
+              limits: {
+                limit: data.token_limit || 100000,
+                used: data.total_tokens || 0,
+                remaining: (data.token_limit || 100000) - (data.total_tokens || 0),
+                unlimited: data.unlimited || false,
+                exceeded: data.total_tokens > data.token_limit && !data.unlimited
+              },
+              period: {
+                start: data.period_start || new Date(new Date().setDate(new Date().getDate() - 30)).toISOString(),
+                end: data.period_end || new Date(new Date().setDate(new Date().getDate() + 30)).toISOString()
+              },
+              models: data.models || []
+            });
+          }
+        }
+      } catch (err: any) {
+        console.error('Error fetching usage stats:', err);
+        if (isMounted) {
+          setError(err.message || 'Failed to load usage statistics');
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
-    };
-
-    // Only fetch if we're an admin or have a userId
-    if (isAdmin || userId) {
+    }
+    
+    if (userId || fetchAllUsers) {
       fetchUsageStats();
     } else {
       setLoading(false);
-      setError('User ID is required for non-admin users');
     }
-  }, [userId, isAdmin]);
-
-  return { stats, allUserStats, loading, error };
-};
-
-export default useUsageStats;
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [userId, fetchAllUsers]);
+  
+  return { stats, loading, error, allUserStats };
+}

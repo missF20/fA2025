@@ -1,142 +1,175 @@
 import React from 'react';
-import { Card, ProgressBar, Button } from 'react-bootstrap';
-import { Link } from 'react-router-dom';
 import { useUsageStats } from '../hooks/useUsageStats';
-import { getUserId } from '../utils/auth';
+import { AlertTriangle, Zap, Activity } from 'lucide-react';
 
-/**
- * TokenUsageCard component displays the user's token usage in a card format
- * This is a simplified version of TokenUsageWidget for dashboard display
- */
-export const TokenUsageCard: React.FC = () => {
-  const userId = getUserId() || '';
+interface TokenUsageCardProps {
+  userId: string;
+  compact?: boolean;
+}
+
+export const TokenUsageCard: React.FC<TokenUsageCardProps> = ({ userId, compact = false }) => {
   const { stats, loading, error } = useUsageStats(userId);
 
-  // Loading state
-  if (loading || !userId) {
+  if (loading) {
     return (
-      <Card className="h-100 shadow-sm">
-        <Card.Body className="d-flex align-items-center justify-content-center">
-          <div className="text-center p-4">
-            <div className="spinner-border text-primary mb-3" role="status">
-              <span className="visually-hidden">Loading...</span>
-            </div>
-            <p className="mb-0">Loading token usage...</p>
-          </div>
-        </Card.Body>
-      </Card>
+      <div className={`bg-white rounded-lg shadow p-${compact ? '3' : '4'} animate-pulse`}>
+        <div className="h-4 bg-gray-200 rounded w-1/4 mb-2"></div>
+        <div className="h-8 bg-gray-200 rounded w-3/4 mb-2"></div>
+        <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+      </div>
     );
   }
 
-  // Error state
   if (error) {
     return (
-      <Card className="h-100 shadow-sm">
-        <Card.Body>
-          <Card.Title>Token Usage</Card.Title>
-          <p className="text-danger mb-4">
-            <i className="bi bi-exclamation-circle me-2"></i>
-            Unable to load token usage information
-          </p>
-          <Button variant="outline-secondary" size="sm" as={Link} to="/usage">
-            Retry Loading
-          </Button>
-        </Card.Body>
-      </Card>
+      <div className={`bg-white rounded-lg shadow p-${compact ? '3' : '4'} border border-red-100`}>
+        <div className="flex items-center text-red-500 mb-2">
+          <AlertTriangle size={16} className="mr-2" />
+          <p className="text-sm font-medium">Error loading usage data</p>
+        </div>
+        <p className="text-xs text-gray-500">{error}</p>
+      </div>
     );
   }
 
-  // No data state
   if (!stats) {
     return (
-      <Card className="h-100 shadow-sm">
-        <Card.Body>
-          <Card.Title>Token Usage</Card.Title>
-          <p className="mb-4">No token usage data available.</p>
-          <Button variant="outline-primary" size="sm" as={Link} to="/usage">
-            View Details
-          </Button>
-        </Card.Body>
-      </Card>
+      <div className={`bg-white rounded-lg shadow p-${compact ? '3' : '4'} border border-gray-100`}>
+        <p className="text-sm text-gray-500">No usage data available</p>
+      </div>
     );
   }
 
-  const { limits, totals } = stats;
-  const { used, limit, remaining, unlimited, exceeded } = limits;
+  const { totals, limits, period } = stats;
+  const usagePercentage = limits.unlimited 
+    ? 0 
+    : Math.min(100, Math.round((limits.used / limits.limit) * 100));
   
-  // Calculate percentage used (avoid division by zero)
-  const percentageUsed = limit > 0 ? Math.min(100, (used / limit) * 100) : 0;
+  // Create a usage color based on the percentage used
+  let usageColor = 'bg-green-500';
+  let usageTextColor = 'text-green-600';
   
-  // Determine progress bar variant based on usage
-  let variant = 'success';
-  if (percentageUsed > 90) variant = 'danger';
-  else if (percentageUsed > 70) variant = 'warning';
+  if (usagePercentage > 90) {
+    usageColor = 'bg-red-500';
+    usageTextColor = 'text-red-600';
+  } else if (usagePercentage > 75) {
+    usageColor = 'bg-orange-500';
+    usageTextColor = 'text-orange-600';
+  } else if (usagePercentage > 50) {
+    usageColor = 'bg-yellow-500';
+    usageTextColor = 'text-yellow-600';
+  }
+
+  // Calculate dates and usage rates
+  const startDate = new Date(period.start);
+  const endDate = new Date(period.end);
+  const currentDate = new Date();
+  const daysUsed = Math.max(1, Math.floor((currentDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
+  const daysRemaining = Math.max(0, Math.floor((endDate.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24)));
+  const dailyUsage = Math.round(totals.total_tokens / daysUsed);
+  const projectedUsage = dailyUsage * (daysUsed + daysRemaining);
+  
+  if (compact) {
+    return (
+      <div className="bg-white rounded-lg shadow p-3 border border-gray-100">
+        <div className="flex justify-between items-center mb-2">
+          <div className="flex items-center">
+            <Zap size={16} className="text-blue-500 mr-2" />
+            <h3 className="text-sm font-medium text-gray-900">Token Usage</h3>
+          </div>
+          <span className={`text-xs font-medium ${limits.exceeded ? 'text-red-600' : usageTextColor}`}>
+            {limits.unlimited ? 'Unlimited' : `${usagePercentage}%`}
+          </span>
+        </div>
+        
+        <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+          <div 
+            className={`${usageColor} h-2 rounded-full`} 
+            style={{ width: `${limits.unlimited ? 100 : usagePercentage}%` }}
+          ></div>
+        </div>
+        
+        <div className="flex justify-between items-center text-xs text-gray-500">
+          <span>{limits.unlimited ? 'Unlimited' : `${totals.total_tokens.toLocaleString()} / ${limits.limit.toLocaleString()}`}</span>
+          <span>{daysRemaining} days left</span>
+        </div>
+      </div>
+    );
+  }
   
   return (
-    <Card className="h-100 shadow-sm">
-      <Card.Body>
-        <Card.Title className="d-flex justify-content-between align-items-center mb-3">
-          <span>Token Usage</span>
-          <Button 
-            variant="link" 
-            className="p-0 text-decoration-none" 
-            as={Link} 
-            to="/usage"
-          >
-            View Details
-          </Button>
-        </Card.Title>
+    <div className="bg-white rounded-lg shadow p-4 border border-gray-100">
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-lg font-medium text-gray-900">Token Usage</h3>
+        <div className="flex items-center">
+          {limits.exceeded ? (
+            <span className="px-2 py-1 text-xs font-medium bg-red-100 text-red-700 rounded-full">Limit Exceeded</span>
+          ) : limits.unlimited ? (
+            <span className="px-2 py-1 text-xs font-medium bg-purple-100 text-purple-700 rounded-full">Unlimited</span>
+          ) : (
+            <span className={`px-2 py-1 text-xs font-medium bg-${usageColor.replace('bg-', '')}-100 ${usageTextColor} rounded-full`}>
+              {usagePercentage}% Used
+            </span>
+          )}
+        </div>
+      </div>
+      
+      <div className="w-full bg-gray-200 rounded-full h-2.5 mb-4">
+        <div 
+          className={`${usageColor} h-2.5 rounded-full transition-all duration-500`} 
+          style={{ width: `${limits.unlimited ? 100 : usagePercentage}%` }}
+        ></div>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div>
+          <p className="text-sm text-gray-500 mb-1">Current Usage</p>
+          <p className="text-xl font-semibold">{totals.total_tokens.toLocaleString()} tokens</p>
+          <p className="text-xs text-gray-500 mt-1">{totals.request_count.toLocaleString()} requests</p>
+        </div>
         
-        {unlimited ? (
-          <div className="mb-3">
-            <div className="d-flex align-items-center mb-2">
-              <i className="bi bi-infinity me-2 text-success fs-4"></i>
-              <span className="text-success fw-bold">Unlimited Plan</span>
-            </div>
-            <p className="text-muted small mb-0">
-              Used: {totals.total_tokens.toLocaleString()} tokens this month
+        <div>
+          <p className="text-sm text-gray-500 mb-1">Limit</p>
+          <p className="text-xl font-semibold">
+            {limits.unlimited 
+              ? 'Unlimited' 
+              : `${limits.limit.toLocaleString()} tokens`
+            }
+          </p>
+          <p className="text-xs text-gray-500 mt-1">
+            {limits.unlimited 
+              ? 'No token restrictions' 
+              : `${limits.remaining.toLocaleString()} tokens remaining`
+            }
+          </p>
+        </div>
+      </div>
+      
+      <div className="border-t border-gray-100 pt-4">
+        <div className="flex items-center mb-3">
+          <Activity size={16} className="text-blue-500 mr-2" />
+          <h4 className="text-sm font-medium text-gray-900">Usage Analysis</h4>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+          <div className="bg-gray-50 p-2 rounded">
+            <p className="text-gray-500 mb-1">Daily Average</p>
+            <p className="font-medium">{dailyUsage.toLocaleString()} tokens/day</p>
+          </div>
+          
+          <div className="bg-gray-50 p-2 rounded">
+            <p className="text-gray-500 mb-1">Period</p>
+            <p className="font-medium">{daysUsed} days used / {daysRemaining} remaining</p>
+          </div>
+          
+          <div className="bg-gray-50 p-2 rounded">
+            <p className="text-gray-500 mb-1">Projected Usage</p>
+            <p className={`font-medium ${projectedUsage > limits.limit && !limits.unlimited ? 'text-red-600' : ''}`}>
+              {projectedUsage.toLocaleString()} tokens
             </p>
           </div>
-        ) : (
-          <>
-            <div className="d-flex justify-content-between mb-1">
-              <span>Monthly Usage</span>
-              <span className={exceeded ? 'text-danger' : ''}>
-                {used.toLocaleString()} / {limit.toLocaleString()}
-              </span>
-            </div>
-            
-            <ProgressBar 
-              now={percentageUsed} 
-              variant={variant} 
-              className="mb-2" 
-            />
-            
-            <div className="d-flex justify-content-between small text-muted mb-3">
-              <span>{percentageUsed.toFixed(1)}% used</span>
-              <span>{remaining.toLocaleString()} remaining</span>
-            </div>
-            
-            {exceeded && (
-              <div className="alert alert-danger py-2 small">
-                <i className="bi bi-exclamation-triangle-fill me-1"></i>
-                Token limit exceeded. Contact support to increase your limit.
-              </div>
-            )}
-          </>
-        )}
-        
-        <div className="d-flex justify-content-between mt-2 border-top pt-2 small text-muted">
-          <span>Conversation tokens:</span>
-          <span>{totals.total_tokens.toLocaleString()}</span>
         </div>
-        <div className="d-flex justify-content-between small text-muted">
-          <span>AI requests:</span>
-          <span>{totals.request_count.toLocaleString()}</span>
-        </div>
-      </Card.Body>
-    </Card>
+      </div>
+    </div>
   );
 };
-
-export default TokenUsageCard;
