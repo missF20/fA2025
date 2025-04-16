@@ -1,165 +1,130 @@
 # Knowledge Base AI Integration
 
-This document describes how the knowledge base integration with AI services works in Dana AI Platform.
+This document explains how the knowledge base is integrated with the AI response system to provide more accurate and context-aware responses.
 
 ## Overview
 
-The Dana AI Platform integrates knowledge base content with AI responses to provide more accurate and relevant answers to user queries. When a user asks a question, the system:
+Dana AI enhances its AI responses by leveraging the content stored in the company's knowledge base. When a user asks a question, the system:
 
-1. Searches the knowledge base for relevant information based on the query
-2. Enhances the AI prompt with the most relevant knowledge snippets
-3. Generates a response that incorporates the organization-specific knowledge
+1. Searches the knowledge base for relevant documents
+2. Extracts the most relevant snippets from those documents
+3. Enhances the AI prompt with these snippets
+4. Generates a response that incorporates the knowledge base information
+5. Provides attribution to the source documents
 
-This approach significantly improves the quality of AI responses by grounding them in your organization's specific data and documentation.
+## Architecture
 
-## Components
+The knowledge-AI integration consists of these key components:
 
-The integration consists of these key components:
+### 1. Knowledge Search
 
-- **Knowledge Base Search**: Searches the database for documents, snippets, and information relevant to the user's query.
-- **AI Enhancement**: Adds relevant knowledge to the AI prompt to provide context for the response generation.
-- **Response Generation**: Creates a comprehensive response combining AI capabilities with specific knowledge.
-- **Attribution**: Tracks which knowledge items were used to generate the response.
+- Located in `automation/knowledge/database.py`
+- Uses semantic search to find relevant documents
+- Ranks documents by relevance to the query
+- Extracts contextual snippets from the documents
+
+### 2. AI Client
+
+- Located in `utils/ai_client.py`
+- Manages connections to AI providers (OpenAI, Anthropic)
+- Enhances prompts with knowledge base content
+- Handles response formatting and metadata
+
+### 3. Caching Layer
+
+- Located in `utils/knowledge_cache.py`
+- Caches search results to improve performance
+- Uses time-based expiration (5 minutes by default)
+- Reduces database load for common queries
+
+### 4. API Layer
+
+- Located in `routes/ai_responses.py`
+- Exposes endpoints for AI completion with knowledge enhancement
+- Manages user authentication and rate limiting
+- Tracks token usage for billing purposes
 
 ## Implementation Details
 
-### Knowledge Base Search
+### Knowledge Search
 
-The `search_knowledge_base` function in `automation/knowledge/database.py` is responsible for finding relevant information:
-
-```python
-async def search_knowledge_base(user_id: str, query: str, max_results: int = 5) -> List[Dict[str, Any]]:
-    # Searches the database for relevant knowledge items
-    # Returns a list of matching documents with relevance snippets
-```
-
-The search uses a combination of:
-- Content matching (highest priority)
-- Filename matching
-- Category matching
-- Recent updates (as a tie-breaker)
-
-### AI Enhancement
-
-The `enhance_with_knowledge` method in the `AIClient` class adds knowledge context to the user's query:
+The knowledge search function takes a user query and returns relevant documents:
 
 ```python
-async def enhance_with_knowledge(self, message: str, user_id: str) -> Tuple[str, List[Dict[str, Any]]]:
-    # Takes a user message and enhances it with relevant knowledge
-    # Returns the enhanced prompt and a list of knowledge items used
+async def search_knowledge_base(user_id, query, limit=5):
+    """
+    Search the knowledge base for content relevant to the query
+    
+    Args:
+        user_id: The user ID
+        query: The search query
+        limit: Maximum number of results to return
+        
+    Returns:
+        List of relevant knowledge items with snippets
+    """
+    # Implementation details...
 ```
 
-This function:
-1. Calls `search_knowledge_base` to find relevant content
-2. Formats the knowledge snippets with clear source attribution
-3. Combines the original message with the knowledge context
-4. Returns both the enhanced message and the source information
+### AI Response Enhancement
 
-### Response Generation
-
-The enhanced API endpoint is in `routes/ai_responses.py`:
+When generating an AI response, the system enhances the prompt with knowledge snippets:
 
 ```python
-@ai_response_bp.route('/completion', methods=['POST'])
-@require_auth
-@limit_ai_usage
-async def ai_completion():
-    # Handles AI completion requests with knowledge enhancement
+async def generate_response(self, message, system_prompt="", user_id=None, 
+                          enhance_with_knowledge=False, **kwargs):
+    """
+    Generate an AI response to a user message
+    
+    Args:
+        message: The user message
+        system_prompt: Custom system prompt
+        user_id: User ID for knowledge base access
+        enhance_with_knowledge: Whether to enhance with knowledge base
+        
+    Returns:
+        AI response with optional knowledge metadata
+    """
+    # Implementation details...
 ```
 
-The endpoint:
-1. Accepts a parameter `use_knowledge_base` (default: `true`)
-2. Uses the AI client to generate a knowledge-enhanced response
-3. Includes metadata about which knowledge sources were used
-4. Falls back to standard completion if knowledge enhancement fails
+## How to Test
 
-## Usage
-
-To use the knowledge-enhanced AI responses:
-
-1. Ensure your knowledge base contains relevant, high-quality content
-2. Make API requests to `/api/ai/completion` with your query
-3. Optionally disable knowledge enhancement with `"use_knowledge_base": false`
-4. Check the response for `knowledge_sources` to see which documents were referenced
-
-Example request:
-```json
-{
-  "messages": [
-    {"role": "user", "content": "What is our data privacy policy?"}
-  ],
-  "model": "gpt-4o",
-  "use_knowledge_base": true
-}
-```
-
-Example response:
-```json
-{
-  "id": "gpt-4o-1713294302",
-  "object": "chat.completion",
-  "created": 1713294302,
-  "model": "gpt-4o",
-  "choices": [
-    {
-      "index": 0,
-      "message": {
-        "role": "assistant",
-        "content": "Our data privacy policy outlines that we collect only essential data needed to provide our services, including personal information that users provide directly and usage data collected automatically..."
-      },
-      "finish_reason": "stop"
-    }
-  ],
-  "usage": {
-    "prompt_tokens": 782,
-    "completion_tokens": 156,
-    "total_tokens": 938
-  },
-  "knowledge_used": true,
-  "knowledge_sources": [
-    {"id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "file_name": "data_privacy_policy.pdf"}
-  ]
-}
-```
-
-## Testing
-
-You can test the knowledge base integration using the `test_knowledge_ai.py` script:
+You can test the knowledge-AI integration with the `test_knowledge_ai.py` script:
 
 ```bash
 python test_knowledge_ai.py
 ```
 
-This script:
-1. Tests the knowledge base search functionality
-2. Tests the AI enhancement with the knowledge base
-3. Provides feedback on whether the integration is working correctly
+The test script:
+1. Searches the knowledge base for relevant documents
+2. Enhances an AI prompt with the found knowledge
+3. Verifies that the knowledge was properly incorporated
+
+## Adding Test Data
+
+To add test data to the knowledge base, use the `add_knowledge_test_data.py` script:
+
+```bash
+python add_knowledge_test_data.py
+```
+
+This script adds sample categories and files to the knowledge base that can be used for testing.
+
+## Configuration
+
+The knowledge-AI integration can be configured through:
+
+1. Environment variables for API keys and service configuration
+2. Database settings for token usage limits and rate limiting
+3. Memory cache settings for performance optimization
 
 ## Best Practices
 
-For optimal knowledge integration:
+When using the knowledge-AI integration:
 
-1. **Quality Content**: Ensure knowledge base documents are high-quality, accurate, and well-organized
-2. **Regular Updates**: Keep your knowledge base updated with the latest information
-3. **Categorization**: Properly categorize and tag documents to improve search relevance
-4. **Specific Queries**: More specific user queries tend to retrieve more relevant knowledge
-5. **Monitoring**: Review AI response quality and adjust knowledge base content as needed
-
-## Troubleshooting
-
-If knowledge integration isn't working as expected:
-
-1. Check if the knowledge base has relevant content for the query
-2. Verify database connectivity and search functionality
-3. Ensure AI API keys are configured and working
-4. Check the logs for errors in search or enhancement processes
-5. Try more specific queries that might match existing knowledge items
-
-## Performance Considerations
-
-Knowledge-enhanced AI responses may:
-- Require more tokens due to the added context
-- Take slightly longer to generate due to the search process
-- Provide significantly more accurate and specific answers
-
-The system includes caching for knowledge searches to improve performance.
+1. Ensure the knowledge base contains high-quality, relevant information
+2. Use specific queries that can be matched to knowledge content
+3. Structure knowledge content with clear sections and headings
+4. Monitor token usage as knowledge enhancement increases token consumption
+5. Use the caching layer to improve performance for common queries

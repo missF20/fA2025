@@ -23,7 +23,7 @@ async def test_knowledge_search():
     test_user_id = "00000000-0000-0000-0000-000000000000"  # Replace with a real UUID
     
     # Test query
-    test_query = "data privacy policy"
+    test_query = "privacy policy"
     
     logger.info(f"Searching knowledge base for: '{test_query}'")
     results = await search_knowledge_base(test_user_id, test_query)
@@ -49,7 +49,7 @@ async def test_ai_enhancement():
     ai_client = AIClient()
     
     # Test message
-    test_message = "What is our data privacy policy?"
+    test_message = "privacy policy"
     
     logger.info(f"Testing AI enhancement with message: '{test_message}'")
     
