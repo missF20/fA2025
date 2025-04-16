@@ -19,6 +19,8 @@ export function AdminDashboard() {
   const [clients, setClients] = useState<AdminClient[]>([]);
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedDateRange, setSelectedDateRange] = useState<string>('30days');
+  const { allUserStats, loading: usageLoading, error: usageError } = useUsageStats(undefined, true);
 
   useEffect(() => {
     fetchAdminData();
@@ -384,6 +386,20 @@ export function AdminDashboard() {
                 Analytics
               </div>
             </button>
+
+            <button
+              onClick={() => setActiveTab('apiUsage')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'apiUsage'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <div className="flex items-center">
+                <TrendingUp size={18} className="mr-2" />
+                API Usage
+              </div>
+            </button>
             
             <button
               onClick={() => setActiveTab('billing')}
@@ -418,6 +434,7 @@ export function AdminDashboard() {
       
       {activeTab === 'clients' && renderClientsTab()}
       {activeTab === 'analytics' && renderAnalyticsTab()}
+      {activeTab === 'apiUsage' && renderApiUsageTab()}
       {activeTab === 'billing' && renderBillingTab()}
       {activeTab === 'settings' && renderSettingsTab()}
     </div>

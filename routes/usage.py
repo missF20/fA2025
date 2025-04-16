@@ -351,6 +351,149 @@ def record_usage():
         logger.error(f"Error recording token usage: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
+
+@usage_bp.route('/admin/stats', methods=['GET'])
+@require_auth
+def get_admin_usage_stats():
+    """
+    Get token usage statistics for all users (admin only)
+    
+    URL Query Parameters:
+        start_date: Optional ISO date string for the start date (default: 30 days ago)
+        end_date: Optional ISO date string for the end date (default: now)
+        model: Optional model name to filter by
+    
+    Returns:
+        JSON response with token usage statistics for all users
+    """
+    try:
+        # Get current user from auth token
+        user = get_current_user()
+        if not user:
+            logger.error("No authenticated user found")
+            return jsonify({"error": "Authentication required"}), 401
+            
+        # Check if the user is an admin
+        if not user.get('is_admin'):
+            logger.warning(f"Non-admin user {user.get('id')} attempted to access admin stats")
+            return jsonify({"error": "Admin access required"}), 403
+        
+        # Get query parameters
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        model = request.args.get('model')
+        
+        # Parse dates if provided
+        if start_date:
+            try:
+                start_date = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+            except ValueError:
+                return jsonify({"error": "Invalid start_date format"}), 400
+                
+        if end_date:
+            try:
+                end_date = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+            except ValueError:
+                return jsonify({"error": "Invalid end_date format"}), 400
+                
+        # Get all users with token usage
+        sql = """
+        SELECT DISTINCT user_id 
+        FROM token_usage
+        ORDER BY user_id
+        """
+        users_result = execute_sql(sql)
+        
+        # Fetch user details and token usage for each user
+        users_data = []
+        for user_record in users_result:
+            user_id = user_record.get('user_id')
+            if not user_id:
+                continue
+                
+            # Get user details
+            user_details = get_user_details(user_id)
+            
+            # Get token usage stats for this user
+            stats = get_user_token_usage(
+                str(user_id),
+                start_date,
+                end_date,
+                model
+            )
+            
+            # Format user data
+            user_data = {
+                "userId": str(user_id),
+                "email": user_details.get('email'),
+                "username": user_details.get('username', user_details.get('display_name')),
+                "company": user_details.get('company'),
+                "stats": stats
+            }
+            
+            users_data.append(user_data)
+            
+        # Calculate overall totals
+        overall_tokens = 0
+        overall_requests = 0
+        
+        for user in users_data:
+            if 'stats' in user and 'totals' in user['stats']:
+                overall_tokens += user['stats']['totals'].get('total_tokens', 0)
+                overall_requests += user['stats']['totals'].get('request_count', 0)
+        
+        # Return response as JSON
+        return jsonify({
+            "users": users_data,
+            "overall": {
+                "total_tokens": overall_tokens,
+                "total_requests": overall_requests,
+                "user_count": len(users_data)
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting admin token usage stats: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+        
+        
+def get_user_details(user_id):
+    """
+    Get user details from the database
+    
+    Args:
+        user_id: The ID of the user
+        
+    Returns:
+        Dictionary with user details
+    """
+    try:
+        # First try to get from the profiles table
+        sql = """
+        SELECT email, display_name, company
+        FROM profiles
+        WHERE id = UUID(%s)
+        """
+        result = execute_sql(sql, (user_id,))
+        
+        if result and len(result) > 0:
+            return result[0]
+            
+        # If not found, try the auth.users table through Supabase
+        # This part would need to be customized based on your authentication setup
+        return {
+            "email": "unknown",
+            "display_name": f"User {user_id[:8]}",
+            "company": "Unknown"
+        }
+    except Exception as e:
+        logger.error(f"Error getting user details: {str(e)}")
+        return {
+            "email": "error",
+            "display_name": f"Error retrieving user {user_id[:8]}",
+            "company": "Error"
+        }
+
 @usage_bp.route('/all', methods=['GET'])
 @admin_required
 def get_all_usage():

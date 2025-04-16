@@ -1,43 +1,10 @@
 import { useState, useEffect } from 'react';
 import { getAuthToken } from '../utils/auth';
+import { TokenUsageStats, UserTokenUsage } from '../types';
 
-interface TokenLimits {
-  limit: number;
-  used: number;
-  remaining: number;
-  exceeded: boolean;
-  unlimited: boolean;
-}
-
-interface ModelUsage {
-  model: string;
-  total_tokens: number;
-  prompt_tokens: number;
-  completion_tokens: number;
-  request_count: number;
-  first_request: string;
-  last_request: string;
-}
-
-interface TokenUsage {
-  user_id: string;
-  period: {
-    start: string;
-    end: string;
-    days: number;
-  };
-  totals: {
-    total_tokens: number;
-    prompt_tokens: number;
-    completion_tokens: number;
-    request_count: number;
-  };
-  models: ModelUsage[];
-  limits: TokenLimits;
-}
-
-export const useUsageStats = (userId: string) => {
-  const [stats, setStats] = useState<TokenUsage | null>(null);
+export const useUsageStats = (userId?: string, isAdmin: boolean = false) => {
+  const [stats, setStats] = useState<TokenUsageStats | null>(null);
+  const [allUserStats, setAllUserStats] = useState<UserTokenUsage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -53,29 +20,67 @@ export const useUsageStats = (userId: string) => {
           throw new Error('No authentication token available');
         }
 
-        // Fetch usage statistics from the API
-        const response = await fetch(`/api/usage/stats?user_id=${userId}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        });
+        if (isAdmin) {
+          // Fetch usage statistics for all users (admin view)
+          const response = await fetch('/api/admin/usage/stats', {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          });
 
-        if (!response.ok) {
-          // Try to get detailed error message from response
-          let errorMessage = 'Failed to fetch token usage statistics';
-          try {
-            const errorData = await response.json();
-            errorMessage = errorData.message || errorData.error || errorMessage;
-          } catch {
-            // If we can't parse the JSON, use the status text
-            errorMessage = `${errorMessage}: ${response.status} ${response.statusText}`;
+          if (!response.ok) {
+            // Try to get detailed error message from response
+            let errorMessage = 'Failed to fetch token usage statistics';
+            try {
+              const errorData = await response.json();
+              errorMessage = errorData.message || errorData.error || errorMessage;
+            } catch {
+              // If we can't parse the JSON, use the status text
+              errorMessage = `${errorMessage}: ${response.status} ${response.statusText}`;
+            }
+            throw new Error(errorMessage);
           }
-          throw new Error(errorMessage);
-        }
 
-        const data = await response.json();
-        setStats(data);
+          const data = await response.json();
+          setAllUserStats(data.users || []);
+          
+          // If a specific user ID is provided, extract that user's stats
+          if (userId) {
+            const userStats = data.users.find((user: UserTokenUsage) => user.userId === userId);
+            if (userStats) {
+              setStats(userStats.stats);
+            } else {
+              setError(`No usage data found for user ID: ${userId}`);
+            }
+          }
+        } else if (userId) {
+          // Fetch usage statistics for a specific user
+          const response = await fetch(`/api/usage/stats?user_id=${userId}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+
+          if (!response.ok) {
+            // Try to get detailed error message from response
+            let errorMessage = 'Failed to fetch token usage statistics';
+            try {
+              const errorData = await response.json();
+              errorMessage = errorData.message || errorData.error || errorMessage;
+            } catch {
+              // If we can't parse the JSON, use the status text
+              errorMessage = `${errorMessage}: ${response.status} ${response.statusText}`;
+            }
+            throw new Error(errorMessage);
+          }
+
+          const data = await response.json();
+          setStats(data);
+        } else {
+          setError('User ID is required for non-admin users');
+        }
       } catch (err) {
         console.error('Error fetching token usage stats:', err);
         setError(err instanceof Error ? err.message : 'Unknown error');
@@ -84,15 +89,16 @@ export const useUsageStats = (userId: string) => {
       }
     };
 
-    if (userId) {
+    // Only fetch if we're an admin or have a userId
+    if (isAdmin || userId) {
       fetchUsageStats();
     } else {
       setLoading(false);
-      setError('User ID is required');
+      setError('User ID is required for non-admin users');
     }
-  }, [userId]);
+  }, [userId, isAdmin]);
 
-  return { stats, loading, error };
+  return { stats, allUserStats, loading, error };
 };
 
 export default useUsageStats;
