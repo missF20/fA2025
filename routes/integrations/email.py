@@ -431,7 +431,7 @@ def sync_email(user_id, integration_id):
         return False, f"Error syncing email data: {str(e)}", 500
         
 @email_integration_bp.route('/disconnect', methods=['POST'])
-@token_required
+@require_auth
 def disconnect_email_endpoint():
     """
     Disconnect from email service
@@ -568,7 +568,7 @@ def disconnect_email_endpoint():
         }), 500
 
 @email_integration_bp.route('/send', methods=['POST'])
-@token_required
+@require_auth
 def send_email():
     """
     Send an email
