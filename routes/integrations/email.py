@@ -10,7 +10,7 @@ import logging
 from datetime import datetime
 from flask import Blueprint, request, jsonify, current_app, g
 from werkzeug.security import generate_password_hash, check_password_hash
-from utils.auth import token_required
+from utils.auth import require_auth
 from utils.rate_limiter import rate_limit
 
 # Set up logger
@@ -57,7 +57,7 @@ def test_email():
     })
 
 @email_integration_bp.route('/connect', methods=['POST'])
-@token_required
+@require_auth
 def connect_email_endpoint():
     """
     Connect to email service with the provided credentials
