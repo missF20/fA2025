@@ -49,6 +49,12 @@ def test_email():
     Returns:
         JSON response with test data
     """
+    # Return test data
+    return jsonify({
+        'success': True,
+        'message': 'Email integration API is working',
+        'version': '1.0.0'
+    })
 
 @email_integration_bp.route('/connect', methods=['POST'])
 @token_required
@@ -132,12 +138,6 @@ def connect_email_endpoint():
             'success': False,
             'message': f"Error connecting to email: {str(e)}"
         }), 500
-    # Return test data
-    return jsonify({
-        'success': True,
-        'message': 'Email integration API is working',
-        'version': '1.0.0'
-    })
 
 def connect_email(user_id, config_data):
     """
@@ -222,6 +222,72 @@ def connect_email(user_id, config_data):
         logger.info(f"Email connect - Port: {email_port}")
         logger.info(f"Email connect - Username: {email_username}")
         logger.info(f"Email connect - Password: {'*' * (len(str(email_password)) if email_password else 0)}")
+        
+        # Verify SMTP server connection before saving to database
+        # This helps catch connection issues early and avoid 503 errors
+        if email_server and email_port and email_server != 'smtp.example.com':
+            try:
+                import smtplib
+                import socket
+                from ssl import create_default_context
+                
+                logger.info(f"Attempting to verify SMTP server: {email_server}:{email_port}")
+                
+                # Set a timeout to avoid hanging connections
+                timeout = 10
+                
+                # Determine if we need SSL/TLS based on the port
+                use_ssl = email_port in (465, 587, 993, 995)
+                
+                # Try to connect to the SMTP server with a timeout
+                context = create_default_context()
+                
+                if email_port == 465:  # SMTP_SSL
+                    logger.info("Using SMTP_SSL connection")
+                    with socket.create_connection((email_server, email_port), timeout=timeout) as sock:
+                        with smtplib.SMTP_SSL(email_server, email_port, context=context, local_hostname=None, timeout=timeout) as server:
+                            server.ehlo()
+                            # Don't try to login for verification - this can trigger security alerts
+                            # Just checking connection is enough
+                else:  # SMTP with optional STARTTLS
+                    logger.info("Using SMTP connection with STARTTLS")
+                    with socket.create_connection((email_server, email_port), timeout=timeout) as sock:
+                        with smtplib.SMTP(email_server, email_port, local_hostname=None, timeout=timeout) as server:
+                            server.ehlo()
+                            if use_ssl:
+                                server.starttls(context=context)
+                                server.ehlo()
+                            # Don't try to login for verification - this can trigger security alerts
+                            # Just checking connection is enough
+                
+                logger.info("SMTP server connection verified successfully")
+                
+            except socket.gaierror as e:
+                logger.error(f"DNS resolution failed for SMTP server: {str(e)}")
+                return False, f"Failed to connect to email server: DNS lookup failed for {email_server}", 503
+            except socket.timeout as e:
+                logger.error(f"Connection timeout to SMTP server: {str(e)}")
+                return False, f"Connection timed out while connecting to email server {email_server}:{email_port}", 503
+            except ConnectionRefusedError as e:
+                logger.error(f"Connection refused by SMTP server: {str(e)}")
+                return False, f"Connection refused by email server {email_server}:{email_port}", 503
+            except smtplib.SMTPConnectError as e:
+                logger.error(f"SMTP connection error: {str(e)}")
+                return False, f"Error connecting to email server: {str(e)}", 503
+            except smtplib.SMTPServerDisconnected as e:
+                logger.error(f"SMTP server disconnected: {str(e)}")
+                return False, f"Email server disconnected unexpectedly: {str(e)}", 503
+            except smtplib.SMTPException as e:
+                logger.error(f"SMTP error: {str(e)}")
+                return False, f"Email server error: {str(e)}", 503
+            except OSError as e:
+                logger.error(f"OS error connecting to SMTP server: {str(e)}")
+                return False, f"OS error connecting to email server: {str(e)}", 503
+            except Exception as e:
+                logger.error(f"Unexpected error checking SMTP server: {str(e)}")
+                return False, f"Unable to connect to email server: {str(e)}", 503
+        else:
+            logger.info("Skipping SMTP server verification for test configuration")
         
         # Save configurations to the database
         from app import db
@@ -532,19 +598,220 @@ def send_email():
     html = data.get('html')
     
     try:
-        # In a real implementation, we would:
-        # 1. Retrieve stored email credentials for the user
-        # 2. Connect to email server
-        # 3. Send the email
+        # Get user information
+        user_email = None
+        user_id = None
         
-        # Placeholder for sending email logic
-        logger.info(f"Sending email to {to_email} with subject: {subject}")
+        if hasattr(g, 'user'):
+            # Handle dict format
+            if isinstance(g.user, dict):
+                user_email = g.user.get('email')
+                user_id = g.user.get('user_id') or g.user.get('id')
+            # Handle object format
+            elif hasattr(g.user, 'email'):
+                user_email = g.user.email
+                user_id = getattr(g.user, 'user_id', None) or getattr(g.user, 'id', None)
         
-        return jsonify({
-            'success': True,
-            'message': f'Email sent to {to_email}'
-        })
-    
+        logger.info(f"Send email - User from token: email={user_email}, id={user_id}")
+        
+        # Find user ID in database
+        from models_db import User, IntegrationConfig
+        from models import IntegrationType
+        import uuid
+        
+        # Get the user's UUID
+        user_uuid = None
+        
+        # If it's already a UUID string, use it directly
+        if isinstance(user_id, str) and len(user_id) == 36 and '-' in user_id:
+            try:
+                # Validate it's a proper UUID
+                valid_uuid = uuid.UUID(user_id)
+                user_uuid = str(valid_uuid)
+            except ValueError:
+                pass
+        
+        # If we don't have a UUID yet, try to find the user
+        if not user_uuid:
+            db_user = User.query.filter_by(email=user_email).first()
+            if db_user and hasattr(db_user, 'auth_id') and db_user.auth_id:
+                user_uuid = db_user.auth_id
+            elif db_user:
+                user_uuid = str(db_user.id)
+        
+        if not user_uuid:
+            return jsonify({
+                'success': False,
+                'message': 'User not found or not authenticated'
+            }), 401
+        
+        logger.info(f"Send email - Using user_uuid: {user_uuid}")
+        
+        # Retrieve stored email credentials for the user
+        email_config = IntegrationConfig.query.filter_by(
+            user_id=user_uuid,
+            integration_type=IntegrationType.EMAIL.value
+        ).first()
+        
+        if not email_config:
+            return jsonify({
+                'success': False,
+                'message': 'No email integration found. Please connect your email service first.'
+            }), 400
+        
+        # Extract SMTP configuration
+        smtp_config = email_config.config
+        
+        if not isinstance(smtp_config, dict):
+            # If stored as JSON string, convert to dict
+            try:
+                import json
+                if isinstance(smtp_config, str):
+                    smtp_config = json.loads(smtp_config)
+            except Exception as e:
+                logger.exception(f"Error parsing SMTP config: {str(e)}")
+                return jsonify({
+                    'success': False,
+                    'message': 'Invalid email configuration'
+                }), 500
+                
+        # Extract SMTP parameters
+        email_server = smtp_config.get('server')
+        email_port = smtp_config.get('port')
+        email_username = smtp_config.get('username')
+        email_password_hash = smtp_config.get('password')
+        
+        # Check if this is a mock/test configuration
+        is_test_config = (email_server == 'smtp.example.com')
+        
+        # For test configurations in development mode, pretend the email was sent
+        if is_test_config and current_app.config.get('ENV') == 'development':
+            logger.info(f"Development mode: Mock sending email to {to_email}")
+            return jsonify({
+                'success': True,
+                'message': f'Email sent to {to_email} (development mode)'
+            })
+        
+        # If missing any parameters, return an error
+        if not all([email_server, email_port, email_username, email_password_hash]):
+            return jsonify({
+                'success': False,
+                'message': 'Incomplete email configuration. Please reconnect your email service.'
+            }), 400
+        
+        # For real configurations, we need to get the actual password
+        from werkzeug.security import check_password_hash
+        
+        # Retrieve the actual password (this would normally come from a secure store)
+        # Since we don't have the actual password and can't decrypt the hash,
+        # we'd need additional logic to securely store and retrieve credentials
+        
+        # Send the email using SMTP
+        import smtplib
+        import socket
+        from email.mime.text import MIMEText
+        from email.mime.multipart import MIMEMultipart
+        from ssl import create_default_context
+        
+        logger.info(f"Sending email to {to_email} via {email_server}:{email_port}")
+        
+        # Set a timeout to avoid hanging connections
+        timeout = 10
+        
+        try:
+            # Create email message
+            msg = MIMEMultipart('alternative')
+            msg['Subject'] = subject
+            msg['From'] = email_username
+            msg['To'] = to_email
+            
+            # Attach parts
+            part1 = MIMEText(body, 'plain')
+            msg.attach(part1)
+            
+            if html:
+                part2 = MIMEText(html, 'html')
+                msg.attach(part2)
+            
+            # Determine if we need SSL/TLS based on the port
+            use_ssl = email_port in (465, 587, 993, 995)
+            
+            # Create the appropriate connection
+            context = create_default_context()
+            
+            if email_port == 465:  # SMTP_SSL
+                with smtplib.SMTP_SSL(email_server, email_port, context=context, timeout=timeout) as server:
+                    server.ehlo()
+                    # Use the provided username/password
+                    # In a real app, you would securely retrieve the password
+                    # This is just a placeholder for demonstration
+                    server.login(email_username, "password")  # Placeholder - real app would use actual password
+                    server.send_message(msg)
+            else:  # SMTP with optional STARTTLS
+                with smtplib.SMTP(email_server, email_port, timeout=timeout) as server:
+                    server.ehlo()
+                    if use_ssl:
+                        server.starttls(context=context)
+                        server.ehlo()
+                    # Use the provided username/password
+                    server.login(email_username, "password")  # Placeholder - real app would use actual password
+                    server.send_message(msg)
+            
+            logger.info(f"Email sent successfully to {to_email}")
+            return jsonify({
+                'success': True,
+                'message': f'Email sent to {to_email}'
+            })
+            
+        except socket.gaierror as e:
+            logger.error(f"DNS resolution failed for SMTP server: {str(e)}")
+            return jsonify({
+                'success': False,
+                'message': f"Failed to connect to email server: DNS lookup failed for {email_server}"
+            }), 503
+        except socket.timeout as e:
+            logger.error(f"Connection timeout to SMTP server: {str(e)}")
+            return jsonify({
+                'success': False,
+                'message': f"Connection timed out while connecting to email server {email_server}:{email_port}"
+            }), 503
+        except ConnectionRefusedError as e:
+            logger.error(f"Connection refused by SMTP server: {str(e)}")
+            return jsonify({
+                'success': False,
+                'message': f"Connection refused by email server {email_server}:{email_port}"
+            }), 503
+        except smtplib.SMTPConnectError as e:
+            logger.error(f"SMTP connection error: {str(e)}")
+            return jsonify({
+                'success': False,
+                'message': f"Error connecting to email server: {str(e)}"
+            }), 503
+        except smtplib.SMTPServerDisconnected as e:
+            logger.error(f"SMTP server disconnected: {str(e)}")
+            return jsonify({
+                'success': False,
+                'message': f"Email server disconnected unexpectedly: {str(e)}"
+            }), 503
+        except smtplib.SMTPAuthenticationError as e:
+            logger.error(f"SMTP authentication error: {str(e)}")
+            return jsonify({
+                'success': False,
+                'message': "Email authentication failed. Please check your username and password."
+            }), 401
+        except smtplib.SMTPException as e:
+            logger.error(f"SMTP error: {str(e)}")
+            return jsonify({
+                'success': False,
+                'message': f"Email server error: {str(e)}"
+            }), 503
+        except OSError as e:
+            logger.error(f"OS error sending email: {str(e)}")
+            return jsonify({
+                'success': False,
+                'message': f"OS error sending email: {str(e)}"
+            }), 503
+            
     except Exception as e:
         logger.exception(f"Error sending email: {str(e)}")
         return jsonify({
