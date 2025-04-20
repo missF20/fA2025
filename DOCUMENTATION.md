@@ -1,468 +1,418 @@
 # Dana AI Platform Documentation
 
-## Table of Contents
+## Overview
 
-1. [Introduction](#introduction)
-2. [System Architecture](#system-architecture)
-3. [Core Components](#core-components)
-4. [Automation System](#automation-system)
-5. [API Endpoints](#api-endpoints)
-6. [Platform Integrations](#platform-integrations)
-7. [Security and Authentication](#security-and-authentication)
-8. [Database Schema](#database-schema)
-9. [Configuration](#configuration)
-10. [Deployment](#deployment)
-11. [Troubleshooting](#troubleshooting)
+Dana AI is a comprehensive AI-powered knowledge management platform that provides robust system integration and intelligent document processing capabilities, with enhanced multi-service connectivity and dynamic integration management.
 
-## Introduction
-
-Dana AI is a comprehensive social media management platform that uses AI to automate responses, manage customer interactions, and streamline social media workflows. The platform integrates with multiple social media platforms (Facebook, Instagram, WhatsApp) and business tools (Slack, Email, HubSpot, Salesforce, Google Analytics, Zendesk) to provide a unified interface for managing all social media communications.
-
-### Key Features
-
-- **AI-Driven Response Generation**: Automatically generate context-aware responses to customer inquiries.
-- **Multi-Platform Support**: Manage interactions across Facebook, Instagram, and WhatsApp.
-- **Business Tool Integration**: Connect to business tools like Slack, Email, HubSpot, Salesforce, Google Analytics, and Zendesk.
-- **Knowledge Management**: Upload and leverage company-specific knowledge for better AI responses.
-- **Task Management**: Create, assign, and track tasks related to social media interactions.
-- **Real-Time Notifications**: Get instant updates on new messages and interactions.
-- **Analytics and Reporting**: Track performance metrics and generate reports.
-- **User Management**: Different access levels for team members.
-- **Subscription Management**: Tiered subscription plans with different feature sets.
+This documentation provides a detailed overview of the system architecture, features, and implementation details.
 
 ## System Architecture
 
-Dana AI follows a modular architecture pattern with clear separation of concerns. The platform is built as a Flask-based RESTful API with WebSocket support for real-time features.
+### Backend Architecture
 
-### High-Level Architecture
+The Dana AI platform is built using a modular Flask microservice architecture:
 
+- **Core Application**: Implemented in `app.py` and `main.py`, providing the central service and endpoint registration
+- **Database Layer**: Using Supabase PostgreSQL with SQLAlchemy ORM
+- **Authentication**: JWT-based authentication system with Supabase integration
+- **Route Organization**: Structured into blueprints for scalable feature organization
+- **WebSocket Support**: Real-time communications via Flask-SocketIO
+- **Rate Limiting**: Request throttling to prevent API abuse
+
+### Frontend Architecture
+
+- **Framework**: React 18 with TypeScript
+- **Build Tool**: Vite for fast development and optimized production builds
+- **State Management**: React Context API and custom hooks
+- **API Communication**: Fetch API with proper error handling and retry mechanisms
+- **UI Components**: Custom components with responsive design
+
+### Database Structure
+
+The platform uses a relational database with the following key tables:
+
+- **profiles**: User profile information
+- **conversations**: User conversations with the AI
+- **messages**: Individual messages within conversations
+- **knowledge_files**: Documents uploaded to the knowledge base
+- **knowledge_categories**: Organizational structure for knowledge files
+- **token_usage**: Tracking of API token consumption
+- **token_limits**: Subscription-based token allocation limits
+- **integration_configs**: Third-party service connection settings
+
+### Security Model
+
+- **Row Level Security (RLS)**: Data isolation at the database level
+- **JWT Authentication**: Token-based security with proper expiration and verification
+- **API Rate Limiting**: Protection against abuse
+- **Environment-based Security**: Development and production security modes
+
+## Core Features
+
+### Authentication System
+
+The authentication system integrates with Supabase Auth and provides:
+
+- **JWT Token Validation**: Secure verification of user tokens
+- **Route Protection**: `token_required` and `login_required` decorators
+- **Development Mode**: Special dev-token for testing
+- **User Profile Management**: User information storage and retrieval
+
+### Knowledge Base
+
+The knowledge base system allows users to upload, organize, and search through various document types:
+
+- **Document Management**: Upload, view, and delete documents
+- **Multiple Format Support**: PDF, DOCX, TXT, and other text-based formats
+- **Binary Data Storage**: Binary data stored in base64 format
+- **Categorization**: Organization of documents into custom categories
+- **Full-text Search**: Search capabilities across all documents
+- **Document Parsing**: Extraction of text content from various file types
+- **AI-Enhanced Responses**: Integration with AI services to provide relevant responses
+
+### AI Integration
+
+The platform integrates with multiple AI providers:
+
+- **OpenAI**: GPT-4o for advanced text generation
+- **Anthropic**: Claude models for alternative AI capabilities
+- **Multi-provider Strategy**: Automatic fallback between providers
+- **Token Usage Tracking**: Monitoring and limiting of AI API consumption
+- **Response Enhancement**: Using knowledge base documents to enhance responses
+- **Configuration Options**: Customizable response parameters
+
+### External Integrations
+
+The platform integrates with multiple third-party services:
+
+- **Slack**: Channel messaging and history retrieval
+- **Email**: SMTP/IMAP integration for sending and receiving emails
+- **HubSpot**: CRM integration for customer management
+- **Salesforce**: CRM integration for enterprise users
+- **Zendesk**: Support ticket management
+- **Google Analytics**: Web analytics integration
+- **Shopify**: E-commerce platform integration
+- **PesaPal**: Payment processing
+
+### Token Usage System
+
+The token usage system tracks and limits AI API consumption:
+
+- **Usage Tracking**: Per-user token consumption monitoring
+- **Subscription Tiers**: Different token limits based on subscription level
+- **Usage Dashboard**: Visual representation of token consumption
+- **Rate Limiting**: Prevention of excessive API usage
+
+### Web UI
+
+The web interface provides a complete user experience:
+
+- **Dashboard**: Overview of system status and key metrics
+- **Conversation Interface**: Chat-like interface for AI interactions
+- **Knowledge Base Management**: Upload, categorization, and search of documents
+- **Integration Configuration**: Setup and management of third-party services
+- **User Settings**: Profile and preference management
+- **Admin Panel**: System administration for authorized users
+- **Token Usage Visualization**: Charts and statistics on API consumption
+- **Responsive Design**: Mobile-friendly interface
+
+## API Reference
+
+### Core Endpoints
+
+- `/api/test-auth`: Test authentication functionality
+- `/api/status`: Check system status
+- `/api/list-routes`: List all available API routes
+
+### Knowledge Base API
+
+- `/api/knowledge/files`: Manage knowledge files (GET, POST, DELETE)
+- `/api/knowledge/categories`: Manage knowledge categories
+- `/api/knowledge/search`: Search knowledge base content
+- `/api/knowledge/pdf-upload`: Special endpoint for PDF uploads
+- `/api/knowledge/direct-upload`: Alternative upload mechanism
+- `/api/knowledge/binary-upload`: Upload binary file data
+- `/api/knowledge/stats`: Get knowledge base statistics
+
+### AI Conversation API
+
+- `/api/conversations`: Manage conversation threads
+- `/api/conversations/<id>/messages`: Manage messages within a conversation
+- `/api/ai/generate`: Generate an AI response
+- `/api/ai/contextual-response`: Generate AI response with context
+
+### Integration API
+
+- `/api/integrations/status`: Get status of all integrations
+- `/api/integrations/<service>/connect`: Connect to a specific service
+- `/api/integrations/<service>/disconnect`: Disconnect from a service
+- `/api/integrations/<service>/status`: Get status of a specific integration
+
+### Token Usage API
+
+- `/api/usage/stats`: Get token usage statistics
+- `/api/usage/limits`: Get and update token usage limits
+
+## Implementation Details
+
+### Authentication Implementation
+
+The authentication system is implemented in `utils/auth.py` and provides:
+
+```python
+@token_required
+def protected_route():
+    # This route is protected by the token_required decorator
+    pass
 ```
-+------------------+     +------------------+     +------------------+
-|                  |     |                  |     |                  |
-|  Social Media    |<--->|    Dana AI       |<--->|   Business       |
-|  Platforms       |     |    Platform      |     |   Tools          |
-|  (FB, IG, WA)    |     |                  |     |                  |
-+------------------+     +------------------+     +------------------+
-                               ^      ^
-                               |      |
-                   +-----------+      +-----------+
-                   |                              |
-          +--------v---------+          +---------v--------+
-          |                  |          |                  |
-          |  Database        |          |  Knowledge Base  |
-          |  Storage         |          |                  |
-          |                  |          |                  |
-          +------------------+          +------------------+
-```
-
-### Component Interactions
 
-- **API Layer**: Handles HTTP requests and responses, authentication, and routing.
-- **Automation System**: Core engine that processes incoming messages and generates responses.
-- **Platform Connectors**: Adapters for different social media platforms.
-- **Integration Connectors**: Adapters for business tools and systems.
-- **WebSocket Server**: Provides real-time communication capabilities.
-- **Database Access Layer**: Abstracts database operations.
-- **Knowledge Management**: Stores and retrieves company-specific knowledge.
+The `token_required` decorator:
+1. Extracts the token from the Authorization header
+2. Verifies the token signature
+3. Gets the user information
+4. Makes the user information available in `flask.g.user`
 
-## Core Components
+The system handles both local JWT tokens and Supabase tokens, with the ability to verify without the signature in development mode using the special dev-token.
 
-### API Server (Flask)
+### Knowledge Base Implementation
 
-The main API server is built with Flask and provides RESTful endpoints for all platform functionality. It handles authentication, request routing, and response formatting.
+The knowledge base is implemented in multiple files:
 
-Key files:
-- `main.py`: Entry point of the application
-- `app.py`: Flask application configuration
-- `routes/`: Directory containing all API route definitions
+- `routes/knowledge.py`: API endpoints for knowledge management
+- `utils/file_parser.py`: Document parsing utilities
+- `utils/knowledge_cache.py`: Caching mechanisms for performance
+- `utils/db_connection.py`: Direct database connections for file operations
 
-### Automation System
+Files are stored in the database with the following process:
+1. File is uploaded to the server
+2. Content is extracted using appropriate parsers
+3. Content and metadata are stored in the database
+4. For binary files, the data is base64 encoded
 
-The automation system is the heart of Dana AI. It processes incoming messages from various platforms, uses AI to generate appropriate responses, and manages the flow of information between different systems.
+### AI Service Implementation
 
-Key files and directories:
-- `automation/__init__.py`: Initialization for the automation system
-- `automation/core/`: Core automation components
-- `automation/platforms/`: Platform-specific connectors
-- `automation/integrations/`: Integration connectors for business tools
-- `automation/ai/`: AI response generation components
-- `automation/knowledge/`: Knowledge management components
-- `automation/workflows/`: Workflow definitions
+The AI service is implemented in:
 
-### WebSocket Server
+- `utils/ai_client.py`: Client interfaces for different AI providers
+- `routes/ai_responses.py`: API endpoints for AI response generation
 
-The WebSocket server provides real-time communication capabilities, allowing clients to receive instant updates about new messages, tasks, and other events.
+The system uses a multi-provider strategy:
+1. Attempt to use the primary AI provider
+2. If rate limited or error occurs, fall back to alternative provider
+3. Include relevant knowledge base content when generating responses
+4. Track token usage for all requests
 
-Key files:
-- `socket_server.py`: WebSocket server implementation
+### Integration Implementation
 
-## Automation System
+Each integration is implemented in a separate module in `routes/integrations/`:
 
-### Message Processing Flow
+- `email.py`: Email integration
+- `slack.py`: Slack integration
+- `hubspot.py`: HubSpot integration
+- `salesforce.py`: Salesforce integration
+- `zendesk.py`: Zendesk integration
+- `google_analytics.py`: Google Analytics integration
+- `shopify.py`: Shopify integration
 
-1. **Webhook Reception**: Platform webhooks deliver messages to the appropriate endpoint.
-2. **Message Parsing**: The platform connector parses the raw webhook data.
-3. **Message Processing**: The message processor identifies the type of message and required action.
-4. **Workflow Execution**: The workflow engine executes the appropriate workflow.
-5. **Response Generation**: If needed, the AI generates a response.
-6. **Response Delivery**: The response is delivered back to the platform.
-7. **Event Notification**: Clients are notified of the new message via WebSocket.
+Integrations follow a common pattern:
+1. Connect to the service using OAuth or API keys
+2. Store connection information in the database
+3. Provide endpoints for service-specific operations
+4. Handle authentication and error cases
 
-### Workflow Engine
+### Token Usage Implementation
 
-The workflow engine orchestrates the execution of predefined workflows. Each workflow consists of a series of steps that are executed in sequence.
+Token usage tracking is implemented in:
 
-Supported workflows:
-- `process_message`: Generic message processing flow
-- `facebook_message`: Facebook-specific message handling
-- `instagram_message`: Instagram-specific message handling
-- `instagram_comment`: Instagram comment handling
-- `whatsapp_message`: WhatsApp-specific message handling
+- `utils/token_management.py`: Core token tracking functionality
+- `routes/usage.py`: API endpoints for usage statistics
 
-### AI Response Generator
+The system:
+1. Records every token consumption event
+2. Associates the usage with the user
+3. Aggregates statistics by time period and user
+4. Enforces limits based on subscription tier
 
-The AI response generator creates context-aware responses to user messages. It uses both general conversational models and company-specific knowledge to generate appropriate responses.
+## Technical Specifics
 
-Features:
-- **Context Awareness**: Considers previous messages in the conversation
-- **Knowledge Integration**: Incorporates company-specific knowledge
-- **Tone Customization**: Adjusts tone based on configuration
-- **Multi-Language Support**: Generates responses in multiple languages
+### Database Migrations
 
-Supported AI providers:
-- OpenAI (primary provider) - Uses the latest gpt-4o model
-- Anthropic (fallback provider) - Uses the latest claude-3-5-sonnet model
+The system uses a custom database migration system:
 
-For detailed information about AI providers and integration, refer to the [AI Services Integration Guide](./AI_SERVICES.md).
+- Located in `utils/db_migrations.py`
+- SQL migration files stored in `migrations/`
+- Applied sequentially based on timestamp
 
-### Knowledge Management
+### Row Level Security
 
-The knowledge management system stores and retrieves company-specific information that is used to enhance AI responses.
+Database security is enforced using Postgres Row Level Security:
 
-Features:
-- **File Upload**: Support for uploading documents (PDF, DOCX, TXT)
-- **Content Extraction**: Extracts content from uploaded files
-- **Indexing**: Indexes content for fast retrieval
-- **Retrieval**: Finds relevant knowledge based on queries
+- Policies defined in `utils/supabase_rls.py`
+- Ensures users can only access their own data
+- Admin accounts have elevated access
 
-## API Endpoints
+### Binary File Handling
 
-### Authentication
+Binary files are handled specially:
 
-- `POST /api/auth/signup`: Create a new user account
-- `POST /api/auth/login`: Log in to an existing account
-- `POST /api/auth/logout`: Log out from the current session
-- `POST /api/auth/reset-password`: Request password reset
-- `POST /api/auth/change-password`: Change password with a token
+- Base64 encoded for storage in the database
+- Special upload endpoints for different file types
+- Content extraction for searchability
+- File metadata tracking
 
-### User Profile
+### AI Provider Fallback
 
-- `GET /api/profile`: Get the current user's profile
-- `PUT /api/profile`: Update the user's profile
-- `GET /api/profile/setup-status`: Check account setup status
+The system implements fallback between AI providers:
 
-### Conversations
+- Primary provider configured in environment
+- Automatic retry with exponential backoff
+- Seamless fallback to alternative provider on rate limit
+- Provider-specific prompt optimization
 
-- `GET /api/conversations`: List all conversations
-- `GET /api/conversations/<id>`: Get a specific conversation
-- `PUT /api/conversations/<id>`: Update a conversation
-- `GET /api/conversations/<id>/messages`: Get messages in a conversation
+### Frontend-Backend Communication
 
-### Messages
+Communication uses:
 
-- `POST /api/messages`: Send a new message
-- `GET /api/messages/<id>`: Get a specific message
+- RESTful API for most operations
+- WebSockets for real-time updates
+- CORS properly configured for security
+- Automatic retry mechanism for transient failures
 
-### Tasks
-
-- `GET /api/tasks`: List all tasks
-- `POST /api/tasks`: Create a new task
-- `GET /api/tasks/<id>`: Get a specific task
-- `PUT /api/tasks/<id>`: Update a task
-- `DELETE /api/tasks/<id>`: Delete a task
-
-### Knowledge Management
-
-- `POST /api/knowledge/upload`: Upload a knowledge file
-- `GET /api/knowledge/files`: List all knowledge files
-- `GET /api/knowledge/files/<id>`: Get a specific knowledge file
-- `DELETE /api/knowledge/files/<id>`: Delete a knowledge file
-
-### Webhooks
-
-- `GET/POST /webhooks/facebook`: Facebook webhook endpoint
-- `GET/POST /webhooks/instagram`: Instagram webhook endpoint
-- `POST /webhooks/whatsapp`: WhatsApp webhook endpoint
-
-### Integrations
-
-- `GET /api/integrations`: List all available integration types
-- `GET /api/integrations/schema/<type>`: Get configuration schema for an integration
-- `GET /api/integrations/user/<user_id>`: List user's integrations
-- `POST /api/integrations/user/<user_id>`: Create a new integration
-- `GET /api/integrations/user/<user_id>/<type>`: Get a specific integration
-- `PUT /api/integrations/user/<user_id>/<type>`: Update an integration
-- `DELETE /api/integrations/user/<user_id>/<type>`: Delete an integration
-- `POST /api/integrations/user/<user_id>/<type>/test`: Test an integration
-
-### Slack Integration (Optional)
-
-- `GET /api/slack/test`: Test Slack routes
-- `GET /api/slack/health`: Check Slack integration health
-- `GET /api/slack/messages`: Get Slack messages
-- `POST /api/slack/messages`: Send a Slack message
-- `GET /api/slack/threads/<thread_ts>`: Get Slack thread replies
-
-### Admin
-
-- `GET /api/admin/users`: List all users (admin only)
-- `GET /api/admin/users/<id>`: Get a specific user (admin only)
-- `GET /api/admin/dashboard`: Get admin dashboard metrics
-- `GET /api/admin/admins`: List all admin users
-- `POST /api/admin/admins`: Create a new admin user
-- `DELETE /api/admin/admins/<id>`: Delete an admin user
-- `PUT /api/admin/admins/<id>/role`: Update admin role
-
-### Subscription
-
-- `GET /api/subscription/tiers`: List all subscription tiers
-- `GET /api/subscription/user`: Get user's subscription
-- `POST /api/subscription/user`: Create/update user subscription
-
-## Platform Integrations
-
-### Social Media Platforms
-
-#### Facebook
-
-The Facebook connector allows Dana AI to receive and send messages on Facebook pages and respond to comments on posts.
-
-Configuration requirements:
-- Page ID
-- Page Access Token
-- App Secret
-
-#### Instagram
-
-The Instagram connector enables Dana AI to monitor and respond to direct messages and comments on Instagram business accounts.
-
-Configuration requirements:
-- Instagram Business Account ID
-- Access Token
-
-#### WhatsApp
-
-The WhatsApp connector allows Dana AI to send and receive WhatsApp messages through the WhatsApp Business API.
-
-Configuration requirements:
-- Phone Number ID
-- WhatsApp Business Account ID
-- Access Token
-
-### Business Tool Integrations
-
-#### Email
-
-Sends and receives emails, allowing Dana AI to process email inquiries and send automated responses.
-
-#### HubSpot
-
-Integrates with HubSpot CRM to sync contacts, create tickets, and track customer interactions.
-
-#### Salesforce
-
-Connects to Salesforce to manage leads, opportunities, and customer data.
-
-#### Slack
-
-Sends notifications and updates to Slack channels, keeping team members informed about important events.
-
-#### Google Analytics
-
-Retrieves analytics data to provide insights on social media performance.
-
-#### Zendesk
-
-Creates and updates support tickets based on social media interactions.
-
-### Database Integrations
-
-Dana AI can connect to existing databases to retrieve and update customer information:
-
-- **MySQL**: Connect to MySQL databases
-- **PostgreSQL**: Connect to PostgreSQL databases
-- **MongoDB**: Connect to MongoDB databases
-- **SQL Server**: Connect to Microsoft SQL Server databases
-
-## Security and Authentication
-
-### Authentication
-
-Dana AI uses JWT (JSON Web Tokens) for authentication. Each API request must include a valid JWT token in the Authorization header.
-
-Authentication flow:
-1. User provides credentials (email and password)
-2. Server validates credentials and generates a JWT token
-3. Client includes the token in subsequent requests
-4. Server validates the token for each request
-
-### Authorization
-
-Different endpoints require different levels of authorization:
-
-- **Public endpoints**: No authentication required
-- **User endpoints**: Require a valid user token
-- **Admin endpoints**: Require a valid admin token
-
-Authorization decorators:
-- `@require_auth`: Ensures the request has a valid token
-- `@require_admin`: Ensures the request has a valid admin token
-- `validate_user_access`: Ensures the user has access to the requested resource
-
-### Data Isolation
-
-Dana AI ensures strict data isolation between different users:
-
-- Each user can only access their own data
-- Admin users have access to all data
-- Integration configurations are isolated per user
-- Webhook data is directed to the appropriate user
-
-## Database Schema
-
-Dana AI uses SQL databases with the following key models:
-
-### User and Profile
-
-- **User**: Authentication and authorization information
-- **Profile**: User profile information and preferences
-
-### Social Media Data
-
-- **Conversation**: Represents a conversation with a customer
-- **Message**: Individual messages in a conversation
-- **Response**: AI-generated responses to messages
-
-### Task Management
-
-- **Task**: Tasks created from social media interactions
-- **Interaction**: Record of customer interactions
-
-### Knowledge Management
-
-- **KnowledgeFile**: Files uploaded to the knowledge base
-
-### Subscription
-
-- **SubscriptionTier**: Available subscription plans
-- **UserSubscription**: User's active subscription
-
-### Administration
-
-- **AdminUser**: Users with administrative privileges
-- **IntegrationsConfig**: Configuration for integrations
-
-## Configuration
-
-### Environment Variables
-
-Dana AI uses environment variables for configuration:
-
-- **Flask**: SESSION_SECRET, JWT_SECRET_KEY, FLASK_ENV
-- **Supabase**: SUPABASE_URL, SUPABASE_KEY
-- **Socket.IO**: SOCKETIO_CORS_ALLOWED_ORIGINS
-- **AI Services**: OPENAI_API_KEY, ANTHROPIC_API_KEY
-- **Rate Limiting**: RATE_LIMIT_DEFAULT, RATE_LIMIT_AUTH
-- **Integration-specific**: Variables for each integration (e.g., SLACK_BOT_TOKEN, SLACK_CHANNEL_ID)
-
-### Feature Flags
-
-Feature flags can be used to enable or disable specific features:
-
-- ENABLE_FACEBOOK_INTEGRATION
-- ENABLE_INSTAGRAM_INTEGRATION
-- ENABLE_WHATSAPP_INTEGRATION
-- ENABLE_SLACK_INTEGRATION
-- ENABLE_EMAIL_INTEGRATION
-- ENABLE_HUBSPOT_INTEGRATION
-- ENABLE_SALESFORCE_INTEGRATION
-- ENABLE_GOOGLE_ANALYTICS_INTEGRATION
-- ENABLE_ZENDESK_INTEGRATION
-- ENABLE_OPENAI_INTEGRATION
-- ENABLE_ANTHROPIC_INTEGRATION
-
-## Deployment
-
-Dana AI can be deployed in various environments:
-
-### Production Deployment
-
-For production use, consider:
-- Load balancing for high availability
-- Database replication for data safety
-- CDN for static assets
-- SSL/TLS for secure communications
-- Regular backups
+## Development and Deployment
 
 ### Development Environment
 
-For development:
-- Local database setup
-- Environment-specific configurations
-- Debugging and logging
+The development environment requires:
 
-### Scaling
+- Python 3.11+
+- Node.js 18+
+- PostgreSQL database
+- Environment variables in `.env` file
 
-Dana AI can scale horizontally by adding more instances of the API server behind a load balancer. The WebSocket server can also be scaled independently.
+### Environment Variables
+
+Key environment variables include:
+
+- `DATABASE_URL`: PostgreSQL connection string
+- `SUPABASE_URL`: Supabase instance URL
+- `SUPABASE_KEY`: Supabase API key
+- `SUPABASE_SERVICE_ROLE_KEY`: Supabase admin key
+- `OPENAI_API_KEY`: OpenAI API key
+- `SLACK_BOT_TOKEN`: Slack API token
+- `SLACK_CHANNEL_ID`: Slack channel for messages
+- Other service-specific API keys
+
+### Deployment
+
+The application can be deployed:
+
+- Using Replit for full stack hosting
+- Database hosted on Supabase
+- Frontend served from the Flask application
+- Environment variables properly set in production
+
+## Recent Updates
+
+### Fixed Knowledge Base PDFs
+
+- Fixed PDF upload endpoint to correctly associate files with user IDs instead of using fallback zero UUID
+- Implemented improved user ID extraction from tokens with multiple fallback strategies
+- Made PDF uploads consistent with the direct endpoint to better handle token verification
+- Added more robust error handling for authentication failures
+- Improved database connection handling for PDF uploads with proper cleanup
+- Implemented caching invalidation for PDF uploads to ensure new files appear immediately
+
+### Authentication Enhancement
+
+- Unified token verification approaches across endpoints
+- Added token expiration checking
+- Improved development mode with reliable test tokens
+- Fixed inconsistencies in authentication decorators
+
+### Frontend Improvements
+
+- Added force refresh mechanism for knowledge file list
+- Implemented confirmation dialogs for file deletion
+- Added success notifications after operations
+- Improved error state visualization
+- Enhanced caching mechanisms for better performance
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Authentication Errors**:
-   - Check if the JWT token is valid and not expired
-   - Ensure the user has the required permissions
+1. **Authentication Failures**
+   - Check token expiration
+   - Verify correct Authorization header format
+   - Ensure user exists in the database
 
-2. **Webhook Issues**:
-   - Verify webhook URL is correctly configured on the platform
-   - Check that webhook verification is passing
-   - Ensure the platform is sending events to the correct endpoint
+2. **File Upload Issues**
+   - Verify file format is supported
+   - Check file size limits
+   - Inspect server logs for database errors
 
-3. **Integration Problems**:
-   - Verify that all required credentials are provided
-   - Check if API keys and tokens are valid
-   - Ensure the integration is properly configured
+3. **Integration Connection Problems**
+   - Verify API keys are correct
+   - Check network connectivity
+   - Ensure service permissions are properly configured
 
-4. **AI Response Generation**:
-   - Verify that the AI provider is available
-   - Check if the knowledge base is accessible
-   - Ensure that the context is being properly maintained
+4. **Performance Issues**
+   - Check database connection pool settings
+   - Verify caching mechanisms are working
+   - Monitor token usage for rate limiting
 
-### Logging
+### Logs
 
-Dana AI uses structured logging to facilitate troubleshooting:
+Logs are available in:
+- `app_error.log`: Application errors
+- `file_server.log`: File operations
+- Console output: Real-time development logs
 
-```python
-logger.info("Operation succeeded", extra={"user_id": user_id, "operation": "login"})
-logger.error("Operation failed", exc_info=True, extra={"user_id": user_id, "operation": "send_message"})
+## API Usage Examples
+
+### Authentication
+
+```bash
+# Login and get token
+curl -X POST http://localhost:5000/api/auth/login -d '{"email":"user@example.com","password":"password"}'
+
+# Use token for protected endpoints
+curl -X GET http://localhost:5000/api/protected -H "Authorization: Bearer <token>"
 ```
 
-Log levels:
-- **DEBUG**: Detailed debugging information
-- **INFO**: General operational information
-- **WARNING**: Warning events that might require attention
-- **ERROR**: Error events that might still allow the application to continue
-- **CRITICAL**: Critical events that might cause the application to terminate
+### Knowledge Base
 
-### Monitoring
+```bash
+# Upload a file
+curl -X POST http://localhost:5000/api/knowledge/files -H "Authorization: Bearer <token>" -F "file=@document.pdf" -F "category=Documentation"
 
-Key metrics to monitor:
-- API request rate and latency
-- WebSocket connection count
-- Database query performance
-- AI response generation time
-- Error rate by endpoint
+# Search knowledge base
+curl -X GET "http://localhost:5000/api/knowledge/search?query=implementation" -H "Authorization: Bearer <token>"
+```
 
----
+### AI Conversation
 
-This documentation provides an overview of the Dana AI platform. For more detailed information about specific components, refer to the code comments and module-level documentation.
+```bash
+# Create a conversation
+curl -X POST http://localhost:5000/api/conversations -H "Authorization: Bearer <token>" -d '{"title":"New Conversation"}'
+
+# Add a message and get AI response
+curl -X POST http://localhost:5000/api/conversations/123/messages -H "Authorization: Bearer <token>" -d '{"content":"How can I use the knowledge base?","role":"user"}'
+```
+
+## Frontend Component Structure
+
+The React frontend is organized into:
+
+- **Pages**: Main application views
+- **Components**: Reusable UI elements
+- **Services**: API communication layers
+- **Hooks**: Custom React hooks for shared logic
+- **Context**: Global state management
+- **Types**: TypeScript interface definitions
+
+## Conclusion
+
+The Dana AI Platform provides a comprehensive solution for AI-powered knowledge management with robust integration capabilities. This documentation serves as a reference for developers working with the system and users trying to understand its capabilities.
+
+For specific implementation details, refer to the codebase and inline documentation in the relevant files.

@@ -28,7 +28,9 @@ These dependencies are installed by default in the Dana AI environment.
 
 #### 1. Uploading Files to Knowledge Base
 
-Files can be uploaded to the knowledge base through the REST API:
+Files can be uploaded to the knowledge base through the REST API using two methods:
+
+**Method A: General File Upload (Base64)**
 
 ```bash
 curl -X POST https://your-dana-api.com/api/knowledge/files \
@@ -41,6 +43,18 @@ curl -X POST https://your-dana-api.com/api/knowledge/files \
     "is_base64": true
   }'
 ```
+
+**Method B: PDF-Specific Upload (Form Data - Recommended for PDFs)**
+
+```bash
+curl -X POST https://your-dana-api.com/api/knowledge/pdf-upload \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -F "file=@/path/to/document.pdf" \
+  -F "category=Documentation" \
+  -F "tags=[\"important\",\"reference\"]"
+```
+
+The PDF-specific upload endpoint provides improved handling and does not require base64 encoding, making it more efficient for large PDF files.
 
 #### 2. Searching the Knowledge Base
 

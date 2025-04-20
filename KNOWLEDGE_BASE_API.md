@@ -266,12 +266,45 @@ Retrieves all tags used in the knowledge base.
 
 The system automatically extracts content and metadata from uploaded files based on their format:
 
+### PDF Upload Endpoint
+
+```
+POST /api/knowledge/pdf-upload
+```
+
+Specialized endpoint for uploading PDF files to the knowledge base with improved handling.
+
+**Request:**
+- Content-Type: `multipart/form-data`
+- File must be sent as a form field named `file`
+- Additional metadata can be included as form fields:
+  - `category` (optional) - Category to associate with the file
+  - `tags` (optional) - JSON array of tags as a string
+
+**Response Example:**
+```json
+{
+  "success": true,
+  "file": {
+    "id": "42782b4d-7de6-4b5f-8650-d430a0e3e935",
+    "user_id": "c94900e9-d587-4798-a3b0-38b92f3971dd",
+    "filename": "document.pdf",
+    "file_type": "application/pdf",
+    "file_size": 12658,
+    "created_at": "2025-04-20T15:50:53.685956",
+    "updated_at": "2025-04-20T15:50:53.685956"
+  },
+  "message": "PDF document.pdf uploaded successfully"
+}
+```
+
 ### Supported File Types
 
 1. **PDF**
    - Extracts text content from all pages
    - Retrieves metadata (author, title, creator, etc.)
    - Preserves page structure in output
+   - Specialized upload endpoint for improved handling
 
 2. **DOCX**
    - Extracts paragraphs and text content
@@ -320,6 +353,8 @@ Common error responses include:
 
 ## Code Example: Uploading a File
 
+### Standard File Upload (Base64)
+
 ```javascript
 async function uploadFile(file, token) {
   // Read file as base64
@@ -360,6 +395,54 @@ async function uploadFile(file, token) {
     
     reader.readAsDataURL(file);
   });
+}
+```
+
+### PDF-Specific Upload (FormData)
+
+```javascript
+async function uploadPdfFile(file, token, category = '', tags = []) {
+  // Use FormData for multipart/form-data uploads
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  // Add optional metadata
+  if (category) {
+    formData.append('category', category);
+  }
+  
+  if (tags && tags.length > 0) {
+    formData.append('tags', JSON.stringify(tags));
+  }
+  
+  try {
+    // Force cache invalidation by adding timestamp parameter
+    const timestamp = new Date().getTime();
+    const response = await fetch(`/api/knowledge/pdf-upload?t=${timestamp}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+        // Do not set Content-Type header, browser will set it with boundary
+      },
+      body: formData
+    });
+    
+    const result = await response.json();
+    
+    // Clear cache to ensure fresh data on next listing
+    if (result.success) {
+      await fetch('/api/knowledge/files?force_refresh=true', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('PDF upload failed:', error);
+    throw error;
+  }
 }
 ```
 
