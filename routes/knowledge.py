@@ -6,7 +6,7 @@ import os
 from utils.validation import validate_request_json
 from utils.supabase import get_supabase_client, refresh_supabase_client
 from utils.supabase_extension import query_sql, execute_sql
-from utils.auth import get_user_from_token, require_auth
+from utils.auth import get_user_from_token, token_required
 from utils.file_parser import FileParser
 from models import KnowledgeFileCreate, KnowledgeFileUpdate
 from datetime import datetime
@@ -17,7 +17,7 @@ knowledge_bp = Blueprint('knowledge', __name__, url_prefix='/api/knowledge')
 supabase = refresh_supabase_client()
 
 @knowledge_bp.route('/files', methods=['GET'])
-@require_auth
+@token_required
 def get_knowledge_files(user=None):
     """
     Get user's knowledge base files
@@ -112,7 +112,7 @@ def get_knowledge_files(user=None):
         return jsonify({'error': 'Error getting knowledge files'}), 500
 
 @knowledge_bp.route('/files/<file_id>', methods=['GET'])
-@require_auth
+@token_required
 def get_knowledge_file(file_id, user=None):
     """
     Get a specific knowledge file
@@ -196,7 +196,7 @@ def get_knowledge_file(file_id, user=None):
         return jsonify({'error': 'Error getting knowledge file'}), 500
 
 @knowledge_bp.route('/files/<file_id>', methods=['PUT'])
-@require_auth
+@token_required
 @validate_request_json(KnowledgeFileUpdate)
 def update_knowledge_file(file_id, user=None):
     """
@@ -307,7 +307,7 @@ def update_knowledge_file(file_id, user=None):
         return jsonify({'error': 'Error updating knowledge file'}), 500
 
 @knowledge_bp.route('/files', methods=['POST'])
-@require_auth
+@token_required
 @validate_request_json(KnowledgeFileCreate)
 def create_knowledge_file(user=None):
     """
@@ -477,7 +477,7 @@ def create_knowledge_file(user=None):
         return jsonify({'error': f'Error uploading knowledge file: {str(e)}'}), 500
 
 @knowledge_bp.route('/files/<file_id>', methods=['DELETE'])
-@require_auth
+@token_required
 def delete_knowledge_file_route(file_id, user=None):
     """
     Delete a knowledge file
@@ -596,7 +596,7 @@ def delete_knowledge_file_route(file_id, user=None):
         return jsonify({'error': 'Error deleting knowledge file'}), 500
 
 @knowledge_bp.route('/search', methods=['GET'])
-@require_auth
+@token_required
 def search_knowledge_base(user=None):
     """
     Search knowledge base
@@ -800,7 +800,7 @@ def search_knowledge_base(user=None):
         return jsonify({'error': 'Error searching knowledge base'}), 500
 
 @knowledge_bp.route('/files/categories', methods=['GET'])
-@require_auth
+@token_required
 def get_knowledge_categories(user=None):
     """
     Get all categories in the knowledge base
@@ -865,7 +865,7 @@ def get_knowledge_categories(user=None):
         }), 200
 
 @knowledge_bp.route('/files/tags', methods=['GET'])
-@require_auth
+@token_required
 def get_knowledge_tags(user=None):
     """
     Get all tags in the knowledge base
@@ -955,7 +955,7 @@ def get_knowledge_tags(user=None):
         }), 200
 
 @knowledge_bp.route('/files/binary', methods=['POST', 'OPTIONS'])
-@require_auth
+@token_required
 def upload_binary_file(user=None):
     """
     Upload a binary file to the knowledge base (compatible with KnowledgeBase.tsx)
@@ -1123,7 +1123,7 @@ def upload_binary_file(user=None):
         return jsonify({'error': 'Error uploading binary file'}), 500
 
 @knowledge_bp.route('/stats', methods=['GET'])
-@require_auth
+@token_required
 def get_knowledge_stats(user=None):
     """
     Get knowledge base statistics
