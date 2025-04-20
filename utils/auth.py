@@ -262,6 +262,66 @@ def admin_required(f: Callable) -> Callable:
 # Alias for admin_required for compatibility with existing imports
 require_admin = admin_required
 
+def validate_token(token_str: str) -> Dict[str, Any]:
+    """
+    Validates a token and returns its validation status and user information
+    
+    This is a wrapper around verify_token that provides more information about 
+    validation status in a standardized format.
+    
+    Args:
+        token_str: The token string to validate (can include 'Bearer ' prefix)
+        
+    Returns:
+        A dictionary containing:
+        - 'valid': boolean indicating if token is valid
+        - 'user': user information if valid, None otherwise
+        - 'message': error message if invalid
+    """
+    # Strip 'Bearer ' prefix if present
+    if token_str and token_str.startswith('Bearer '):
+        token = token_str[7:]
+    else:
+        token = token_str
+    
+    # Basic validation check
+    if not token:
+        return {
+            'valid': False,
+            'user': None,
+            'message': 'No token provided'
+        }
+    
+    # Handle special dev token case
+    if token in ['dev-token', 'test-token']:
+        user = {
+            'id': '00000000-0000-0000-0000-000000000000',  # Valid UUID format
+            'email': 'test@example.com',
+            'is_admin': True,
+            'dev_mode': True
+        }
+        return {
+            'valid': True,
+            'user': user,
+            'message': 'Development token accepted'
+        }
+    
+    # Validate with verify_token
+    user = verify_token(token)
+    
+    if user:
+        return {
+            'valid': True,
+            'user': user,
+            'message': 'Token valid'
+        }
+    else:
+        return {
+            'valid': False,
+            'user': None,
+            'message': 'Invalid or expired token'
+        }
+
 def get_current_user() -> Optional[Dict[str, Any]]:
     """
     Get the currently authenticated user

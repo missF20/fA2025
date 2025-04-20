@@ -17,7 +17,7 @@ from datetime import datetime
 from flask import jsonify, request
 
 # Import auth module
-from utils.auth import token_required, get_user_from_token
+from utils.auth import token_required, get_user_from_token, validate_token
 
 # Import debug endpoint
 import debug_endpoint
@@ -28,10 +28,12 @@ def direct_email_disconnect():
     """Direct endpoint for email disconnection."""
     logger = logging.getLogger(__name__)
     
-    # Import database models
+    # Import database models and auth utilities
     from models_db import User, IntegrationConfig
     import uuid
     from app import db
+    from utils.auth import get_user_from_token, validate_token
+    from flask import g
     
     # Handle CORS preflight requests without authentication
     if request.method == 'OPTIONS':
@@ -44,21 +46,45 @@ def direct_email_disconnect():
         
     # For actual POST requests, require authentication
     auth_header = request.headers.get('Authorization', '')
+    if not auth_header:
+        return jsonify({
+            'success': False,
+            'message': 'Authentication required',
+            'error': 'No authentication token provided'
+        }), 401
+        
+    # Validate the token first
+    auth_result = validate_token(auth_header)
+    if not auth_result['valid']:
+        return jsonify({
+            'success': False,
+            'message': 'Authentication failed',
+            'error': auth_result.get('message', 'Invalid token')
+        }), 401
+        
+    # Set the user for the request context (mimicking @token_required decorator)
+    g.user = auth_result['user']
             
     try:
         logger.info("Email disconnect endpoint called directly")
         
-        # Get user information from token
-        user = get_user_from_token()
+        # User info should be available in g.user (set above)
+        user = g.user
         
         if not user:
             return jsonify({
                 'success': False,
-                'message': 'Authentication required'
+                'message': 'Authentication failed - no user data in token'
             }), 401
             
-        user_email = user.get('email') if isinstance(user, dict) else getattr(user, 'email', None)
-        user_id = user.get('id') if isinstance(user, dict) else getattr(user, 'id', None)
+        # Extract user information based on whether it's a dict or object
+        if isinstance(user, dict):
+            user_email = user.get('email')
+            # Try different possible ID keys that might be in the token
+            user_id = user.get('user_id') or user.get('id') or user.get('sub')
+        else:
+            user_email = getattr(user, 'email', None)
+            user_id = getattr(user, 'user_id', None) or getattr(user, 'id', None) or getattr(user, 'sub', None)
         
         logger.info(f"User from token: email={user_email}, id={user_id}")
         
