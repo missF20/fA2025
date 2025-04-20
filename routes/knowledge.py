@@ -46,7 +46,7 @@ def get_knowledge_files(user=None):
       500:
         description: Server error
     """
-    # If user isn't provided by require_auth decorator, try to get it from token
+    # If user isn't provided by token_required decorator, try to get it from token
     if user is None:
         user = get_user_from_token(request)
     
@@ -143,7 +143,7 @@ def get_knowledge_file(file_id, user=None):
       500:
         description: Server error
     """
-    # If user isn't provided by require_auth decorator, try to get it from token
+    # If user isn't provided by token_required decorator, try to get it from token
     if user is None:
         user = get_user_from_token(request)
     exclude_content = request.args.get('exclude_content', 'false').lower() == 'true'
@@ -230,7 +230,7 @@ def update_knowledge_file(file_id, user=None):
       500:
         description: Server error
     """
-    # If user isn't provided by require_auth decorator, try to get it from token
+    # If user isn't provided by token_required decorator, try to get it from token
     if user is None:
         user = get_user_from_token(request)
     data = request.json
@@ -334,7 +334,7 @@ def create_knowledge_file(user=None):
       500:
         description: Server error
     """
-    # If user isn't provided by require_auth decorator, try to get it from token
+    # If user isn't provided by token_required decorator, try to get it from token
     if user is None:
         user = get_user_from_token(request)
     data = request.json
@@ -503,7 +503,7 @@ def delete_knowledge_file_route(file_id, user=None):
       500:
         description: Server error
     """
-    # If user isn't provided by require_auth decorator, try to get it from token
+    # If user isn't provided by token_required decorator, try to get it from token
     if user is None:
         user = get_user_from_token(request)
         
@@ -647,7 +647,7 @@ def search_knowledge_base(user=None):
       500:
         description: Server error
     """
-    # If user isn't provided by require_auth decorator, try to get it from token
+    # If user isn't provided by token_required decorator, try to get it from token
     if user is None:
         user = get_user_from_token(request)
     
@@ -819,7 +819,7 @@ def get_knowledge_categories(user=None):
       500:
         description: Server error
     """
-    # If user isn't provided by require_auth decorator, try to get it from token
+    # If user isn't provided by token_required decorator, try to get it from token
     if user is None:
         user = get_user_from_token(request)
     
@@ -889,7 +889,7 @@ def get_knowledge_tags(user=None):
     logger.info(f"Request path: {request.path}")
     logger.info(f"----------------------")
     
-    # If user isn't provided by require_auth decorator, try to get it from token
+    # If user isn't provided by token_required decorator, try to get it from token
     if user is None:
         logger.debug("User not provided by require_auth, trying to get from token")
         user = get_user_from_token(request)
@@ -993,7 +993,7 @@ def upload_binary_file(user=None):
       500:
         description: Server error
     """
-    # If user isn't provided by require_auth decorator, try to get it from token
+    # If user isn't provided by token_required decorator, try to get it from token
     if user is None:
         user = get_user_from_token(request)
     data = request.json
@@ -1142,7 +1142,7 @@ def get_knowledge_stats(user=None):
       500:
         description: Server error
     """
-    # If user isn't provided by require_auth decorator, try to get it from token
+    # If user isn't provided by token_required decorator, try to get it from token
     if user is None:
         user = get_user_from_token(request)
     

@@ -353,7 +353,7 @@ def record_usage():
 
 
 @usage_bp.route('/admin/stats', methods=['GET'])
-@require_auth
+@login_required
 def get_admin_usage_stats():
     """
     Get token usage statistics for all users (admin only)
