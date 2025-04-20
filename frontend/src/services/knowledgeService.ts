@@ -144,6 +144,11 @@ export const uploadKnowledgeFile = async (
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('Not authenticated');
 
+    // Clear the knowledge files cache before uploading
+    // This ensures that getKnowledgeFiles will fetch fresh data after upload
+    cache.files.clear();
+    console.log('Cleared knowledge files cache before upload');
+
     // Start progress immediately
     onProgress?.(5);
 
