@@ -378,14 +378,21 @@ def register_blueprints():
                 logger.warning(f"Could not register slack/routes blueprint: {e}")
             
         try:
-            from routes.integrations import integrations_bp, hubspot_bp, salesforce_bp, email_integration_bp
+            from routes.integrations import integrations_bp, hubspot_bp, salesforce_bp
             app.register_blueprint(integrations_bp)
             app.register_blueprint(hubspot_bp)
             app.register_blueprint(salesforce_bp)
-            app.register_blueprint(email_integration_bp)
             logger.info("Integrations blueprints registered successfully")
         except ImportError as e:
             logger.warning(f"Could not register integrations blueprints: {e}")
+            
+        # Register email integration blueprint separately to ensure it's loaded correctly
+        try:
+            from routes.integrations.email import email_integration_bp
+            app.register_blueprint(email_integration_bp)
+            logger.info("Email integration blueprint registered successfully")
+        except ImportError as e:
+            logger.warning(f"Could not register email integration blueprint: {e}")
             
         try:
             from routes.api_endpoints import api_endpoints_bp
