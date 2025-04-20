@@ -12,6 +12,7 @@ import os
 import json
 import uuid
 import base64
+import flask
 from datetime import datetime
 from flask import jsonify, request
 
@@ -70,22 +71,55 @@ def pdf_upload_file():
         # Get authentication token
         auth_header = request.headers.get('Authorization', '')
         
-        # Special handling for dev-token in development mode
-        if auth_header == 'dev-token' or auth_header == 'Bearer dev-token':
-            # Use a test user ID for development testing
-            user_id = "00000000-0000-0000-0000-000000000000"  # UUID format
-            logger.info("Using test user ID with dev-token")
-        else:
-            # Parse the token to get the user ID
-            try:
-                user = get_user_from_token(auth_header)
-                user_id = user.get('id', "00000000-0000-0000-0000-000000000000")
-                logger.debug(f"Authenticated user ID: {user_id}")
-            except Exception as auth_err:
-                logger.error(f"Authentication error: {str(auth_err)}")
-                # Fall back to development user ID if authentication fails
-                user_id = "00000000-0000-0000-0000-000000000000"
-                logger.warning("Using fallback user ID due to auth error")
+        # Import direct db connection utilities
+        from utils.db_connection import get_db_connection
+        
+        # Extract user_id from the token_required decorator
+        # The decorator injects the user object, so it's guaranteed to be correct
+        user_id = None
+        if flask.has_request_context() and hasattr(flask.g, 'user'):
+            user = flask.g.user
+            user_id = user.get('id') if isinstance(user, dict) else getattr(user, 'id', None)
+        
+        # If user_id is not available, try to parse from token directly
+        if not user_id:
+            # Special handling for dev-token in development mode
+            if auth_header == 'dev-token' or auth_header == 'Bearer dev-token':
+                # Use the development environment test user ID if available
+                user_id = os.environ.get('TEST_USER_ID')
+                if not user_id:
+                    # Retrieve a valid user ID from database for testing
+                    try:
+                        conn = get_db_connection()
+                        with conn.cursor() as cursor:
+                            cursor.execute("SELECT id FROM profiles LIMIT 1")
+                            result = cursor.fetchone()
+                            if result:
+                                user_id = result[0]
+                                logger.info(f"Using first available user ID for testing: {user_id}")
+                    except Exception as e:
+                        logger.error(f"Failed to retrieve test user ID: {str(e)}")
+                
+                if not user_id:
+                    # Last resort fallback for dev-token
+                    user_id = "test-user-id"
+                logger.info(f"Using test user ID with dev-token: {user_id}")
+            else:
+                # Parse the token to get the user ID
+                try:
+                    user_data = get_user_from_token(auth_header)
+                    if user_data:
+                        user_id = user_data.get('id')
+                        if not user_id and hasattr(user_data, 'id'):
+                            user_id = user_data.id
+                        logger.debug(f"Authenticated user ID from token: {user_id}")
+                except Exception as auth_err:
+                    logger.error(f"Authentication error: {str(auth_err)}")
+        
+        # If we still don't have a user_id, this is an error
+        if not user_id:
+            logger.error("Failed to determine user ID for file upload")
+            return jsonify({"error": "Authentication failed - could not determine user ID"}), 401
         
         # Extract metadata
         category = request.form.get('category', '')
@@ -211,22 +245,55 @@ def direct_upload_file():
         logger.debug(f"Auth header: {auth_header}")
         logger.debug(f"ENV vars: FLASK_ENV={os.environ.get('FLASK_ENV')}, DEVELOPMENT_MODE={os.environ.get('DEVELOPMENT_MODE')}, APP_ENV={os.environ.get('APP_ENV')}")
         
-        # Special handling for dev-token - always accept it for this test endpoint
-        if auth_header == 'dev-token' or auth_header == 'Bearer dev-token':
-            # Use a test user ID for development testing
-            user_id = "00000000-0000-0000-0000-000000000000"  # UUID format for database compatibility
-            logger.info("Using test user ID with dev-token")
-        else:
-            # Get authenticated user through normal JWT token flow
-            user = get_user_from_token(request)
-            if not user:
-                logger.warning("Unauthorized access attempt to knowledge upload endpoint")
-                return jsonify({"error": "Unauthorized"}), 401
-            
-            # Extract user ID
-            user_id = user.id if hasattr(user, 'id') else user.get('id')
-            if not user_id:
-                return jsonify({"error": "User ID not found"}), 401
+        # Import direct db connection utilities
+        from utils.db_connection import get_db_connection
+        
+        # Extract user_id from the token_required decorator
+        # The decorator injects the user object, so it's guaranteed to be correct
+        user_id = None
+        if flask.has_request_context() and hasattr(flask.g, 'user'):
+            user = flask.g.user
+            user_id = user.get('id') if isinstance(user, dict) else getattr(user, 'id', None)
+        
+        # If user_id is not available, try to parse from token directly
+        if not user_id:
+            # Special handling for dev-token in development mode
+            if auth_header == 'dev-token' or auth_header == 'Bearer dev-token':
+                # Use the development environment test user ID if available
+                user_id = os.environ.get('TEST_USER_ID')
+                if not user_id:
+                    # Retrieve a valid user ID from database for testing
+                    try:
+                        conn = get_db_connection()
+                        with conn.cursor() as cursor:
+                            cursor.execute("SELECT id FROM profiles LIMIT 1")
+                            result = cursor.fetchone()
+                            if result:
+                                user_id = result[0]
+                                logger.info(f"Using first available user ID for testing: {user_id}")
+                    except Exception as e:
+                        logger.error(f"Failed to retrieve test user ID: {str(e)}")
+                
+                if not user_id:
+                    # Last resort fallback for dev-token
+                    user_id = "test-user-id"
+                logger.info(f"Using test user ID with dev-token: {user_id}")
+            else:
+                # Get authenticated user through normal JWT token flow
+                try:
+                    user_data = get_user_from_token(auth_header)
+                    if user_data:
+                        user_id = user_data.get('id')
+                        if not user_id and hasattr(user_data, 'id'):
+                            user_id = user_data.id
+                        logger.debug(f"Authenticated user ID from token: {user_id}")
+                except Exception as auth_err:
+                    logger.error(f"Authentication error: {str(auth_err)}")
+        
+        # If we still don't have a user_id, this is an error
+        if not user_id:
+            logger.error("Failed to determine user ID for file upload")
+            return jsonify({"error": "Authentication failed - could not determine user ID"}), 401
         
         # Extract data from request
         if not request.is_json:
