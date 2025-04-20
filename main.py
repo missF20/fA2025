@@ -944,8 +944,66 @@ def knowledge_files_api():
                 }), 200
         else:
             # For regular tokens, use the normal import path
-            from routes.knowledge import get_knowledge_files
-            return get_knowledge_files()
+            try:
+                from routes.knowledge import get_knowledge_files
+                return get_knowledge_files()
+            except ImportError:
+                logger.error("Could not import get_knowledge_files from routes.knowledge")
+                # Get the user from the token
+                user = get_user_from_token(auth_header)
+                
+                # Use the connection directly
+                from utils.db_connection import get_db_connection
+                conn = get_db_connection()
+                
+                # Get query parameters
+                limit = request.args.get('limit', 20, type=int)
+                offset = request.args.get('offset', 0, type=int)
+                
+                try:
+                    # Use the connection directly
+                    files_sql = """
+                    SELECT id, user_id, filename, file_size, file_type, 
+                           created_at, updated_at, category, tags
+                    FROM knowledge_files 
+                    WHERE user_id = %s
+                    ORDER BY created_at DESC
+                    LIMIT %s OFFSET %s
+                    """
+                    
+                    with conn.cursor() as cursor:
+                        cursor.execute(files_sql, (user.get('id', '00000000-0000-0000-0000-000000000000'), limit, offset))
+                        files_result = cursor.fetchall()
+                        
+                        # Get total count
+                        count_sql = "SELECT COUNT(*) as total FROM knowledge_files WHERE user_id = %s"
+                        cursor.execute(count_sql, (user.get('id', '00000000-0000-0000-0000-000000000000'),))
+                        total = cursor.fetchone()[0]
+                        
+                        # Format results
+                        files = []
+                        for file in files_result:
+                            files.append({
+                                'id': file[0],
+                                'user_id': file[1],
+                                'filename': file[2],
+                                'file_size': file[3],
+                                'file_type': file[4],
+                                'created_at': file[5].isoformat() if file[5] else None,
+                                'updated_at': file[6].isoformat() if file[6] else None,
+                                'category': file[7],
+                                'tags': file[8]
+                            })
+                        
+                        return jsonify({
+                            'files': files,
+                            'total': total,
+                            'limit': limit,
+                            'offset': offset
+                        }), 200
+                finally:
+                    if conn:
+                        conn.close()
             
     except Exception as e:
         logger.error(f"Error in direct knowledge files endpoint: {str(e)}")
