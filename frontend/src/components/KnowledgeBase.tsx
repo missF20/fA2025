@@ -75,13 +75,13 @@ export function KnowledgeBase() {
     fetchFilters();
   }, [currentPage, selectedCategory, selectedTags]);
 
-  const fetchFiles = async () => {
+  const fetchFiles = async (forceRefresh = false) => {
     try {
       setIsLoading(true);
       setError(null);
       
       const offset = currentPage * PAGE_SIZE;
-      const { files: fetchedFiles, total } = await getKnowledgeFiles(PAGE_SIZE, offset);
+      const { files: fetchedFiles, total } = await getKnowledgeFiles(PAGE_SIZE, offset, forceRefresh);
       
       // Apply client-side filtering if needed
       let filteredFiles = fetchedFiles;
@@ -442,8 +442,8 @@ export function KnowledgeBase() {
         }
       }
       
-      // Refresh file list
-      fetchFiles();
+      // Refresh file list with force refresh to bypass cache
+      fetchFiles(true);
       
       // Show success message if any files were successful
       if (successCount > 0) {
@@ -529,7 +529,7 @@ export function KnowledgeBase() {
         </button>
         
         <button
-          onClick={() => fetchFiles()}
+          onClick={() => fetchFiles(true)}
           className="p-2 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200"
           title="Refresh files"
           disabled={isLoading}

@@ -35,13 +35,13 @@ const cache = {
  * Fetch all knowledge files - Use API only, no Supabase fallback due to schema cache issues
  * With caching for improved performance
  */
-export const getKnowledgeFiles = async (limit = 20, offset = 0): Promise<{ files: KnowledgeFile[], total: number }> => {
+export const getKnowledgeFiles = async (limit = 20, offset = 0, forceRefresh = false): Promise<{ files: KnowledgeFile[], total: number }> => {
   try {
-    // Check cache first
+    // Check cache first (unless force refresh is requested)
     const cacheKey = `files-${limit}-${offset}`;
     const cachedData = cache.files.get(cacheKey);
     
-    if (cachedData && cache.isValid(cachedData.timestamp)) {
+    if (!forceRefresh && cachedData && cache.isValid(cachedData.timestamp)) {
       console.log('Using cached knowledge files data');
       return cachedData.data;
     }
@@ -50,8 +50,11 @@ export const getKnowledgeFiles = async (limit = 20, offset = 0): Promise<{ files
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('Not authenticated');
 
+    // Add timestamp to URL to prevent browser caching
+    const timestamp = Date.now();
+    
     // Use the API endpoint only - no Supabase fallback
-    const response = await fetch(`/api/knowledge/files?limit=${limit}&offset=${offset}`, {
+    const response = await fetch(`/api/knowledge/files?limit=${limit}&offset=${offset}&_t=${timestamp}`, {
       headers: {
         'Authorization': `Bearer ${session.access_token}`
       }
