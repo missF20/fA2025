@@ -16,7 +16,7 @@ from datetime import datetime
 from flask import jsonify, request
 
 # Import auth module
-from utils.auth import token_required, require_auth, get_user_from_token
+from utils.auth import token_required, get_user_from_token
 
 # Import debug endpoint
 import debug_endpoint
@@ -34,7 +34,7 @@ def test_auth():
 
 # Add PDF direct upload endpoint
 @app.route('/api/knowledge/pdf-upload', methods=['POST', 'OPTIONS'])
-@require_auth
+@token_required
 def pdf_upload_file():
     """Special PDF upload endpoint for testing."""
     logger = logging.getLogger(__name__)
@@ -196,6 +196,7 @@ def knowledge_test():
 
 # Add knowledge direct upload endpoint
 @app.route('/api/knowledge/direct-upload', methods=['POST'])
+@token_required
 def direct_upload_file():
     """Direct endpoint for knowledge file upload."""
     logger = logging.getLogger(__name__)
@@ -843,6 +844,7 @@ def slack_send_direct():
 
 # Direct knowledge API endpoints
 @app.route('/api/knowledge/files', methods=['GET'])
+@token_required
 def knowledge_files_api():
     """Direct endpoint for knowledge files API with improved error handling"""
     try:
@@ -957,6 +959,7 @@ def knowledge_files_api():
 
 # Add direct endpoint for deleting knowledge files
 @app.route('/api/knowledge/files/<file_id>', methods=['DELETE'])
+@token_required
 def knowledge_file_delete_api(file_id):
     """Direct endpoint for deleting knowledge files"""
     logger = logging.getLogger(__name__)
@@ -1000,6 +1003,7 @@ def knowledge_file_delete_api(file_id):
 
 # Add direct binary routes to bypass blueprint issues
 @app.route('/api/knowledge/binary/test', methods=['GET'])
+@token_required
 def binary_test_api():
     """Test endpoint for binary upload API"""
     return jsonify({
@@ -1009,6 +1013,7 @@ def binary_test_api():
     })
 
 @app.route('/api/knowledge/binary/upload', methods=['POST'])
+@token_required
 def binary_upload_api():
     """Direct endpoint for binary file upload"""
     # Import and call the function from the blueprint
@@ -1070,6 +1075,7 @@ def binary_upload_api():
         return jsonify({"error": "Binary upload API error", "details": str(e)}), 500
 
 @app.route('/api/knowledge/search', methods=['GET', 'POST'])
+@token_required
 def knowledge_search_api():
     """Direct endpoint for knowledge search API with improved error handling"""
     try:
@@ -1098,6 +1104,7 @@ def knowledge_search_api():
         }), 200
 
 @app.route('/api/knowledge/categories', methods=['GET'])
+@token_required
 def knowledge_categories_api():
     """Direct endpoint for knowledge categories API with improved error handling"""
     try:
@@ -1124,6 +1131,7 @@ def knowledge_categories_api():
         }), 200
 
 @app.route('/api/knowledge/stats', methods=['GET'])
+@token_required
 def knowledge_stats_api():
     # Direct endpoint for knowledge stats API
     try:
