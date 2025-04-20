@@ -365,6 +365,10 @@ export const deleteKnowledgeFile = async (fileId: string): Promise<boolean> => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('Not authenticated');
 
+    // Clear the cache first to ensure getKnowledgeFiles retrieves fresh data
+    cache.files.clear();
+    console.log('Cleared knowledge files cache before delete');
+
     console.log(`Attempting to delete file with ID: ${fileId}`);
     
     // Use API endpoint with additional logging
@@ -407,6 +411,10 @@ export const bulkDeleteKnowledgeFiles = async (fileIds: string[]): Promise<boole
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('Not authenticated');
 
+    // Clear the cache first to ensure getKnowledgeFiles retrieves fresh data
+    cache.files.clear();
+    console.log('Cleared knowledge files cache before bulk delete');
+
     // Use API endpoint
     const response = await fetch(`/api/knowledge/files/bulk-delete`, {
       method: 'POST',
@@ -438,6 +446,10 @@ export const updateKnowledgeFile = async (
   try {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('Not authenticated');
+
+    // Clear the cache first to ensure getKnowledgeFiles retrieves fresh data
+    cache.files.clear();
+    console.log('Cleared knowledge files cache before update');
 
     // Use API endpoint
     const response = await fetch(`/api/knowledge/files/${fileId}`, {
@@ -471,6 +483,10 @@ export const bulkUpdateKnowledgeFiles = async (
   try {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('Not authenticated');
+
+    // Clear the cache first to ensure getKnowledgeFiles retrieves fresh data
+    cache.files.clear();
+    console.log('Cleared knowledge files cache before bulk update');
 
     // Use API endpoint
     const response = await fetch(`/api/knowledge/files/bulk-update`, {
