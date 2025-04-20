@@ -22,6 +22,93 @@ from utils.auth import token_required, get_user_from_token
 # Import debug endpoint
 import debug_endpoint
 
+# Add direct email disconnect endpoint
+@app.route('/api/integrations/email/disconnect', methods=['POST', 'OPTIONS'])
+def direct_email_disconnect():
+    """Direct endpoint for email disconnection."""
+    logger = logging.getLogger(__name__)
+    
+    # Import database models
+    from models_db import User, IntegrationConfig
+    import uuid
+    from app import db
+    
+    # Handle CORS preflight requests without authentication
+    if request.method == 'OPTIONS':
+        response = jsonify({"status": "success"})
+        response.headers.add('Access-Control-Allow-Methods', 'POST, OPTIONS')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Credentials', 'true')
+        return response
+        
+    # For actual POST requests, require authentication
+    auth_header = request.headers.get('Authorization', '')
+            
+    try:
+        logger.info("Email disconnect endpoint called directly")
+        
+        # Get user information from token
+        user = get_user_from_token()
+        
+        if not user:
+            return jsonify({
+                'success': False,
+                'message': 'Authentication required'
+            }), 401
+            
+        user_email = user.get('email') if isinstance(user, dict) else getattr(user, 'email', None)
+        user_id = user.get('id') if isinstance(user, dict) else getattr(user, 'id', None)
+        
+        logger.info(f"User from token: email={user_email}, id={user_id}")
+        
+        # Find user in database
+        db_user = User.query.filter_by(email=user_email).first()
+        
+        if not db_user:
+            return jsonify({
+                'success': False,
+                'message': 'User not found'
+            }), 404
+            
+        # Get user UUID (preferably auth_id)
+        user_uuid = getattr(db_user, 'auth_id', str(db_user.id))
+        
+        # Find email integration
+        integration = IntegrationConfig.query.filter_by(
+            user_id=user_uuid,
+            integration_type='email'
+        ).first()
+        
+        if not integration:
+            # Try with string ID as fallback
+            integration = IntegrationConfig.query.filter_by(
+                user_id=str(db_user.id),
+                integration_type='email'
+            ).first()
+            
+        if not integration:
+            return jsonify({
+                'success': False,
+                'message': 'No email integration found'
+            }), 404
+            
+        # Delete the integration
+        db.session.delete(integration)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Email integration disconnected successfully'
+        })
+        
+    except Exception as e:
+        logger.exception(f"Error in direct email disconnect endpoint: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f"Error disconnecting email: {str(e)}"
+        }), 500
+
 # Add test route
 @app.route('/api/test-auth', methods=['GET'])
 @token_required
