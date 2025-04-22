@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dana AI Platform - Development Preview</title>
+    <link href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            padding-top: 20px;
+        }
+        .header {
+            background-color: #343a40;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .card {
+            margin-bottom: 20px;
+        }
+        .btn-section {
+            margin-top: 15px;
+        }
+        .status-badge {
+            font-size: 85%;
+            margin-left: 10px;
+        }
+        .integration-card {
+            border-left: 4px solid #0d6efd;
+        }
+        .knowledge-card {
+            border-left: 4px solid #198754;
+        }
+        .ai-card {
+            border-left: 4px solid #dc3545;
+        }
+        .footer {
+            margin-top: 50px;
+            padding: 15px 0;
+            border-top: 1px solid #dee2e6;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header text-center">
+            <h1>Dana AI Platform</h1>
+            <p class="lead">Development Preview Interface</p>
+        </div>
+
+        <div class="row">
+            <div class="col-md-8 offset-md-2">
+                <div class="alert alert-info">
+                    <strong>Note:</strong> This is a development preview of the Dana AI Platform interface. For the full React frontend experience, run the React development server.
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card integration-card">
+                    <div class="card-body">
+                        <h5 class="card-title">Integration Status</h5>
+                        <div id="integration-status">Loading...</div>
+                        <div class="btn-section">
+                            <button class="btn btn-sm btn-primary" id="refresh-integrations">Refresh</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card knowledge-card">
+                    <div class="card-body">
+                        <h5 class="card-title">Knowledge Base Status</h5>
+                        <div id="knowledge-status">Loading...</div>
+                        <div class="btn-section">
+                            <button class="btn btn-sm btn-success" id="refresh-knowledge">Refresh</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <div class="card ai-card">
+                    <div class="card-body">
+                        <h5 class="card-title">API Test Console</h5>
+                        <div class="input-group mb-3">
+                            <input type="text" class="form-control" id="api-endpoint" placeholder="API Endpoint (e.g., /api/status)" value="/api/status">
+                            <button class="btn btn-outline-secondary" type="button" id="test-api">Test</button>
+                        </div>
+                        <div class="form-floating">
+                            <textarea class="form-control" placeholder="Response will appear here" id="api-result" style="height: 200px"></textarea>
+                            <label for="api-result">API Response</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer text-center">
+            <p>Dana AI Platform &copy; 2025 - Preview Version</p>
+        </div>
+    </div>
+
+    <script>
+        // Fetch integration status
+        function fetchIntegrationStatus() {
+            fetch('/api/integrations/status')
+                .then(response => response.json())
+                .then(data => {
+                    const container = document.getElementById('integration-status');
+                    container.innerHTML = '';
+                    
+                    if (data.integrations && data.integrations.length > 0) {
+                        const ul = document.createElement('ul');
+                        ul.className = 'list-group';
+                        
+                        data.integrations.forEach(integration => {
+                            const li = document.createElement('li');
+                            li.className = 'list-group-item d-flex justify-content-between align-items-center';
+                            li.textContent = integration.id;
+                            
+                            const badge = document.createElement('span');
+                            if (integration.status === 'active') {
+                                badge.className = 'badge bg-success status-badge';
+                            } else {
+                                badge.className = 'badge bg-secondary status-badge';
+                            }
+                            badge.textContent = integration.status;
+                            
+                            li.appendChild(badge);
+                            ul.appendChild(li);
+                        });
+                        
+                        container.appendChild(ul);
+                    } else {
+                        container.textContent = 'No integrations found.';
+                    }
+                })
+                .catch(error => {
+                    document.getElementById('integration-status').textContent = 'Error loading integration status: ' + error.message;
+                });
+        }
+
+        // Fetch knowledge base status
+        function fetchKnowledgeStatus() {
+            fetch('/api/knowledge/status')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('API endpoint not available');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    document.getElementById('knowledge-status').innerHTML = `
+                        <p>Files: ${data.files || 'N/A'}</p>
+                        <p>Categories: ${data.categories || 'N/A'}</p>
+                        <p>Status: <span class="badge bg-success">Active</span></p>
+                    `;
+                })
+                .catch(error => {
+                    document.getElementById('knowledge-status').innerHTML = `
+                        <p>Status: <span class="badge bg-warning">Limited</span></p>
+                        <p class="text-muted">Knowledge base API may not be configured: ${error.message}</p>
+                    `;
+                });
+        }
+
+        // Test API endpoint
+        function testApiEndpoint() {
+            const endpoint = document.getElementById('api-endpoint').value;
+            const resultArea = document.getElementById('api-result');
+            
+            resultArea.value = 'Loading...';
+            
+            fetch(endpoint)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    resultArea.value = JSON.stringify(data, null, 2);
+                })
+                .catch(error => {
+                    resultArea.value = `Error: ${error.message}`;
+                });
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            fetchIntegrationStatus();
+            fetchKnowledgeStatus();
+            
+            document.getElementById('refresh-integrations').addEventListener('click', fetchIntegrationStatus);
+            document.getElementById('refresh-knowledge').addEventListener('click', fetchKnowledgeStatus);
+            document.getElementById('test-api').addEventListener('click', testApiEndpoint);
+        });
+    </script>
+</body>
+</html>
