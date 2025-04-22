@@ -224,52 +224,7 @@ def max_direct_email_disconnect():
 @app.route('/')
 def index():
     """Home page route"""
-    try:
-        return render_template('index.html')
-    except Exception as e:
-        # For now, just return a simple HTML page directly
-        logger.error(f"Error loading template: {str(e)}")
-        return """
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Dana AI Platform</title>
-            <style>
-                body {
-                    font-family: Arial, sans-serif;
-                    margin: 0;
-                    padding: 20px;
-                    background-color: #f5f5f5;
-                }
-                .container {
-                    max-width: 800px;
-                    margin: 0 auto;
-                    background-color: #fff;
-                    padding: 20px;
-                    border-radius: 5px;
-                    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-                }
-                h1 {
-                    color: #333;
-                }
-                .info {
-                    border-left: 4px solid #2196F3;
-                    padding-left: 15px;
-                    margin: 20px 0;
-                }
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <h1>Dana AI Platform</h1>
-                <div class="info">
-                    <p>The backend API is running successfully. Access the frontend at /frontend or use the API directly.</p>
-                    <p>API Status: <a href="/api/status">Check API Status</a></p>
-                </div>
-            </div>
-        </body>
-        </html>
-        """
+    return render_template('index.html')
 
 # Error handlers
 @app.errorhandler(404)
@@ -322,13 +277,6 @@ def start_services():
         return False
     
     return True
-
-# Import routes and models
-from backend.routes import register_all_routes
-from backend.models.user import User
-
-# Register all routes
-register_all_routes(app)
 
 # Initialize database with the app context
 with app.app_context():

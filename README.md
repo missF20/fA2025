@@ -1,124 +1,118 @@
 # Dana AI Platform
 
-Dana AI is a comprehensive social media management platform that uses artificial intelligence to automate responses, manage customer interactions, and streamline social media workflows. The platform integrates with multiple social media platforms and business tools to provide a unified interface for managing all social media communications.
+Dana AI is a comprehensive AI-powered knowledge management platform with robust system integration and intelligent document processing capabilities.
 
-## Key Features
+## Project Structure
 
-- **AI-Driven Response Generation**: Automatically generate context-aware responses to customer inquiries.
-- **Multi-Platform Support**: Manage interactions across Facebook, Instagram, and WhatsApp.
-- **Business Tool Integration**: Connect to business tools like Slack, Email, HubSpot, Salesforce, Google Analytics, and Zendesk.
-- **Knowledge Management**: Upload and leverage company-specific knowledge for better AI responses, with support for PDF, DOCX, and TXT file parsing.
-- **Task Management**: Create, assign, and track tasks related to social media interactions.
-- **Real-Time Notifications**: Get instant updates on new messages and interactions.
-- **Analytics and Reporting**: Track performance metrics and generate reports.
-- **User Management**: Different access levels for team members.
-- **Subscription Management**: Tiered subscription plans with different feature sets.
+The project follows a clean and modular architecture:
 
-## Documentation
+```
+dana-ai/
+  ├── backend/           # Backend Python code
+  │   ├── main.py        # Main application entry point
+  │   ├── models/        # Database models
+  │   ├── routes/        # API routes and blueprints
+  │   ├── utils/         # Utility functions and helpers
+  │   ├── templates/     # HTML templates
+  │   └── static/        # Static files
+  │
+  ├── frontend/          # React+TypeScript frontend
+  │   ├── src/           # Source code
+  │   ├── public/        # Public assets
+  │   ├── package.json   # Frontend dependencies
+  │   └── vite.config.ts # Vite configuration
+  │
+  ├── main.py            # Proxy to backend/main.py for compatibility
+  ├── .env               # Environment variables
+  └── run.py             # Utility to run both frontend and backend
+```
 
-Detailed documentation for the Dana AI platform is available in the following files:
+## Setup and Installation
 
-- [System Documentation](DOCUMENTATION.md): Comprehensive documentation of the system architecture, components, and functionality.
-- [Setup Guide](SETUP_GUIDE.md): Step-by-step guide for setting up and running the Dana AI platform.
-- [API Reference](API_REFERENCE.md): Detailed specifications for all API endpoints in the Dana AI platform.
-- [Slack API Reference](API_REFERENCE_SLACK.md): Detailed documentation for the Slack integration API.
-- [Slack Setup Guide](SLACK_SETUP_GUIDE.md): Step-by-step guide for setting up the Slack integration.
+### Prerequisites
 
-## Technical Overview
+- Python 3.11+
+- Node.js 20+
+- PostgreSQL 16+
 
-### System Architecture
-
-Dana AI follows a modular architecture pattern with clear separation of concerns:
-
-- **API Layer**: Flask-based RESTful API that handles HTTP requests, authentication, and routing.
-- **Automation System**: Core engine that processes incoming messages and generates responses.
-- **Platform Connectors**: Adapters for different social media platforms (Facebook, Instagram, WhatsApp).
-- **Integration Connectors**: Adapters for business tools and systems.
-- **WebSocket Server**: Provides real-time communication capabilities.
-- **Database Access Layer**: Abstracts database operations.
-- **Knowledge Management**: Stores and retrieves company-specific knowledge.
-
-### AI-Powered Intelligence
-
-Dana AI leverages advanced Large Language Models through integration with leading AI providers:
-
-- **OpenAI Integration**: Primary AI provider using OpenAI's powerful GPT models for natural, context-aware responses.
-- **Fallback AI Options**: Secondary AI providers that can be used if the primary service is unavailable.
-- **Knowledge-Enhanced Responses**: Combines AI capabilities with your company's knowledge base for more relevant answers.
-- **File Content Analysis**: Extracts and processes content from PDF, DOCX, and TXT files to enhance AI understanding.
-- **Context Management**: Maintains conversation history to provide coherent, continuous interactions.
-- **Flexible Configuration**: Easy configuration options to select preferred AI providers and models.
-
-### Technologies Used
-
-- **Backend Framework**: Flask (Python)
-- **Database ORM**: SQLAlchemy
-- **Real-Time Communication**: Flask-SocketIO
-- **Authentication**: JWT (JSON Web Tokens)
-- **AI Services**: OpenAI API integration with fallback options
-- **API Documentation**: Swagger/OpenAPI
-
-### Supported Platforms
-
-#### Social Media
-
-- Facebook
-- Instagram
-- WhatsApp
-
-#### Business Tools
-
-- Email
-- Slack (with comprehensive API and setup documentation)
-- HubSpot
-- Salesforce
-- Google Analytics
-- Zendesk
-
-#### Databases
-
-- MySQL
-- PostgreSQL
-- MongoDB
-- SQL Server
-
-## Getting Started
-
-For a quick start, follow these steps:
+### Environment Setup
 
 1. Clone the repository
-2. Install dependencies: `pip install -r requirements.txt`
-3. Configure environment variables (see [Setup Guide](SETUP_GUIDE.md))
-4. Run the application: `python main.py`
+2. Set up a Python virtual environment (optional)
+3. Install dependencies:
+   ```bash
+   # Backend dependencies
+   pip install -r requirements.txt
+   
+   # Frontend dependencies
+   cd frontend
+   npm install
+   ```
+4. Configure environment variables in `.env`
 
-For detailed setup instructions, refer to the [Setup Guide](SETUP_GUIDE.md).
+## Running the Application
 
-## API Overview
+### Backend Only
 
-The Dana AI API is RESTful and provides endpoints for all platform functionality:
+```bash
+cd backend
+gunicorn --bind 0.0.0.0:5000 --reuse-port --reload main:app
+```
 
-- **Authentication**: Sign up, login, password reset
-- **User Profile**: Get and update user profiles
-- **Conversations**: Manage conversations with customers
-- **Messages**: Send and receive messages
-- **Tasks**: Create, update, and manage tasks
-- **Knowledge Management**: Upload and manage knowledge files
-- **Webhooks**: Receive webhooks from social media platforms
-- **Integrations**: Configure and manage integrations with business tools
-- **Slack Integration**: Send messages, retrieve conversations, and manage channels
+### Frontend Only
 
-For detailed API documentation, refer to the [API Reference](API_REFERENCE.md).
+```bash
+cd frontend
+npm run dev
+```
 
-## Security
+### Both Together
 
-Dana AI implements robust security measures:
+```bash
+python run.py
+```
 
-- **Authentication**: JWT-based authentication for all API requests
-- **Authorization**: Role-based access control for different endpoints
-- **Data Isolation**: Strict isolation of data between users
-- **Credential Protection**: Secure storage of integration credentials
-- **Rate Limiting**: Protection against API abuse
+## API Documentation
 
-## License
+The API is organized into the following namespaces:
 
-Copyright © 2025 Dana AI. All rights reserved.
+- `/api/status` - API status endpoint
+- `/api/integrations` - Integration management endpoints
+- `/api/max-direct` - Legacy compatibility endpoints
+
+### Authentication
+
+API authentication is handled through JWT tokens. 
+Include the token in the `Authorization` header as `Bearer <token>`.
+
+## Configuration
+
+All configuration is managed through environment variables. See `.env.example` for available options.
+
+## Port Configuration
+
+- Backend: Runs on port 5000
+- Frontend: Runs on port 5173
+
+## Database Structure
+
+The database schema is defined in the models modules. Key models include:
+
+- `User`: Authentication and user management
+- `IntegrationConfig`: Integration settings and status
+- `KnowledgeFile`: Knowledge base file storage
+- `TokenUsage`: AI token usage tracking
+
+## Known Issues and Limitations
+
+- Some import paths may need adjustment if you move files
+- Frontend proxy configuration may need updates based on deployment
+- PostgreSQL connection requires proper environment variables
+
+## Development Guidelines
+
+1. Keep backend and frontend code clearly separated
+2. Use the blueprint system for organizing routes
+3. Follow SQLAlchemy patterns for database access
+4. Maintain RESTful API design
+5. Keep environment variables in .env file, not hardcoded
