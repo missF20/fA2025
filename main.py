@@ -130,11 +130,16 @@ def direct_email_disconnect():
                 # Verify user was created
                 test_user = User.query.filter_by(email='test@example.com').first()
                 logger.info(f"Created user verified: {test_user}")
+                
+                # Since db_user might be None if an exception occurred but was caught,
+                # make sure to re-query it to ensure we have a valid user object
+                if not db_user or not getattr(db_user, 'id', None):
+                    db_user = User.query.filter_by(email='test@example.com').first()
+                    logger.info(f"Re-fetched user object: {db_user}")
+                
             except Exception as e:
                 logger.error(f"Error creating test user: {str(e)}", exc_info=True)
                 # Fall through to normal flow
-            db.session.add(db_user)
-            db.session.commit()
         elif not db_user:
             return jsonify({
                 'success': False,
