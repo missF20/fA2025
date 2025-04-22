@@ -176,7 +176,7 @@ export const api = {
 
       // Handle special case for email integration
       const endpoint = integrationType === 'email' 
-        ? `/api/integrations/email/connect`
+        ? `/api/direct/integrations/email/connect`
         : `/api/integrations/connect/${integrationType}`;
       
       console.log(`Connecting to ${integrationType} using endpoint: ${endpoint}`);
