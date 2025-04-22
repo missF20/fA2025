@@ -91,7 +91,24 @@ def direct_email_disconnect():
         # Find user in database
         db_user = User.query.filter_by(email=user_email).first()
         
-        if not db_user:
+        # For development token, create a test user if it doesn't exist
+        is_dev = (os.environ.get('FLASK_ENV') == 'development' or 
+                 os.environ.get('DEVELOPMENT_MODE') == 'true' or
+                 os.environ.get('APP_ENV') == 'development')
+        
+        if not db_user and is_dev and user_email == 'test@example.com':
+            logger.info("Creating test user for development")
+            # Create a test user with the dev UUID
+            db_user = User(
+                id=uuid.UUID('00000000-0000-0000-0000-000000000000'),
+                email='test@example.com',
+                username='Test User',
+                auth_id='00000000-0000-0000-0000-000000000000',
+                is_admin=True
+            )
+            db.session.add(db_user)
+            db.session.commit()
+        elif not db_user:
             return jsonify({
                 'success': False,
                 'message': 'User not found'
