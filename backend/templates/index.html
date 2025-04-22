@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dana AI Platform</title>
+    <link href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css" rel="stylesheet">
+    <style>
+        .header {
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+        }
+        .features-section {
+            margin-bottom: 3rem;
+        }
+        .card {
+            height: 100%;
+            transition: transform 0.3s;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        .footer {
+            margin-top: 3rem;
+            padding: 2rem 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header text-center">
+            <h1>Dana AI Platform</h1>
+            <p class="lead">Advanced AI-powered knowledge management with robust system integration</p>
+        </div>
+
+        <div class="row features-section">
+            <div class="col-md-4 mb-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">AI Services</h5>
+                        <p class="card-text">Leverage advanced AI models including OpenAI and Anthropic to generate intelligent responses.</p>
+                        <a href="/ai" class="btn btn-primary">Explore AI Services</a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Knowledge Base</h5>
+                        <p class="card-text">Store and retrieve company-specific knowledge to enhance AI responses.</p>
+                        <a href="/knowledge" class="btn btn-primary">Manage Knowledge</a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Integrations</h5>
+                        <p class="card-text">Connect with various external systems including Slack, email, and more.</p>
+                        <a href="/integrations" class="btn btn-primary">Configure Integrations</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-md-6 offset-md-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">API Status</h5>
+                        <div id="api-status">
+                            <div class="d-flex justify-content-center">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-center mt-3">
+                            <button id="check-status" class="btn btn-secondary">Check API Status</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer text-center">
+            <p>&copy; 2025 Dana AI Platform</p>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check API status on load
+            checkApiStatus();
+            
+            // Add click handler for status button
+            document.getElementById('check-status').addEventListener('click', checkApiStatus);
+        });
+
+        function checkApiStatus() {
+            const statusElement = document.getElementById('api-status');
+            statusElement.innerHTML = `
+                <div class="d-flex justify-content-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            `;
+            
+            fetch('/api/status')
+                .then(response => response.json())
+                .then(data => {
+                    let statusHtml = `
+                        <div class="alert alert-success">
+                            <strong>API Status:</strong> ${data.status || 'OK'}
+                        </div>
+                        <div class="mt-2">
+                            <strong>Version:</strong> ${data.version || 'N/A'}<br>
+                            <strong>Environment:</strong> ${data.environment || 'N/A'}
+                        </div>
+                    `;
+                    statusElement.innerHTML = statusHtml;
+                })
+                .catch(error => {
+                    statusElement.innerHTML = `
+                        <div class="alert alert-danger">
+                            <strong>Error:</strong> Could not connect to API.
+                        </div>
+                        <div class="small text-muted mt-2">
+                            ${error.message}
+                        </div>
+                    `;
+                });
+        }
+    </script>
+</body>
+</html>
