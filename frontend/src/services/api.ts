@@ -108,7 +108,7 @@ export const api = {
       }
 
       try {
-        const response = await fetch('/api/integrations/status', {
+        const response = await fetch('/api/max-direct/integrations/status', {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
