@@ -757,18 +757,32 @@ def direct_email_disconnect():
             
             # Fall back to ORM approach if direct SQL fails
             try:
-                # Find email integration
-                integration = IntegrationConfig.query.filter_by(
-                    user_id=user_uuid,
-                    integration_type='email'
-                ).first()
-                
-                if not integration:
-                    # Try with string ID as fallback
-                    integration = IntegrationConfig.query.filter_by(
-                        user_id=str(db_user.id),
-                        integration_type='email'
-                    ).first()
+                # Use direct SQL instead of ORM to avoid type conversion issues
+                try:
+                    from utils.db_connection import get_db_connection
+                    conn = get_db_connection()
+                    
+                    with conn.cursor() as cursor:
+                        cursor.execute(
+                            """
+                            SELECT id 
+                            FROM integration_configs 
+                            WHERE user_id = %s AND integration_type = 'email'
+                            """, 
+                            (user_uuid,)
+                        )
+                        integration_result = cursor.fetchone()
+                        
+                        if integration_result:
+                            # Get the integration by ID using ORM (safe, as ID is integer)
+                            integration = IntegrationConfig.query.get(integration_result[0])
+                            logger.info(f"Found integration using direct SQL: {integration_result[0]}")
+                        else:
+                            logger.warning(f"No integration found for user_uuid: {user_uuid}")
+                            integration = None
+                except Exception as sql_err:
+                    logger.error(f"SQL error in fallback: {str(sql_err)}")
+                    integration = None
             except Exception as orm_error:
                 logger.exception(f"ORM error: {str(orm_error)}")
                 integration = None
