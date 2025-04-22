@@ -174,9 +174,10 @@ export default function Integrations() {
       setError(null);
       setSuccessMessage(null);
       
-      await api.integrations.connect('email', config);
+      const response = await api.integrations.connect('email', config);
+      console.log("Email connect response:", response);
       
-      // Update the integration in the list
+      // Force the email integration status to active immediately
       setIntegrations(prevIntegrations => 
         prevIntegrations.map(integration => 
           integration.id === 'email' ? { ...integration, status: 'active' } : integration
@@ -186,9 +187,12 @@ export default function Integrations() {
       setSuccessMessage('Successfully connected email');
       setShowEmailForm(false);
       
-      // Refresh the integrations list
-      fetchIntegrations();
+      // Wait a moment before refreshing to allow the server to update
+      setTimeout(() => {
+        fetchIntegrations();
+      }, 1000);
     } catch (err: any) {
+      console.error("Error connecting to email:", err);
       setError(err.message || 'Failed to connect email');
     } finally {
       setConnecting(null);
