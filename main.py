@@ -28,12 +28,10 @@ def direct_email_disconnect():
     """Direct endpoint for email disconnection."""
     logger = logging.getLogger(__name__)
     
-    # Import database models and auth utilities
-    from models_db import User, IntegrationConfig
+    # Import database connection utilities
+    from utils.db_connection import get_db_connection
     import uuid
-    from app import db
-    from utils.auth import get_user_from_token, validate_token
-    from flask import g
+    import json
     
     # Handle CORS preflight requests without authentication
     if request.method == 'OPTIONS':
@@ -52,8 +50,83 @@ def direct_email_disconnect():
             'message': 'Authentication required',
             'error': 'No authentication token provided'
         }), 401
-        
-    # Validate the token first
+    
+    # Special handling for dev-token
+    if auth_header == 'dev-token' or auth_header == 'Bearer dev-token':
+        # Use direct SQL for everything to avoid SQLAlchemy type conversion issues
+        try:
+            # Get a database connection
+            conn = get_db_connection()
+            
+            # Find email integration for test user
+            find_integration_sql = """
+            SELECT id, user_id, integration_type, config, status
+            FROM integration_configs 
+            WHERE (user_id = %s OR user_id = %s)
+            AND integration_type = 'email'
+            """
+            
+            # Only use the UUID, not the integer ID since user_id is a UUID column
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT id, user_id, integration_type, config, status
+                    FROM integration_configs 
+                    WHERE user_id = %s
+                    AND integration_type = 'email'
+                    """, 
+                    ('00000000-0000-0000-0000-000000000000',)
+                )
+                integration = cursor.fetchone()
+                
+                if not integration:
+                    logger.warning("No email integration found for test user")
+                    return jsonify({
+                        'success': False,
+                        'message': 'No email integration found for test user'
+                    }), 404
+                
+                # Delete the integration
+                delete_sql = """
+                DELETE FROM integration_configs 
+                WHERE id = %s
+                RETURNING id
+                """
+                
+                with conn.cursor() as cursor:
+                    cursor.execute(delete_sql, (integration[0],))
+                    deleted = cursor.fetchone()
+                    conn.commit()
+                    
+                if deleted:
+                    logger.info(f"Successfully deleted integration {deleted[0]}")
+                    return jsonify({
+                        'success': True,
+                        'message': 'Email integration disconnected successfully'
+                    })
+                else:
+                    logger.error("Failed to delete integration")
+                    return jsonify({
+                        'success': False,
+                        'message': 'Failed to delete integration'
+                    }), 500
+                    
+            
+        except Exception as e:
+            logger.exception(f"Error in direct SQL approach: {str(e)}")
+            return jsonify({
+                'success': False,
+                'message': f"Error disconnecting email: {str(e)}"
+            }), 500
+    
+    # Non-dev token case
+    # Import database models and auth utilities 
+    from models_db import User, IntegrationConfig
+    from app import db
+    from utils.auth import get_user_from_token, validate_token
+    from flask import g
+    
+    # Validate the token
     auth_result = validate_token(auth_header)
     if not auth_result['valid']:
         return jsonify({
@@ -88,17 +161,80 @@ def direct_email_disconnect():
         
         logger.info(f"User from token: email={user_email}, id={user_id}")
         
-        # Find user in database by email
-        db_user = User.query.filter_by(email=user_email).first()
-        
-        # If not found, try by UUID using correct type handling
-        if not db_user and user_id:
-            # Try to find by auth_id
+        # Use direct SQL to find user to avoid type conversion issues
+        try:
+            from utils.db_connection import get_db_connection
+            
+            # Get a fresh database connection
+            conn = get_db_connection()
+            
+            # Try to find user by email first (most reliable)
+            find_user_sql = """
+            SELECT id, username, email, auth_id, is_admin 
+            FROM users 
+            WHERE email = %s
+            """
+            
+            user_found = False
+            db_user = None
+            
+            with conn.cursor() as cursor:
+                cursor.execute(find_user_sql, (user_email,))
+                user_result = cursor.fetchone()
+                
+                if user_result:
+                    logger.info(f"Found user by email: {user_email}")
+                    # Create a User object to maintain compatibility with downstream code
+                    db_user = User(
+                        id=user_result[0],
+                        username=user_result[1],
+                        email=user_result[2],
+                        auth_id=user_result[3],
+                        is_admin=user_result[4]
+                    )
+                    user_found = True
+            
+            # If user not found by email and we have a user_id, try by auth_id
+            if not user_found and user_id:
+                find_by_auth_sql = """
+                SELECT id, username, email, auth_id, is_admin 
+                FROM users 
+                WHERE auth_id = %s
+                """
+                
+                with conn.cursor() as cursor:
+                    cursor.execute(find_by_auth_sql, (str(user_id),))
+                    user_result = cursor.fetchone()
+                    
+                    if user_result:
+                        logger.info(f"Found user by auth_id: {user_id}")
+                        # Create a User object to maintain compatibility with downstream code
+                        db_user = User(
+                            id=user_result[0],
+                            username=user_result[1],
+                            email=user_result[2],
+                            auth_id=user_result[3],
+                            is_admin=user_result[4]
+                        )
+                        user_found = True
+            
+            if not user_found:
+                logger.warning(f"User not found in database: email={user_email}, id={user_id}")
+                
+        except Exception as e:
+            logger.error(f"Error finding user: {str(e)}")
+            # Fall back to SQLAlchemy ORM
             try:
-                db_user = User.query.filter_by(auth_id=user_id).first()
-                logger.info(f"Found user by auth_id: {db_user}")
-            except Exception as e:
-                logger.error(f"Error finding user by auth_id: {str(e)}")
+                # Find user in database by email
+                db_user = User.query.filter_by(email=user_email).first()
+                
+                # If not found, try by UUID using correct type handling
+                if not db_user and user_id:
+                    # Try to find by auth_id
+                    db_user = User.query.filter_by(auth_id=user_id).first()
+                    logger.info(f"Found user by auth_id: {db_user}")
+            except Exception as orm_error:
+                logger.error(f"Error finding user via ORM: {str(orm_error)}")
         
         # For development token, create a test user if it doesn't exist
         is_dev = (os.environ.get('FLASK_ENV') == 'development' or 
@@ -165,17 +301,16 @@ def direct_email_disconnect():
             # Get a fresh database connection
             conn = get_db_connection()
             
-            # Query using direct SQL
+            # Query using direct SQL - user_id is a UUID column in the database
             find_sql = """
             SELECT id, user_id, integration_type, config, status
             FROM integration_configs 
-            WHERE (user_id = %s OR user_id = %s)
+            WHERE user_id::text = %s
             AND integration_type = 'email'
             """
             
             params = (
                 user_uuid,
-                str(db_user.id)
             )
             
             # Execute SQL with cursor
