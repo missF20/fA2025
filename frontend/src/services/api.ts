@@ -249,7 +249,7 @@ export const api = {
 
       // Handle special case for email integration
       const endpoint = integrationId === 'email' 
-        ? `/api/integrations/email/disconnect`
+        ? `/api/direct/integrations/email/disconnect`  // Use our fixed endpoint
         : `/api/integrations/disconnect/${integrationId}`;
       
       console.log(`Disconnecting from ${integrationId} using endpoint: ${endpoint}`);

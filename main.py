@@ -2070,3 +2070,75 @@ if __name__ == "__main__":
         # Fallback for older Flask-SocketIO versions
         logger.warning(f"SocketIO error with allow_unsafe_werkzeug, trying without: {e}")
         socketio.run(app, host="0.0.0.0", port=5000, debug=True)
+# Direct email disconnection endpoint that doesn't rely on complex auth
+@app.route('/api/direct/integrations/email/disconnect', methods=['POST', 'OPTIONS'])
+def direct_fix_email_disconnect():
+    """Simplified endpoint to fix email disconnection"""
+    logger = logging.getLogger(__name__)
+    
+    # Handle CORS preflight
+    if request.method == 'OPTIONS':
+        response = jsonify({"status": "success"})
+        response.headers.add('Access-Control-Allow-Methods', 'POST, OPTIONS')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response
+    
+    try:
+        # Import database connection module
+        from utils.db_connection import get_db_connection
+        
+        # Get a direct database connection
+        conn = get_db_connection()
+        
+        # Find any email integration
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT id FROM integration_configs
+                WHERE integration_type = 'email'
+                LIMIT 1
+                """
+            )
+            result = cursor.fetchone()
+            
+            if not result:
+                logger.warning("No email integration found")
+                return jsonify({
+                    'success': False,
+                    'message': 'No email integration found'
+                }), 404
+            
+            integration_id = result[0]
+            
+            # Delete the integration
+            cursor.execute(
+                """
+                DELETE FROM integration_configs
+                WHERE id = %s
+                RETURNING id
+                """,
+                (integration_id,)
+            )
+            deleted = cursor.fetchone()
+            conn.commit()
+            
+            if deleted:
+                logger.info(f"Successfully deleted integration {deleted[0]}")
+                return jsonify({
+                    'success': True,
+                    'message': 'Email integration disconnected successfully'
+                })
+            else:
+                logger.error("Failed to delete integration")
+                return jsonify({
+                    'success': False,
+                    'message': 'Failed to delete integration'
+                }), 500
+    
+    except Exception as e:
+        logger.exception(f"Error in direct email disconnect: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Server error: {str(e)}'
+        }), 500
