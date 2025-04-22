@@ -88,8 +88,17 @@ def direct_email_disconnect():
         
         logger.info(f"User from token: email={user_email}, id={user_id}")
         
-        # Find user in database
+        # Find user in database by email
         db_user = User.query.filter_by(email=user_email).first()
+        
+        # If not found, try by UUID using correct type handling
+        if not db_user and user_id:
+            # Try to find by auth_id
+            try:
+                db_user = User.query.filter_by(auth_id=user_id).first()
+                logger.info(f"Found user by auth_id: {db_user}")
+            except Exception as e:
+                logger.error(f"Error finding user by auth_id: {str(e)}")
         
         # For development token, create a test user if it doesn't exist
         is_dev = (os.environ.get('FLASK_ENV') == 'development' or 
@@ -149,18 +158,87 @@ def direct_email_disconnect():
         # Get user UUID (preferably auth_id)
         user_uuid = getattr(db_user, 'auth_id', str(db_user.id))
         
-        # Find email integration
-        integration = IntegrationConfig.query.filter_by(
-            user_id=user_uuid,
-            integration_type='email'
-        ).first()
-        
-        if not integration:
-            # Try with string ID as fallback
-            integration = IntegrationConfig.query.filter_by(
-                user_id=str(db_user.id),
-                integration_type='email'
-            ).first()
+        # Try direct SQL to avoid type conversion issues
+        try:
+            from utils.db_connection import get_db_connection
+            
+            # Get a fresh database connection
+            conn = get_db_connection()
+            
+            # Query using direct SQL
+            find_sql = """
+            SELECT id, user_id, integration_type, config, status
+            FROM integration_configs 
+            WHERE (user_id = %s OR user_id = %s)
+            AND integration_type = 'email'
+            """
+            
+            params = (
+                user_uuid,
+                str(db_user.id)
+            )
+            
+            # Execute SQL with cursor
+            logger.debug("Executing SQL to find email integration")
+            with conn.cursor() as cursor:
+                cursor.execute(find_sql, params)
+                result = cursor.fetchone()
+            
+            if result:
+                logger.info(f"Found email integration with ID {result[0]}")
+                integration_id = result[0]
+                
+                # Now delete it
+                delete_sql = """
+                DELETE FROM integration_configs 
+                WHERE id = %s
+                RETURNING id
+                """
+                
+                with conn.cursor() as cursor:
+                    cursor.execute(delete_sql, (integration_id,))
+                    deleted = cursor.fetchone()
+                    conn.commit()
+                    
+                if deleted:
+                    logger.info(f"Successfully deleted integration {deleted[0]}")
+                    return jsonify({
+                        'success': True,
+                        'message': 'Email integration disconnected successfully'
+                    })
+                else:
+                    logger.error("Failed to delete integration")
+                    return jsonify({
+                        'success': False,
+                        'message': 'Failed to delete integration'
+                    }), 500
+            else:
+                logger.warning(f"No email integration found for user {user_uuid} or {str(db_user.id)}")
+                return jsonify({
+                    'success': False,
+                    'message': 'No email integration found'
+                }), 404
+                
+        except Exception as sql_error:
+            logger.exception(f"Database error: {str(sql_error)}")
+            
+            # Fall back to ORM approach if direct SQL fails
+            try:
+                # Find email integration
+                integration = IntegrationConfig.query.filter_by(
+                    user_id=user_uuid,
+                    integration_type='email'
+                ).first()
+                
+                if not integration:
+                    # Try with string ID as fallback
+                    integration = IntegrationConfig.query.filter_by(
+                        user_id=str(db_user.id),
+                        integration_type='email'
+                    ).first()
+            except Exception as orm_error:
+                logger.exception(f"ORM error: {str(orm_error)}")
+                integration = None
             
         if not integration:
             return jsonify({
