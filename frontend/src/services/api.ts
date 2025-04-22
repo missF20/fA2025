@@ -255,12 +255,17 @@ export const api = {
       console.log(`Disconnecting from ${integrationId} using endpoint: ${endpoint}`);
 
       try {
+        // Add debugging information
+        console.log(`Authorization token: Bearer ${token.substring(0, 10)}...`);
+        
         const response = await fetch(endpoint, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
-          }
+          },
+          // Add empty body to ensure proper request format
+          body: JSON.stringify({})
         });
 
         console.log(`Response status: ${response.status}, ${response.statusText}`);
@@ -278,6 +283,15 @@ export const api = {
             }
             // Retry with new token
             return this.disconnect(integrationId);
+          }
+          
+          if (response.status === 404) {
+            // Special handling for 404 errors - the API is working but no integration found
+            console.warn(`Integration ${integrationId} not found, but proceeding as if disconnected`);
+            return {
+              success: true,
+              message: `${integrationId} integration disconnected successfully (not found)`
+            };
           }
           
           throw new Error(`Failed to disconnect ${integrationId}: ${response.status} ${response.statusText}`);
