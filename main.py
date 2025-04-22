@@ -98,14 +98,41 @@ def direct_email_disconnect():
         
         if not db_user and is_dev and user_email == 'test@example.com':
             logger.info("Creating test user for development")
+            # Import werkzeug.security for password hashing
+            from werkzeug.security import generate_password_hash
+            
             # Create a test user with the dev UUID
-            db_user = User(
-                id=uuid.UUID('00000000-0000-0000-0000-000000000000'),
-                email='test@example.com',
-                username='Test User',
-                auth_id='00000000-0000-0000-0000-000000000000',
-                is_admin=True
-            )
+            try:
+                logger.info("Attempting to create test user in the database")
+                db_user = User(
+                    email='test@example.com',
+                    username='Test User',
+                    auth_id='00000000-0000-0000-0000-000000000000',
+                    is_admin=True,
+                    password_hash=generate_password_hash('test123'),
+                    date_created=datetime.now(),
+                    date_updated=datetime.now()
+                )
+                
+                # Print the user object for debugging
+                logger.info(f"Test user object created: {db_user}")
+                
+                # Try to add user to database session
+                db.session.add(db_user)
+                
+                # Check if user exists before committing
+                existing_user = User.query.filter_by(email='test@example.com').first()
+                logger.info(f"Existing user check: {existing_user}")
+                
+                db.session.commit()
+                logger.info("Test user committed to database")
+                
+                # Verify user was created
+                test_user = User.query.filter_by(email='test@example.com').first()
+                logger.info(f"Created user verified: {test_user}")
+            except Exception as e:
+                logger.error(f"Error creating test user: {str(e)}", exc_info=True)
+                # Fall through to normal flow
             db.session.add(db_user)
             db.session.commit()
         elif not db_user:
