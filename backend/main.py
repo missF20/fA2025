@@ -227,7 +227,7 @@ def index():
     try:
         return render_template('index.html')
     except Exception as e:
-        # For now, just return a simple HTML page directly
+        # For now, just return a simple HTML page directly with instructions
         logger.error(f"Error loading template: {str(e)}")
         return """
         <!DOCTYPE html>
@@ -257,19 +257,67 @@ def index():
                     padding-left: 15px;
                     margin: 20px 0;
                 }
+                .command {
+                    background-color: #f1f1f1;
+                    padding: 10px;
+                    border-radius: 4px;
+                    font-family: monospace;
+                    margin: 10px 0;
+                }
+                .steps {
+                    margin-top: 20px;
+                }
+                .steps ol {
+                    margin-left: 20px;
+                }
             </style>
         </head>
         <body>
             <div class="container">
                 <h1>Dana AI Platform</h1>
                 <div class="info">
-                    <p>The backend API is running successfully. Access the frontend at /frontend or use the API directly.</p>
+                    <p>The backend API is running successfully. The API endpoints are accessible.</p>
                     <p>API Status: <a href="/api/status">Check API Status</a></p>
+                </div>
+                
+                <div class="steps">
+                    <h2>To view the React frontend:</h2>
+                    <ol>
+                        <li>Open a new terminal in Replit</li>
+                        <li>Run the command below to start the frontend development server:</li>
+                        <div class="command">./run_frontend.sh</div>
+                        <li>Once started, click on the "Webview" button in Replit to view it</li>
+                        <li>Set the URL port to 5173 in the webview settings</li>
+                    </ol>
                 </div>
             </div>
         </body>
         </html>
         """
+
+@app.route('/frontend')
+def frontend_redirect():
+    """Redirect to frontend development server"""
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Redirecting to Frontend</title>
+        <meta http-equiv="refresh" content="0;url=http://localhost:5173">
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                text-align: center;
+                margin-top: 50px;
+            }
+        </style>
+    </head>
+    <body>
+        <h2>Redirecting to Frontend Development Server...</h2>
+        <p>If you are not redirected automatically, click <a href="http://localhost:5173">here</a>.</p>
+    </body>
+    </html>
+    """
 
 # Error handlers
 @app.errorhandler(404)
