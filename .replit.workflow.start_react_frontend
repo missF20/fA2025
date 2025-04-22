@@ -1,3 +1,1 @@
-run = "cd frontend && npm run dev -- --host 0.0.0.0"
-language = "nodejs"
-onBoot = false
+cd frontend && npm run dev
