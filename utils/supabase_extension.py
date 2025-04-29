@@ -5,11 +5,9 @@ This module provides extensions to the Supabase Python client to support direct 
 and other advanced features needed by the application.
 """
 import os
-import json
 import traceback
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-import psycopg2
 from psycopg2 import pool
 from psycopg2.extras import RealDictCursor
 

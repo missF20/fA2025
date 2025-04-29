@@ -20,7 +20,6 @@ from flask import jsonify, request
 from utils.auth import token_required, get_user_from_token, validate_token
 
 # Import debug endpoint
-import debug_endpoint
 
 # Add direct email disconnect endpoint
 # Test endpoint to connect email integration
@@ -31,7 +30,6 @@ def direct_email_connect():
     
     # Import database connection utilities
     from utils.db_connection import get_db_connection
-    import uuid
     import json
     
     # Handle CORS preflight requests without authentication
@@ -104,9 +102,8 @@ def direct_email_connect():
     
     # Non-dev token case
     # Import database models and auth utilities 
-    from models_db import User, IntegrationConfig
+    from models_db import User
     from app import db
-    from utils.auth import get_user_from_token, validate_token
     from flask import g
     
     # Validate the token
@@ -384,8 +381,6 @@ def direct_email_disconnect():
     
     # Import database connection utilities
     from utils.db_connection import get_db_connection
-    import uuid
-    import json
     
     # Handle CORS preflight requests without authentication
     if request.method == 'OPTIONS':
@@ -477,7 +472,6 @@ def direct_email_disconnect():
     # Import database models and auth utilities 
     from models_db import User, IntegrationConfig
     from app import db
-    from utils.auth import get_user_from_token, validate_token
     from flask import g
     
     # Validate the token
@@ -2284,7 +2278,6 @@ def direct_integrations_status():
     This endpoint bypasses ORM issues and uses direct SQL queries.
     """
     from enum import Enum
-    import json
     
     # Using same enum from routes for consistency
     class IntegrationType(Enum):
@@ -2438,7 +2431,7 @@ def super_direct_status():
             
             if email_result:
                 email_status = 'active'
-                logger.info(f"Found ACTIVE email integration")
+                logger.info("Found ACTIVE email integration")
         
         # Build response
         integrations = [
