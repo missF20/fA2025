@@ -28,10 +28,12 @@ def test_csrf_protection():
     data_json = json.dumps(data)
     
     # Send a POST request without a CSRF token - should be rejected
+    # Add -k flag to skip SSL certificate verification for self-signed certificates
     curl_command = [
         "curl", "-i", "-X", "POST",
         "-H", "Content-Type: application/json",
         "-d", data_json,
+        "-k",  # Skip SSL certificate verification
         url
     ]
     
@@ -60,8 +62,10 @@ def list_routes():
     List all available routes in the application to help troubleshoot
     """
     try:
-        # Get all routes using the /routes endpoint
-        with urllib.request.urlopen("http://localhost:5000/routes") as response:
+        # Get all routes using the /routes endpoint with SSL context to handle self-signed certs
+        import ssl
+        context = ssl._create_unverified_context()
+        with urllib.request.urlopen("https://localhost:5000/routes", context=context) as response:
             routes = json.loads(response.read())
             
         # Print payment config related routes
