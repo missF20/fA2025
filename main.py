@@ -2049,13 +2049,19 @@ def knowledge_stats_api():
         return jsonify({"error": "Knowledge stats API error", "details": str(e)}), 500
 
 
-# Import and add payment endpoints
+# Import payment endpoints and secure cookie configuration
 from add_payment_endpoints import add_payment_endpoints
+from secure_cookies import configure_secure_cookies
 
 # Add payment endpoints directly to the app
 app = add_payment_endpoints(app)
+
+# Configure secure cookies
+app = configure_secure_cookies(app)
+
 logger = logging.getLogger(__name__)
 logger.info("Payment configuration endpoints added to the application")
+logger.info("Secure cookie configuration applied to the application")
 
 if __name__ == "__main__":
     # Start the main application using SocketIO with HTTPS
