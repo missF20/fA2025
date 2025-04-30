@@ -17,6 +17,15 @@ from flask_wtf.csrf import CSRFProtect
 # from flask_limiter.util import get_remote_address
 from sqlalchemy.orm import DeclarativeBase
 
+# Import API protection utilities
+try:
+    from utils.api_protection import register_security_middleware
+except ImportError:
+    # Fallback if the module is not available
+    def register_security_middleware(app):
+        """Fallback for missing API protection module"""
+        pass
+
 # Import custom environment and logging modules
 try:
     from utils.environment import setup_environment, get_config, is_production
@@ -513,11 +522,11 @@ def init_app():
         migration_result = init_db_migrations()
         logger.info("Database migration system initialized")
     except ImportError as e:
-        logger.warning(f"Database migration system not available: {str(e)}
+        logger.warning(f"Database migration system not available: {str(e)}")
+    
     # Initialize API protection
     register_security_middleware(app)
     logger.info("API protection initialized")
-")
     
     # Register blueprints
     register_blueprints()
