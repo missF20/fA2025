@@ -59,6 +59,7 @@
         </div>
         
         <form id="config-form" class="mt-4">
+            <input type="hidden" name="csrf_token" id="csrf_token" value="{{ csrf_token() }}">
             <div class="mb-3">
                 <label for="consumerKey" class="form-label">PesaPal Consumer Key</label>
                 <input type="text" class="form-control key-input" id="consumerKey" name="consumer_key" 
@@ -145,14 +146,16 @@
             const formData = {
                 consumer_key: document.getElementById('consumerKey').value,
                 consumer_secret: document.getElementById('consumerSecret').value,
-                ipn_url: document.getElementById('ipnUrl').value
+                ipn_url: document.getElementById('ipnUrl').value,
+                csrf_token: document.getElementById('csrf_token').value
             };
             
             fetch('/api/payment-config/save', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + getAuthToken()
+                    'Authorization': 'Bearer ' + getAuthToken(),
+                    'X-CSRFToken': document.getElementById('csrf_token').value
                 },
                 body: JSON.stringify(formData)
             })
@@ -176,14 +179,16 @@
             const formData = {
                 consumer_key: document.getElementById('consumerKey').value,
                 consumer_secret: document.getElementById('consumerSecret').value,
-                ipn_url: document.getElementById('ipnUrl').value
+                ipn_url: document.getElementById('ipnUrl').value,
+                csrf_token: document.getElementById('csrf_token').value
             };
             
             fetch('/api/payment-config/test-credentials', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + getAuthToken()
+                    'Authorization': 'Bearer ' + getAuthToken(),
+                    'X-CSRFToken': document.getElementById('csrf_token').value
                 },
                 body: JSON.stringify(formData)
             })

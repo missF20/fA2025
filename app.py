@@ -11,6 +11,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_socketio import SocketIO
 from flask_cors import CORS
+from flask_wtf.csrf import CSRFProtect
 # Temporarily commented out due to installation issues
 # from flask_limiter import Limiter
 # from flask_limiter.util import get_remote_address
@@ -53,13 +54,17 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
 # Initialize extensions
 db.init_app(app)
 
+# Initialize CSRF protection
+csrf = CSRFProtect()
+csrf.init_app(app)
+
 # Initialize login manager
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = "auth.login"
 
 # Initialize CORS
-CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": "*", "allow_headers": ["Content-Type", "Authorization"]}})
+CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": "*", "allow_headers": ["Content-Type", "Authorization", "X-CSRFToken"]}})
 
 # Initialize Flask-SocketIO
 socketio = SocketIO(app, cors_allowed_origins="*")
