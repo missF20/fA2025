@@ -106,6 +106,7 @@
             <h3><span class="step-number">3</span> Configure Your Application</h3>
             <p>Enter your PesaPal API credentials below:</p>
             <form action="/admin/save-payment-config" method="post" class="mt-3">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="mb-3">
                     <label for="consumerKey" class="form-label">Consumer Key</label>
                     <input type="text" class="form-control key-input" id="consumerKey" name="consumer_key" 
