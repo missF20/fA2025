@@ -70,18 +70,39 @@ def run_dependency_manager(command, args=None):
         }
 
 def send_notification(subject, message):
-    """Send a notification about dependency updates (placeholder)"""
-    # Placeholder - in a real system, this would send an email, Slack message, etc.
-    logger.info(f"NOTIFICATION: {subject}")
-    logger.info(message)
-    
-    # Save notification to a file for reference
-    notification_dir = Path("notifications")
-    notification_dir.mkdir(exist_ok=True)
-    
-    with open(notification_dir / f"dependency_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt", "w") as f:
-        f.write(f"Subject: {subject}\n\n")
-        f.write(message)
+    """Send a notification about dependency updates"""
+    try:
+        # Import notification system
+        from utils.notifications import save_notification_to_file, send_email_notification, send_slack_notification
+        
+        # Save to file (always works)
+        save_notification_to_file(subject, message)
+        
+        # Try to send email
+        try:
+            send_email_notification(subject, f"<pre>{message}</pre>", message)
+        except Exception as e:
+            logger.error(f"Failed to send email notification: {str(e)}")
+        
+        # Try to send Slack message
+        try:
+            send_slack_notification(subject, message)
+        except Exception as e:
+            logger.error(f"Failed to send Slack notification: {str(e)}")
+            
+        logger.info(f"Notification sent: {subject}")
+    except ImportError:
+        # Fallback if notification module is not available
+        logger.info(f"NOTIFICATION: {subject}")
+        logger.info(message)
+        
+        # Save notification to a file for reference
+        notification_dir = Path("notifications")
+        notification_dir.mkdir(exist_ok=True)
+        
+        with open(notification_dir / f"dependency_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt", "w") as f:
+            f.write(f"Subject: {subject}\n\n")
+            f.write(message)
 
 def parse_dependency_report(report_path):
     """Parse a dependency report JSON file"""

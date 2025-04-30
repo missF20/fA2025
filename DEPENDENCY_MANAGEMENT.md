@@ -55,10 +55,14 @@ This document outlines the dependency management strategy for the Dana AI platfo
 
 ## Dependency Management Tools
 
-The Dana AI platform includes two tools for managing dependencies:
+The Dana AI platform includes several tools for managing dependencies:
 
 1. **check_dependencies.py**: A simple script to check for outdated packages and vulnerabilities
 2. **manage_dependencies.py**: A comprehensive dependency management utility
+3. **scheduled_dependency_update.py**: Automated dependency checks and updates on a schedule
+4. **configure_dependency_notifications.py**: Configure notification settings for dependency issues
+5. **generate_dependency_changelog.py**: Generate changelog of dependency updates
+6. **generate_dependency_tests.py**: Generate tests for updated dependencies
 
 ### Using manage_dependencies.py
 
@@ -83,6 +87,52 @@ The dependency management utility provides four commands:
    ```
    python manage_dependencies.py update-requirements
    ```
+
+### Automated Dependency Checks
+
+The scheduled dependency update script can be run in three modes:
+
+1. **Daily**: Check for security vulnerabilities
+   ```
+   python scheduled_dependency_update.py --mode=daily
+   ```
+
+2. **Weekly**: Apply security updates
+   ```
+   python scheduled_dependency_update.py --mode=weekly
+   ```
+
+3. **Monthly**: Generate comprehensive dependency report
+   ```
+   python scheduled_dependency_update.py --mode=monthly
+   ```
+
+### Dependency Notifications
+
+The platform includes a comprehensive notification system for dependency vulnerabilities:
+
+1. **Email Notifications**: Get alerts via email when critical vulnerabilities are detected
+2. **Slack Notifications**: Receive alerts in Slack for security issues
+3. **File-based Notifications**: All alerts are saved to the filesystem for audit purposes
+
+Configure notifications with:
+```
+python configure_dependency_notifications.py
+```
+
+### Dependency Changelog
+
+Generate a changelog of dependency updates with:
+```
+python generate_dependency_changelog.py --days=30 --output=dependency_changelog.md
+```
+
+### Dependency Tests
+
+Generate tests for updated dependencies with:
+```
+python generate_dependency_tests.py --output=tests/dependencies
+```
 
 ## Best Practices for Dependency Management
 
@@ -109,33 +159,97 @@ The dependency management utility provides four commands:
 
 7. **Security Alerts**: Configure security alert systems for critical dependencies
 
+8. **Changelog**: Maintain a changelog of dependency updates for audit purposes
+
+9. **Automated Tests**: Generate and run tests for updated dependencies
+
 ## Update Procedure
 
 1. Create a backup of the current environment
 2. Run the dependency scan to identify needed updates
+   ```
+   python manage_dependencies.py scan
+   ```
 3. Update high-priority dependencies first
-4. Test the application thoroughly
-5. Update remaining dependencies
-6. Final testing
-7. Document the update in release notes
+   ```
+   python manage_dependencies.py update --priority high
+   ```
+4. Generate tests for updated dependencies
+   ```
+   python generate_dependency_tests.py
+   ```
+5. Run the generated tests to verify functionality
+   ```
+   python tests/dependencies/run_python_tests.py
+   ```
+6. Update remaining dependencies if tests pass
+   ```
+   python manage_dependencies.py update --priority all
+   ```
+7. Run the tests again to verify all functionality
+8. Generate a changelog of the updates
+   ```
+   python generate_dependency_changelog.py
+   ```
+9. Document the update in release notes
 
 ## Vulnerability Management
 
-The dependency management utility checks for known vulnerabilities in packages. When vulnerabilities are identified:
+The dependency management utility checks for known vulnerabilities in packages and automatically sends notifications. When vulnerabilities are identified:
 
 1. Verify if the vulnerability affects the specific usage in the Dana AI platform
 2. Update the affected package immediately if exploitable
+   ```
+   python manage_dependencies.py update --packages=vulnerable_package
+   ```
 3. Consider implementing mitigations if immediate update is not possible
-4. Document any known vulnerabilities and mitigations
+4. Document any known vulnerabilities and mitigations in the changelog
+   ```
+   python generate_dependency_changelog.py
+   ```
 
 ## Automated Dependency Management
 
-Consider setting up scheduled tasks to:
+Set up scheduled tasks to automate dependency management:
 
-1. Run weekly dependency scans
-2. Generate monthly dependency reports
-3. Apply security updates automatically (with testing)
-4. Notify administrators of critical vulnerabilities
+1. **Daily Vulnerability Checks**:
+   ```
+   0 8 * * * python /path/to/scheduled_dependency_update.py --mode=daily
+   ```
+
+2. **Weekly Security Updates**:
+   ```
+   0 7 * * 1 python /path/to/scheduled_dependency_update.py --mode=weekly
+   ```
+
+3. **Monthly Dependency Reports**:
+   ```
+   0 6 1 * * python /path/to/scheduled_dependency_update.py --mode=monthly
+   ```
+
+You can set up these schedules automatically using:
+```
+python configure_dependency_notifications.py --cron
+```
+
+## Configuration for Notifications
+
+Configure email and Slack notifications for security vulnerabilities:
+
+1. Setup email notifications:
+   ```
+   python configure_dependency_notifications.py --email
+   ```
+
+2. Setup Slack notifications:
+   ```
+   python configure_dependency_notifications.py --slack
+   ```
+
+3. Test notification configuration:
+   ```
+   python configure_dependency_notifications.py --test
+   ```
 
 ## Contact
 

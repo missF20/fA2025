@@ -264,6 +264,24 @@ class DependencyManager:
                 except FileNotFoundError:
                     logger.warning("npm not found, skipping Node.js vulnerability check")
             
+            # Send notifications for vulnerabilities if any found
+            if self.vulnerabilities:
+                try:
+                    # Try to import and use the notification system
+                    try:
+                        from utils.notifications import notify_vulnerabilities
+                        
+                        # Get environment name
+                        env = os.environ.get('FLASK_ENV', 'development')
+                        
+                        # Send notification
+                        notify_vulnerabilities(self.vulnerabilities, environment=env)
+                        logger.info("Sent vulnerability notifications")
+                    except ImportError:
+                        logger.warning("Notification system not available, skipping vulnerability notifications")
+                except Exception as e:
+                    logger.error(f"Failed to send vulnerability notifications: {str(e)}")
+            
             logger.info(f"Found {len(self.vulnerabilities)} packages with vulnerabilities")
             return True
         except Exception as e:
