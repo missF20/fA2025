@@ -513,7 +513,11 @@ def init_app():
         migration_result = init_db_migrations()
         logger.info("Database migration system initialized")
     except ImportError as e:
-        logger.warning(f"Database migration system not available: {str(e)}")
+        logger.warning(f"Database migration system not available: {str(e)}
+    # Initialize API protection
+    register_security_middleware(app)
+    logger.info("API protection initialized")
+")
     
     # Register blueprints
     register_blueprints()
