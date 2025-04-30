@@ -6,7 +6,7 @@ Main application module for the Dana AI Platform.
 
 import os
 import logging
-from flask import Flask, jsonify, g, render_template, request
+from flask import Flask, jsonify, render_template, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_socketio import SocketIO
@@ -242,7 +242,6 @@ def init_db():
     """Initialize the database"""
     with app.app_context():
         # Import models here to ensure they are registered with SQLAlchemy
-        import models_db
         
         # Don't automatically create tables, use migrations instead
         # db.create_all()
