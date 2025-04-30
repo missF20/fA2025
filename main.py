@@ -2049,21 +2049,36 @@ def knowledge_stats_api():
         return jsonify({"error": "Knowledge stats API error", "details": str(e)}), 500
 
 
+# Import and add payment endpoints
+from add_payment_endpoints import add_payment_endpoints
+
+# Add payment endpoints directly to the app
+app = add_payment_endpoints(app)
+logger = logging.getLogger(__name__)
+logger.info("Payment configuration endpoints added to the application")
+
 if __name__ == "__main__":
-    # Start the main application using SocketIO
-    logger.info("Starting main Dana AI Platform on port 5000 with SocketIO support...")
+    # Start the main application using SocketIO with HTTPS
+    logger.info("Starting main Dana AI Platform on port 5000 with SocketIO support and HTTPS...")
     try:
+        # Configure SocketIO with SSL/HTTPS support
         socketio.run(
             app, 
             host="0.0.0.0", 
             port=5000, 
             debug=True,
-            allow_unsafe_werkzeug=True  # Required for newer versions of Flask-SocketIO
+            allow_unsafe_werkzeug=True,  # Required for newer versions of Flask-SocketIO
+            ssl_context='adhoc'  # Use adhoc SSL certificate for HTTPS
         )
     except TypeError as e:
-        # Fallback for older Flask-SocketIO versions
+        # Fallback for older Flask-SocketIO versions without SSL support
         logger.warning(f"SocketIO error with allow_unsafe_werkzeug, trying without: {e}")
-        socketio.run(app, host="0.0.0.0", port=5000, debug=True)
+        try:
+            socketio.run(app, host="0.0.0.0", port=5000, debug=True, ssl_context='adhoc')
+        except TypeError as e:
+            # Fallback without SSL if necessary
+            logger.warning(f"SocketIO error with SSL, trying without: {e}")
+            socketio.run(app, host="0.0.0.0", port=5000, debug=True)
 # Direct email disconnection endpoint that doesn't rely on complex auth
 @app.route('/api/direct/integrations/email/disconnect', methods=['POST', 'OPTIONS'])
 def direct_fix_email_disconnect():

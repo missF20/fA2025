@@ -16,7 +16,8 @@ def test_csrf_protection():
     print("Testing CSRF protection...")
     
     # Try to submit a payment configuration without a CSRF token
-    url = "http://localhost:5000/api/payment-config/save"
+    # Note: Using HTTPS for secure connection
+    url = "https://localhost:5000/api/payment-config/save"
     data = {
         "consumer_key": "test_key",
         "consumer_secret": "test_secret",
