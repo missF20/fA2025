@@ -6,6 +6,7 @@ This script tests whether CSRF protection is properly working.
 
 import subprocess
 import json
+import urllib.request
 
 def test_csrf_protection():
     """
@@ -53,5 +54,29 @@ def test_csrf_protection():
         print(f"Response code: {status_code}")
         print(f"Response body:\n{result.stdout}")
 
+def list_routes():
+    """
+    List all available routes in the application to help troubleshoot
+    """
+    try:
+        # Get all routes using the /routes endpoint
+        with urllib.request.urlopen("http://localhost:5000/routes") as response:
+            routes = json.loads(response.read())
+            
+        # Print payment config related routes
+        print("\nAvailable payment config routes:")
+        for route in routes:
+            if "payment" in route["path"].lower():
+                print(f"  {route['path']} - {route['methods']}")
+                
+        return routes
+    except Exception as e:
+        print(f"Error fetching routes: {str(e)}")
+        return []
+
 if __name__ == "__main__":
+    # First list routes to check if our endpoint exists
+    list_routes()
+    
+    # Then test CSRF protection
     test_csrf_protection()
