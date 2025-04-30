@@ -299,9 +299,13 @@ def register_blueprints():
         
         # Register payments blueprint - which depends on requests
         try:
+            # Register payment-related blueprints
             from routes.payments import payments_bp
+            from routes.payment_config import payment_config_bp
             app.register_blueprint(payments_bp)
+            app.register_blueprint(payment_config_bp)
             logger.info("Payments blueprint registered successfully")
+            logger.info("Payment configuration blueprint registered successfully")
         except ImportError as e:
             logger.warning(f"Could not register payments blueprint: {e}")
         

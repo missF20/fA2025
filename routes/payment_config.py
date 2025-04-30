@@ -11,6 +11,8 @@ import base64
 import hmac
 import hashlib
 from flask import Blueprint, request, jsonify, current_app
+from flask_wtf.csrf import validate_csrf
+from werkzeug.exceptions import Forbidden
 from utils.auth import require_admin, get_user_from_token
 
 # Configure logging
@@ -56,6 +58,18 @@ def save_config():
         
         if not data:
             return jsonify({'error': 'No data provided'}), 400
+            
+        # Validate CSRF token
+        csrf_token = request.headers.get('X-CSRFToken') or data.get('csrf_token')
+        if not csrf_token:
+            logger.warning("CSRF token missing in payment configuration request")
+            return jsonify({'error': 'Missing CSRF token', 'code': 'csrf_missing'}), 403
+            
+        try:
+            validate_csrf(csrf_token)
+        except Forbidden:
+            logger.warning("Invalid CSRF token provided in payment configuration request")
+            return jsonify({'error': 'Invalid CSRF token', 'code': 'csrf_invalid'}), 403
         
         # Validate required fields
         required_fields = ['consumer_key', 'consumer_secret', 'ipn_url']
@@ -119,6 +133,18 @@ def test_credentials():
         
         if not data:
             return jsonify({'error': 'No data provided'}), 400
+            
+        # Validate CSRF token
+        csrf_token = request.headers.get('X-CSRFToken') or data.get('csrf_token')
+        if not csrf_token:
+            logger.warning("CSRF token missing in payment test request")
+            return jsonify({'error': 'Missing CSRF token', 'code': 'csrf_missing'}), 403
+            
+        try:
+            validate_csrf(csrf_token)
+        except Forbidden:
+            logger.warning("Invalid CSRF token provided in payment test request")
+            return jsonify({'error': 'Invalid CSRF token', 'code': 'csrf_invalid'}), 403
         
         # Temporarily set environment variables for testing
         original_key = os.environ.get('PESAPAL_CONSUMER_KEY')
