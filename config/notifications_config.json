@@ -1,0 +1,28 @@
+{
+  "email": {
+    "enabled": false,
+    "smtp_host": "smtp.example.com",
+    "smtp_port": 587,
+    "smtp_user": "",
+    "smtp_password": "",
+    "from_email": "noreply@dana-ai.com",
+    "to_emails": [
+      "admin@dana-ai.com"
+    ],
+    "use_tls": true
+  },
+  "slack": {
+    "enabled": true,
+    "webhook_url": "AiU7H3Kdepc13tBEILdASM5WIBmm1SSS",
+    "channel": "#security-alerts"
+  },
+  "filesystem": {
+    "enabled": true,
+    "notification_dir": "notifications"
+  },
+  "severity_thresholds": {
+    "email": "high",
+    "slack": "medium",
+    "filesystem": "low"
+  }
+}

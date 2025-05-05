@@ -106,6 +106,22 @@ def index():
     """Web UI homepage"""
     return render_template("index.html")
 
+# Additional navlink routes
+@app.route('/platform', methods=['GET'])
+def platform_features():
+    """Platform features page"""
+    return render_template('platform_features.html')
+
+@app.route('/subscriptions', methods=['GET'])
+def subscription_management():
+    """Subscription management page"""
+    return render_template('subscription_management.html')
+
+@app.route('/dashboard', methods=['GET'])
+def complete_dashboard():
+    """Complete dashboard experience"""
+    return render_template('dashboard.html')
+
 @app.route("/frontend")
 def frontend():
     """Frontend access instructions"""

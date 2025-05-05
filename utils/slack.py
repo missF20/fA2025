@@ -162,6 +162,9 @@ def post_message(message: str, thread_ts: Optional[str] = None, blocks: Optional
 
 def get_channel_history(limit=100, oldest=None, latest=None) -> Optional[List[Dict[str, Any]]]:
     """
+    # Constants for handling permission errors
+    SLACK_HISTORY_PERMISSION_ERROR = "missing_scope"
+    
     Retrieve message history from the configured Slack channel.
 
     Args:
@@ -215,6 +218,26 @@ def get_channel_history(limit=100, oldest=None, latest=None) -> Optional[List[Di
 
     except SlackApiError as e:
         print(f"Error fetching channel history: {str(e)}")
+        error_str = str(e)
+        
+        # Check for permission error
+        if SLACK_HISTORY_PERMISSION_ERROR in error_str:
+            # Return placeholder data for missing permissions
+            import logging
+            logging = logging.getLogger("main")
+            logging.warning("Returning placeholder data for Slack history due to permission issues")
+            return [
+                {
+                    "text": "Slack history API needs additional permissions. Contact administrator to update the Slack app permissions.",
+                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "ts": str(datetime.now().timestamp()),
+                    "user": "system",
+                    "bot_id": "",
+                    "thread_ts": None,
+                    "reply_count": 0,
+                    "reactions": []
+                }
+            ]
         return None
 
 
