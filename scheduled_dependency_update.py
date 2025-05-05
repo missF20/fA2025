@@ -1,270 +1,468 @@
 #!/usr/bin/env python
 """
-Scheduled Dependency Update Script
+Scheduled Dependency Update
 
-This script performs automated dependency checks and updates based on a schedule:
-- Daily: Check for high-priority security vulnerabilities
-- Weekly: Apply security updates
-- Monthly: Generate comprehensive dependency report
+This script performs scheduled dependency checks and updates.
+It's designed to be run by a cron job or similar scheduler.
 
 Usage:
-    python scheduled_dependency_update.py [--mode=daily|weekly|monthly]
+    python scheduled_dependency_update.py --mode=[daily|weekly|monthly]
 
-This script is designed to be run by a scheduling system like cron.
+Modes:
+    daily: Check for security vulnerabilities
+    weekly: Apply security updates
+    monthly: Generate dependency report and apply all updates
+
+Environment variables:
+    DEPENDENCY_ENV: Environment name (default: development)
 """
 
 import argparse
+import importlib
 import json
 import logging
 import os
 import subprocess
 import sys
-import time
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 
 # Configure logging
-log_dir = Path("logs")
-log_dir.mkdir(exist_ok=True)
-
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler(log_dir / f"dependency_update_{datetime.now().strftime('%Y%m%d')}.log")
+        logging.FileHandler("dependency_management.log"),
+        logging.StreamHandler()
     ]
 )
 logger = logging.getLogger(__name__)
 
-def run_dependency_manager(command, args=None):
-    """Run the dependency manager script with specified command and args"""
-    cmd = [sys.executable, "manage_dependencies.py", command]
-    if args:
-        cmd.extend(args)
+def run_command(cmd, capture_output=True):
+    """
+    Run a command and return the output
     
-    logger.info(f"Running dependency manager: {' '.join(cmd)}")
+    Args:
+        cmd: Command to run (list of strings)
+        capture_output: Whether to capture and return output
+        
+    Returns:
+        tuple: (returncode, stdout, stderr)
+    """
+    logger.info(f"Running command: {' '.join(cmd)}")
     
     try:
-        result = subprocess.run(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            check=True
-        )
-        logger.info(f"Dependency manager completed successfully: {command}")
-        return {
-            'success': True,
-            'stdout': result.stdout,
-            'stderr': result.stderr
-        }
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Dependency manager failed: {e}")
-        logger.error(f"stdout: {e.stdout}")
-        logger.error(f"stderr: {e.stderr}")
-        return {
-            'success': False,
-            'stdout': e.stdout,
-            'stderr': e.stderr
-        }
-
-def send_notification(subject, message):
-    """Send a notification about dependency updates"""
-    try:
-        # Import notification system
-        from utils.notifications import save_notification_to_file, send_email_notification, send_slack_notification
-        
-        # Save to file (always works)
-        save_notification_to_file(subject, message)
-        
-        # Try to send email
-        try:
-            send_email_notification(subject, f"<pre>{message}</pre>", message)
-        except Exception as e:
-            logger.error(f"Failed to send email notification: {str(e)}")
-        
-        # Try to send Slack message
-        try:
-            send_slack_notification(subject, message)
-        except Exception as e:
-            logger.error(f"Failed to send Slack notification: {str(e)}")
-            
-        logger.info(f"Notification sent: {subject}")
-    except ImportError:
-        # Fallback if notification module is not available
-        logger.info(f"NOTIFICATION: {subject}")
-        logger.info(message)
-        
-        # Save notification to a file for reference
-        notification_dir = Path("notifications")
-        notification_dir.mkdir(exist_ok=True)
-        
-        with open(notification_dir / f"dependency_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt", "w") as f:
-            f.write(f"Subject: {subject}\n\n")
-            f.write(message)
-
-def parse_dependency_report(report_path):
-    """Parse a dependency report JSON file"""
-    try:
-        with open(report_path, 'r') as f:
-            return json.load(f)
+        if capture_output:
+            result = subprocess.run(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                check=False
+            )
+            return result.returncode, result.stdout, result.stderr
+        else:
+            result = subprocess.run(cmd, check=False)
+            return result.returncode, None, None
     except Exception as e:
-        logger.error(f"Failed to parse dependency report: {e}")
-        return None
+        logger.error(f"Error running command: {str(e)}")
+        return 1, "", str(e)
 
-def run_daily_check():
-    """Run daily security vulnerability check"""
-    logger.info("Running daily security vulnerability check")
+def send_notifications(vulnerabilities, packages_updated=None, environment='development'):
+    """
+    Send notifications about vulnerabilities and updates
     
-    # Run dependency scan
-    result = run_dependency_manager("scan")
+    Args:
+        vulnerabilities: Dictionary of vulnerabilities
+        packages_updated: List of updated packages
+        environment: Environment name
+    """
+    try:
+        # Import notifications module
+        try:
+            from utils.notifications import notify_vulnerabilities, notify_dependency_update
+        except ImportError:
+            logger.warning("Could not import notification module")
+            return
+        
+        # Send vulnerability notifications
+        if vulnerabilities:
+            logger.info(f"Sending notifications for {len(vulnerabilities)} vulnerable packages")
+            notify_vulnerabilities(vulnerabilities, environment=environment)
+        
+        # Send update notifications
+        if packages_updated:
+            logger.info(f"Sending notifications for {len(packages_updated)} updated packages")
+            notify_dependency_update(packages_updated, environment=environment)
     
-    if result['success']:
-        # Look for high-priority vulnerabilities
-        high_priority_updates = []
-        lines = result['stdout'].split('\n')
-        
-        in_high_priority_section = False
-        for line in lines:
-            if "=== HIGH PRIORITY UPDATES" in line:
-                in_high_priority_section = True
-                continue
-            elif "=== MEDIUM PRIORITY UPDATES" in line:
-                in_high_priority_section = False
-                continue
-            
-            if in_high_priority_section and line.startswith("- "):
-                high_priority_updates.append(line)
-        
-        # Generate notification if there are high-priority updates
-        if high_priority_updates:
-            subject = f"[SECURITY] {len(high_priority_updates)} High-Priority Dependencies Need Updates"
-            message = "The following high-priority security updates are required:\n\n"
-            message += "\n".join(high_priority_updates)
-            message += "\n\nPlease run the weekly update as soon as possible:\n"
-            message += "python scheduled_dependency_update.py --mode=weekly"
-            
-            send_notification(subject, message)
-            logger.warning(f"Found {len(high_priority_updates)} high-priority updates")
-        else:
-            logger.info("No high-priority updates required")
-    else:
-        # Notification about scan failure
-        subject = "[ERROR] Daily Dependency Scan Failed"
-        message = "The daily dependency scan failed. Please check the logs for details."
-        send_notification(subject, message)
+    except Exception as e:
+        logger.error(f"Error sending notifications: {str(e)}")
 
-def run_weekly_update():
-    """Run weekly security updates"""
-    logger.info("Running weekly security updates")
+def check_vulnerabilities(environment='development'):
+    """
+    Check for security vulnerabilities
     
-    # Run security updates (high priority only)
-    result = run_dependency_manager("update", ["--priority", "high"])
-    
-    if result['success']:
-        # Check if any packages were updated
-        updated_packages = []
-        lines = result['stdout'].split('\n')
+    Args:
+        environment: Environment name
         
-        for line in lines:
-            if "successfully installed" in line.lower():
-                packages = line.split("Successfully installed ")[-1].strip()
-                updated_packages.extend([p.strip() for p in packages.split()])
-        
-        # Send notification
-        if updated_packages:
-            subject = f"[UPDATED] {len(updated_packages)} Packages Updated in Weekly Security Update"
-            message = "The following packages were updated in the weekly security update:\n\n"
-            message += ", ".join(updated_packages)
-            message += "\n\nPlease verify that the application is functioning correctly."
-            
-            send_notification(subject, message)
-            logger.info(f"Updated {len(updated_packages)} packages")
-        else:
-            logger.info("No packages needed updates")
-    else:
-        # Notification about update failure
-        subject = "[ERROR] Weekly Dependency Update Failed"
-        message = "The weekly dependency update failed. Please check the logs for details."
-        send_notification(subject, message)
-
-def run_monthly_report():
-    """Run monthly comprehensive dependency report"""
-    logger.info("Running monthly comprehensive dependency report")
+    Returns:
+        dict: Vulnerabilities found
+    """
+    logger.info("Checking for security vulnerabilities")
     
-    # Run full dependency report
-    result = run_dependency_manager("report")
+    vulnerabilities = {}
     
-    if result['success']:
-        # Find the generated report
-        report_files = list(Path(".").glob("dependency_report_*.json"))
-        if report_files:
-            latest_report = max(report_files, key=lambda p: p.stat().st_mtime)
-            
-            # Parse the report
-            report_data = parse_dependency_report(latest_report)
-            
-            if report_data:
-                # Generate comprehensive notification
-                stats = report_data.get('stats', {})
+    try:
+        # Try to import manage_dependencies module
+        try:
+            manage_dependencies_spec = importlib.util.find_spec('manage_dependencies')
+            if manage_dependencies_spec:
+                manage_dependencies = importlib.import_module('manage_dependencies')
                 
-                subject = f"[REPORT] Monthly Dependency Health Report"
-                message = "Monthly Dependency Health Report\n"
-                message += f"Generated at: {stats.get('timestamp', datetime.now().strftime('%Y-%m-%d %H:%M:%S'))}\n\n"
-                
-                message += f"Python packages: {stats.get('python_total', 0)} installed, {stats.get('python_outdated', 0)} outdated\n"
-                message += f"Node.js packages: {stats.get('node_total', 0)} installed, {stats.get('node_outdated', 0)} outdated\n"
-                message += f"Vulnerabilities found: {stats.get('vulnerabilities', 0)}\n\n"
-                
-                message += f"High priority updates: {stats.get('high_priority_updates', 0)}\n"
-                message += f"Medium priority updates: {stats.get('medium_priority_updates', 0)}\n"
-                message += f"Low priority updates: {stats.get('low_priority_updates', 0)}\n\n"
-                
-                message += "Please review the full report for details and plan updates accordingly.\n"
-                message += f"Report location: {latest_report}\n\n"
-                
-                message += "Recommended actions:\n"
-                if stats.get('high_priority_updates', 0) > 0:
-                    message += "- Run security updates immediately: python scheduled_dependency_update.py --mode=weekly\n"
-                if stats.get('medium_priority_updates', 0) > 0:
-                    message += "- Schedule medium priority updates during the next maintenance window\n"
-                
-                send_notification(subject, message)
-                logger.info(f"Generated monthly report: {latest_report}")
+                # Create dependency manager
+                if hasattr(manage_dependencies, 'DependencyManager'):
+                    manager = manage_dependencies.DependencyManager()
+                    
+                    # Scan for outdated packages and vulnerabilities
+                    if hasattr(manager, 'scan'):
+                        manager.scan()
+                        vulnerabilities = manager.vulnerabilities
+                    else:
+                        logger.warning("DependencyManager does not have scan method")
+                else:
+                    logger.warning("manage_dependencies does not have DependencyManager class")
             else:
-                logger.error("Failed to parse dependency report")
+                logger.warning("manage_dependencies module not found")
+        except ImportError:
+            logger.warning("Could not import manage_dependencies module")
+        
+        # If we couldn't use the DependencyManager, run a direct security check
+        if not vulnerabilities:
+            logger.info("Falling back to direct security check")
+            
+            # Check if safety is installed
+            returncode, _, _ = run_command(['pip', 'show', 'safety'])
+            if returncode == 0:
+                # Run safety check
+                returncode, stdout, stderr = run_command(['safety', 'check', '--json'])
+                if returncode == 0 and stdout:
+                    try:
+                        safety_results = json.loads(stdout)
+                        for vuln in safety_results.get('vulnerabilities', []):
+                            package = vuln.get('package_name')
+                            if package and package not in vulnerabilities:
+                                vulnerabilities[package] = []
+                            
+                            vulnerabilities[package].append({
+                                'severity': vuln.get('severity', 'unknown'),
+                                'description': vuln.get('advisory', 'No description available'),
+                                'current_version': vuln.get('installed_version', 'unknown'),
+                                'fixed_in': vuln.get('fixed_in', 'unknown')
+                            })
+                    except json.JSONDecodeError:
+                        logger.warning("Failed to parse safety output")
+            else:
+                logger.warning("Safety not installed, skipping direct security check")
+        
+        # Send notifications if vulnerabilities found
+        if vulnerabilities:
+            logger.info(f"Found {len(vulnerabilities)} packages with vulnerabilities")
+            send_notifications(vulnerabilities, environment=environment)
+            
+            # Save vulnerabilities to file
+            report_file = f"vulnerability_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            with open(report_file, 'w') as f:
+                json.dump({
+                    'timestamp': datetime.now().isoformat(),
+                    'environment': environment,
+                    'vulnerabilities': vulnerabilities
+                }, f, indent=2)
+            
+            logger.info(f"Saved vulnerability report to {report_file}")
         else:
-            logger.error("No dependency report file found")
-    else:
-        # Notification about report failure
-        subject = "[ERROR] Monthly Dependency Report Failed"
-        message = "The monthly dependency report failed. Please check the logs for details."
-        send_notification(subject, message)
+            logger.info("No vulnerabilities found")
+        
+        return vulnerabilities
+    
+    except Exception as e:
+        logger.error(f"Error checking vulnerabilities: {str(e)}")
+        return {}
+
+def update_packages(priority='high', packages=None, environment='development'):
+    """
+    Update packages
+    
+    Args:
+        priority: Update priority (high, medium, all)
+        packages: Specific packages to update (optional)
+        environment: Environment name
+        
+    Returns:
+        list: Updated packages
+    """
+    logger.info(f"Updating packages with priority: {priority}")
+    
+    updated_packages = []
+    
+    try:
+        # Try to import manage_dependencies module
+        try:
+            manage_dependencies_spec = importlib.util.find_spec('manage_dependencies')
+            if manage_dependencies_spec:
+                manage_dependencies = importlib.import_module('manage_dependencies')
+                
+                # Create dependency manager
+                if hasattr(manage_dependencies, 'DependencyManager'):
+                    manager = manage_dependencies.DependencyManager()
+                    
+                    # Scan for outdated packages and vulnerabilities
+                    if hasattr(manager, 'scan'):
+                        manager.scan()
+                    
+                    # Update packages
+                    if hasattr(manager, 'update'):
+                        if packages:
+                            result = manager.update(packages=packages)
+                        else:
+                            result = manager.update(priority=priority)
+                        
+                        if result:
+                            updated_packages = result.get('updated_packages', [])
+                    else:
+                        logger.warning("DependencyManager does not have update method")
+                else:
+                    logger.warning("manage_dependencies does not have DependencyManager class")
+            else:
+                logger.warning("manage_dependencies module not found")
+        except ImportError:
+            logger.warning("Could not import manage_dependencies module")
+        
+        # If we couldn't use the DependencyManager, run a direct update
+        if not updated_packages:
+            logger.info("Falling back to direct package update")
+            
+            if packages:
+                # Update specific packages
+                package_list = ' '.join(packages)
+                returncode, stdout, stderr = run_command(['pip', 'install', '--upgrade'] + packages)
+                if returncode == 0:
+                    updated_packages = packages
+            else:
+                # Update based on priority
+                if priority == 'high':
+                    # Update only packages with security vulnerabilities
+                    vulnerabilities = check_vulnerabilities(environment)
+                    if vulnerabilities:
+                        packages_to_update = list(vulnerabilities.keys())
+                        returncode, stdout, stderr = run_command(['pip', 'install', '--upgrade'] + packages_to_update)
+                        if returncode == 0:
+                            updated_packages = packages_to_update
+                else:
+                    # Update all outdated packages
+                    returncode, stdout, stderr = run_command(['pip', 'list', '--outdated', '--format=json'])
+                    if returncode == 0 and stdout:
+                        try:
+                            outdated = json.loads(stdout)
+                            packages_to_update = [p['name'] for p in outdated]
+                            
+                            if packages_to_update:
+                                returncode, stdout, stderr = run_command(['pip', 'install', '--upgrade'] + packages_to_update)
+                                if returncode == 0:
+                                    updated_packages = packages_to_update
+                        except json.JSONDecodeError:
+                            logger.warning("Failed to parse pip outdated output")
+        
+        # Send notifications if packages updated
+        if updated_packages:
+            logger.info(f"Updated {len(updated_packages)} packages")
+            send_notifications(None, packages_updated=updated_packages, environment=environment)
+            
+            # Save update report to file
+            report_file = f"update_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            with open(report_file, 'w') as f:
+                json.dump({
+                    'timestamp': datetime.now().isoformat(),
+                    'environment': environment,
+                    'priority': priority,
+                    'updated_packages': updated_packages
+                }, f, indent=2)
+            
+            logger.info(f"Saved update report to {report_file}")
+        else:
+            logger.info("No packages updated")
+        
+        return updated_packages
+    
+    except Exception as e:
+        logger.error(f"Error updating packages: {str(e)}")
+        return []
+
+def generate_report(environment='development'):
+    """
+    Generate dependency report
+    
+    Args:
+        environment: Environment name
+        
+    Returns:
+        str: Path to report file
+    """
+    logger.info("Generating dependency report")
+    
+    try:
+        # Try to import manage_dependencies module
+        try:
+            manage_dependencies_spec = importlib.util.find_spec('manage_dependencies')
+            if manage_dependencies_spec:
+                manage_dependencies = importlib.import_module('manage_dependencies')
+                
+                # Create dependency manager
+                if hasattr(manage_dependencies, 'DependencyManager'):
+                    manager = manage_dependencies.DependencyManager()
+                    
+                    # Scan for outdated packages and vulnerabilities
+                    if hasattr(manager, 'scan'):
+                        manager.scan()
+                    
+                    # Generate report
+                    if hasattr(manager, 'generate_report'):
+                        report_path = manager.generate_report()
+                        logger.info(f"Generated report: {report_path}")
+                        return report_path
+                    else:
+                        logger.warning("DependencyManager does not have generate_report method")
+                else:
+                    logger.warning("manage_dependencies does not have DependencyManager class")
+            else:
+                logger.warning("manage_dependencies module not found")
+        except ImportError:
+            logger.warning("Could not import manage_dependencies module")
+        
+        # If we couldn't use the DependencyManager, generate a basic report
+        logger.info("Falling back to basic report generation")
+        
+        report_data = {
+            'timestamp': datetime.now().isoformat(),
+            'environment': environment,
+            'python_packages': {},
+            'vulnerabilities': {},
+            'stats': {
+                'python_total': 0,
+                'python_outdated': 0,
+                'vulnerabilities': 0
+            }
+        }
+        
+        # Get installed packages
+        returncode, stdout, stderr = run_command(['pip', 'list', '--format=json'])
+        if returncode == 0 and stdout:
+            try:
+                installed = json.loads(stdout)
+                report_data['stats']['python_total'] = len(installed)
+                
+                for package in installed:
+                    report_data['python_packages'][package['name']] = {
+                        'version': package['version'],
+                        'latest': package['version'],
+                        'outdated': False
+                    }
+            except json.JSONDecodeError:
+                logger.warning("Failed to parse pip list output")
+        
+        # Get outdated packages
+        returncode, stdout, stderr = run_command(['pip', 'list', '--outdated', '--format=json'])
+        if returncode == 0 and stdout:
+            try:
+                outdated = json.loads(stdout)
+                report_data['stats']['python_outdated'] = len(outdated)
+                
+                for package in outdated:
+                    if package['name'] in report_data['python_packages']:
+                        report_data['python_packages'][package['name']]['latest'] = package['latest_version']
+                        report_data['python_packages'][package['name']]['outdated'] = True
+            except json.JSONDecodeError:
+                logger.warning("Failed to parse pip outdated output")
+        
+        # Get vulnerabilities
+        vulnerabilities = check_vulnerabilities(environment)
+        report_data['vulnerabilities'] = vulnerabilities
+        report_data['stats']['vulnerabilities'] = len(vulnerabilities)
+        
+        # Save report to file
+        report_file = f"dependency_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        with open(report_file, 'w') as f:
+            json.dump(report_data, f, indent=2)
+        
+        logger.info(f"Saved basic report to {report_file}")
+        
+        # Try to generate a changelog
+        try:
+            changelog_script = Path('generate_dependency_changelog.py')
+            if changelog_script.exists():
+                returncode, stdout, stderr = run_command([sys.executable, str(changelog_script)])
+                if returncode == 0:
+                    logger.info("Generated dependency changelog")
+            else:
+                logger.warning("generate_dependency_changelog.py not found")
+        except Exception as e:
+            logger.error(f"Error generating changelog: {str(e)}")
+        
+        return report_file
+    
+    except Exception as e:
+        logger.error(f"Error generating report: {str(e)}")
+        return None
 
 def main():
     """Main function"""
-    parser = argparse.ArgumentParser(description='Scheduled Dependency Update Script')
-    parser.add_argument('--mode', choices=['daily', 'weekly', 'monthly'], default='daily',
-                      help='Update mode (default: daily)')
+    parser = argparse.ArgumentParser(description='Scheduled Dependency Update')
+    parser.add_argument('--mode', required=True, choices=['daily', 'weekly', 'monthly'],
+                       help='Operation mode (daily, weekly, monthly)')
     
     args = parser.parse_args()
     
-    # Record start time
-    start_time = time.time()
-    logger.info(f"Starting dependency update in {args.mode} mode")
+    # Get environment name from environment variable or use default
+    environment = os.environ.get('DEPENDENCY_ENV', 'development')
     
-    # Execute appropriate mode
+    logger.info(f"Running scheduled dependency update in {args.mode} mode for {environment} environment")
+    
     if args.mode == 'daily':
-        run_daily_check()
-    elif args.mode == 'weekly':
-        run_weekly_update()
-    elif args.mode == 'monthly':
-        run_monthly_report()
+        # Daily mode: Check for security vulnerabilities
+        vulnerabilities = check_vulnerabilities(environment)
+        logger.info(f"Found {len(vulnerabilities)} packages with vulnerabilities")
     
-    # Record completion
-    elapsed_time = time.time() - start_time
-    logger.info(f"Dependency update completed in {elapsed_time:.2f} seconds")
+    elif args.mode == 'weekly':
+        # Weekly mode: Apply security updates
+        vulnerabilities = check_vulnerabilities(environment)
+        if vulnerabilities:
+            logger.info(f"Found {len(vulnerabilities)} packages with vulnerabilities, updating...")
+            updated_packages = update_packages(priority='high', environment=environment)
+            logger.info(f"Updated {len(updated_packages)} packages")
+        else:
+            logger.info("No vulnerabilities found, no updates needed")
+    
+    elif args.mode == 'monthly':
+        # Monthly mode: Generate report and apply all updates
+        report_path = generate_report(environment)
+        logger.info(f"Generated dependency report: {report_path}")
+        
+        updated_packages = update_packages(priority='all', environment=environment)
+        logger.info(f"Updated {len(updated_packages)} packages")
+        
+        # Generate tests for updated packages
+        try:
+            test_script = Path('generate_dependency_tests.py')
+            if test_script.exists() and updated_packages:
+                packages_arg = ','.join(updated_packages)
+                returncode, stdout, stderr = run_command([
+                    sys.executable, str(test_script), '--packages', packages_arg
+                ])
+                if returncode == 0:
+                    logger.info("Generated tests for updated packages")
+            else:
+                logger.info("No packages updated or test script not found")
+        except Exception as e:
+            logger.error(f"Error generating tests: {str(e)}")
 
 if __name__ == "__main__":
     main()
