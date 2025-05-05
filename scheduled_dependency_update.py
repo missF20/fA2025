@@ -19,6 +19,7 @@ Environment variables:
 
 import argparse
 import importlib
+import importlib.util
 import json
 import logging
 import os

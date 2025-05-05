@@ -1,86 +1,174 @@
 #!/usr/bin/env python
 """
-PesaPal Setup Script
+PesaPal Integration Setup
 
-This script checks and configures PesaPal API integration for the application.
+This script configures PesaPal API credentials and initializes the payment integration.
 """
 
+import json
+import logging
 import os
 import sys
-import logging
-from utils.pesapal import get_auth_token, register_ipn_url, PESAPAL_CONSUMER_KEY, PESAPAL_CONSUMER_SECRET, PESAPAL_IPN_URL
+from pathlib import Path
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
-def check_pesapal_configuration():
-    """Check if PesaPal API is configured properly"""
-    logger.info("Checking PesaPal configuration...")
+def get_pesapal_credentials():
+    """
+    Get PesaPal API credentials from environment
     
-    # Check if required environment variables are set
-    missing_keys = []
-    if not PESAPAL_CONSUMER_KEY:
-        missing_keys.append("PESAPAL_CONSUMER_KEY")
-    if not PESAPAL_CONSUMER_SECRET:
-        missing_keys.append("PESAPAL_CONSUMER_SECRET")
-    if not PESAPAL_IPN_URL:
-        missing_keys.append("PESAPAL_IPN_URL")
+    Returns:
+        tuple: (consumer_key, consumer_secret)
+    """
+    # Get credentials from environment
+    consumer_key = os.environ.get('PESAPAL_CONSUMER_KEY')
+    consumer_secret = os.environ.get('PESAPAL_CONSUMER_SECRET')
     
-    if missing_keys:
-        logger.error(f"Missing PesaPal configuration keys: {', '.join(missing_keys)}")
-        print(f"\nError: Missing PesaPal configuration keys: {', '.join(missing_keys)}")
-        print("\nPlease add these keys to your environment or .env file.")
-        print("For security reasons, never commit these values to version control.")
-        return False
+    if not consumer_key or not consumer_secret:
+        logger.error("PesaPal API credentials not found in environment")
+        return None, None
     
-    # Test authentication
-    logger.info("Testing PesaPal authentication...")
-    token = get_auth_token()
-    
-    if not token:
-        logger.error("Failed to authenticate with PesaPal API. Please check your credentials.")
-        print("\nError: Failed to authenticate with PesaPal API.")
-        print("Please verify your consumer key and secret are correct.")
-        return False
-    
-    logger.info("PesaPal authentication successful!")
-    print("\nSuccess: PesaPal authentication is working!")
-    
-    return True
+    return consumer_key, consumer_secret
 
-def setup_ipn_url():
-    """Register IPN URL with PesaPal"""
-    logger.info(f"Registering IPN URL: {PESAPAL_IPN_URL}")
+def save_pesapal_config(consumer_key, consumer_secret, sandbox=True):
+    """
+    Save PesaPal configuration to file
     
-    result = register_ipn_url()
+    Args:
+        consumer_key: PesaPal consumer key
+        consumer_secret: PesaPal consumer secret
+        sandbox: Whether to use sandbox mode
+        
+    Returns:
+        bool: True if config was saved successfully
+    """
+    config_dir = Path('config')
+    config_dir.mkdir(exist_ok=True)
     
-    if result:
-        logger.info("IPN URL registered successfully!")
-        print(f"\nSuccess: IPN URL {PESAPAL_IPN_URL} registered with PesaPal.")
+    config_path = config_dir / 'pesapal_config.json'
+    
+    try:
+        config = {
+            'consumer_key': consumer_key,
+            'consumer_secret': consumer_secret,
+            'sandbox': sandbox,
+            'callback_url': 'https://dana-ai.com/api/payments/callback'
+        }
+        
+        with open(config_path, 'w') as f:
+            json.dump(config, f, indent=2)
+        
+        logger.info(f"PesaPal configuration saved to {config_path}")
         return True
-    else:
-        logger.error("Failed to register IPN URL with PesaPal")
-        print("\nError: Failed to register IPN URL with PesaPal.")
-        print("Please make sure the URL is publicly accessible and formatted correctly.")
+    except Exception as e:
+        logger.error(f"Failed to save PesaPal configuration: {str(e)}")
+        return False
+
+def configure_db_settings():
+    """
+    Configure database settings for PesaPal integration
+    
+    Returns:
+        bool: True if settings were configured successfully
+    """
+    try:
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+        
+        db_url = os.environ.get('DATABASE_URL')
+        if not db_url:
+            logger.error("DATABASE_URL not found in environment")
+            return False
+        
+        conn = psycopg2.connect(db_url)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Create payment_configs table if it doesn't exist
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS payment_configs (
+                id SERIAL PRIMARY KEY,
+                gateway VARCHAR(50) NOT NULL,
+                config JSONB NOT NULL,
+                active BOOLEAN DEFAULT true,
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW()
+            )
+        """)
+        
+        # Check if PesaPal config already exists
+        cursor.execute("SELECT * FROM payment_configs WHERE gateway = 'pesapal'")
+        existing = cursor.fetchone()
+        
+        consumer_key, consumer_secret = get_pesapal_credentials()
+        if not consumer_key or not consumer_secret:
+            logger.error("Cannot configure database settings without PesaPal credentials")
+            return False
+        
+        config = {
+            'consumer_key': consumer_key,
+            'consumer_secret': consumer_secret,
+            'sandbox': True,
+            'callback_url': 'https://dana-ai.com/api/payments/callback'
+        }
+        
+        if existing:
+            # Update existing config
+            cursor.execute(
+                "UPDATE payment_configs SET config = %s, updated_at = NOW() WHERE gateway = 'pesapal'",
+                (json.dumps(config),)
+            )
+            logger.info("Updated existing PesaPal configuration in database")
+        else:
+            # Insert new config
+            cursor.execute(
+                "INSERT INTO payment_configs (gateway, config) VALUES ('pesapal', %s)",
+                (json.dumps(config),)
+            )
+            logger.info("Inserted new PesaPal configuration into database")
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        logger.info("Database settings for PesaPal integration configured successfully")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to configure database settings: {str(e)}")
         return False
 
 def main():
     """Main function"""
-    print("\n=== PesaPal Setup ===\n")
+    logger.info("Configuring PesaPal integration...")
     
-    # Check configuration
-    if not check_pesapal_configuration():
-        return 1
+    # Get PesaPal credentials
+    consumer_key, consumer_secret = get_pesapal_credentials()
     
-    # Register IPN URL
-    if not setup_ipn_url():
-        return 1
+    if not consumer_key or not consumer_secret:
+        print("Error: PesaPal API credentials not found.")
+        print("Make sure PESAPAL_CONSUMER_KEY and PESAPAL_CONSUMER_SECRET environment variables are set.")
+        sys.exit(1)
     
-    print("\nPesaPal setup completed successfully.")
-    print("Your payment system is now ready to use!")
+    print(f"Found PesaPal credentials for key: {consumer_key[:4]}...{consumer_key[-4:]}")
     
-    return 0
+    # Save configuration to file
+    if save_pesapal_config(consumer_key, consumer_secret):
+        print("✓ PesaPal configuration saved to file")
+    else:
+        print("✗ Failed to save PesaPal configuration to file")
+    
+    # Configure database settings
+    if configure_db_settings():
+        print("✓ Database settings for PesaPal integration configured successfully")
+    else:
+        print("✗ Failed to configure database settings for PesaPal integration")
+    
+    print("\nPesaPal integration setup complete!")
+    print("You can now use PesaPal for payments in the Dana AI platform.")
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()

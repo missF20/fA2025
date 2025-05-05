@@ -1,0 +1,6 @@
+{
+  "consumer_key": "AiU7H3Kdepc13tBEILdASM5WIBmm1SSS",
+  "consumer_secret": " w8ZQnF6yJGV7U+4HW8qLYgg4voE=",
+  "sandbox": true,
+  "callback_url": "https://dana-ai.com/api/payments/callback"
+}
