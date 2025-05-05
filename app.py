@@ -128,6 +128,7 @@ def frontend():
     return render_template("frontend.html")
 
 @app.route("/slack")
+@app.route("/slack_dashboard")
 def slack_dashboard():
     """Slack dashboard UI"""
     return render_template("slack/dashboard.html")
