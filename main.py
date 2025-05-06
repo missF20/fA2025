@@ -29,7 +29,7 @@ def direct_email_connect():
     logger = logging.getLogger(__name__)
     
     # Import database connection utilities
-    from utils.db_connection import get_db_connection
+    from utils.db_connection import get_direct_connection
     import json
     
     # Handle CORS preflight requests without authentication
@@ -55,7 +55,7 @@ def direct_email_connect():
         # Use direct SQL for everything to avoid SQLAlchemy type conversion issues
         try:
             # Get a database connection
-            conn = get_db_connection()
+            conn = get_direct_connection()
             
             # Create a test integration
             with conn.cursor() as cursor:
@@ -143,10 +143,10 @@ def direct_email_connect():
         
         # Use direct SQL to find user to avoid type conversion issues
         try:
-            from utils.db_connection import get_db_connection
+            from utils.db_connection import get_direct_connection
             
             # Get a fresh database connection
-            conn = get_db_connection()
+            conn = get_direct_connection()
             
             # Try to find user by email first (most reliable)
             find_user_sql = """
@@ -282,8 +282,8 @@ def direct_email_connect():
         
         # Check if email integration already exists for this user
         try:
-            from utils.db_connection import get_db_connection
-            conn = get_db_connection()
+            from utils.db_connection import get_direct_connection
+            conn = get_direct_connection()
             
             # Check for existing integration
             with conn.cursor() as cursor:
@@ -380,7 +380,7 @@ def direct_email_disconnect():
     logger = logging.getLogger(__name__)
     
     # Import database connection utilities
-    from utils.db_connection import get_db_connection
+    from utils.db_connection import get_direct_connection
     
     # Handle CORS preflight requests without authentication
     if request.method == 'OPTIONS':
@@ -405,7 +405,7 @@ def direct_email_disconnect():
         # Use direct SQL for everything to avoid SQLAlchemy type conversion issues
         try:
             # Get a database connection
-            conn = get_db_connection()
+            conn = get_direct_connection()
             
             # Find email integration for test user
             find_integration_sql = """
@@ -511,10 +511,10 @@ def direct_email_disconnect():
         
         # Use direct SQL to find user to avoid type conversion issues
         try:
-            from utils.db_connection import get_db_connection
+            from utils.db_connection import get_direct_connection
             
             # Get a fresh database connection
-            conn = get_db_connection()
+            conn = get_direct_connection()
             
             # Try to find user by email first (most reliable)
             find_user_sql = """
@@ -650,10 +650,10 @@ def direct_email_disconnect():
         
         # Try direct SQL to avoid type conversion issues
         try:
-            from utils.db_connection import get_db_connection
+            from utils.db_connection import get_direct_connection
             
             # Get a fresh database connection
-            conn = get_db_connection()
+            conn = get_direct_connection()
             
             # Query using direct SQL - first find the integration record
             with conn.cursor() as cursor:
@@ -753,8 +753,8 @@ def direct_email_disconnect():
             try:
                 # Use direct SQL instead of ORM to avoid type conversion issues
                 try:
-                    from utils.db_connection import get_db_connection
-                    conn = get_db_connection()
+                    from utils.db_connection import get_direct_connection
+                    conn = get_direct_connection()
                     
                     with conn.cursor() as cursor:
                         cursor.execute(
@@ -853,7 +853,7 @@ def pdf_upload_file():
         auth_header = request.headers.get('Authorization', '')
         
         # Import direct db connection utilities
-        from utils.db_connection import get_db_connection
+        from utils.db_connection import get_direct_connection
         
         # Extract user_id from the token_required decorator
         # The decorator injects the user object, so it's guaranteed to be correct
@@ -871,7 +871,7 @@ def pdf_upload_file():
                 if not user_id:
                     # Retrieve a valid user ID from database for testing
                     try:
-                        conn = get_db_connection()
+                        conn = get_direct_connection()
                         with conn.cursor() as cursor:
                             cursor.execute("SELECT id FROM profiles LIMIT 1")
                             result = cursor.fetchone()
@@ -930,10 +930,10 @@ def pdf_upload_file():
         
         try:
             # Import direct db connection utilities
-            from utils.db_connection import get_db_connection
+            from utils.db_connection import get_direct_connection
             
             # Get a fresh database connection
-            conn = get_db_connection()
+            conn = get_direct_connection()
             
             # Insert into database
             insert_sql = """
@@ -1027,7 +1027,7 @@ def direct_upload_file():
         logger.debug(f"ENV vars: FLASK_ENV={os.environ.get('FLASK_ENV')}, DEVELOPMENT_MODE={os.environ.get('DEVELOPMENT_MODE')}, APP_ENV={os.environ.get('APP_ENV')}")
         
         # Import direct db connection utilities
-        from utils.db_connection import get_db_connection
+        from utils.db_connection import get_direct_connection
         
         # Extract user_id from the token_required decorator
         # The decorator injects the user object, so it's guaranteed to be correct
@@ -1045,7 +1045,7 @@ def direct_upload_file():
                 if not user_id:
                     # Retrieve a valid user ID from database for testing
                     try:
-                        conn = get_db_connection()
+                        conn = get_direct_connection()
                         with conn.cursor() as cursor:
                             cursor.execute("SELECT id FROM profiles LIMIT 1")
                             result = cursor.fetchone()
@@ -1126,7 +1126,7 @@ def direct_upload_file():
         # Create a file in the database
         try:
             # Import direct db connection utilities
-            from utils.db_connection import get_db_connection
+            from utils.db_connection import get_direct_connection
             
             # Generate a UUID for the file
             file_id = str(uuid.uuid4())
@@ -1158,7 +1158,7 @@ def direct_upload_file():
             )
             
             # Get a fresh database connection
-            conn = get_db_connection()
+            conn = get_direct_connection()
             
             # Execute SQL with cursor
             logger.debug("Executing SQL to insert file into database")
@@ -1712,10 +1712,10 @@ def knowledge_files_api():
             
             try:
                 # Create fresh database connection
-                from utils.db_connection import get_db_connection
+                from utils.db_connection import get_direct_connection
                 
                 # Get database connection
-                conn = get_db_connection()
+                conn = get_direct_connection()
                 if not conn:
                     logger.error("Failed to get database connection for knowledge files")
                     return jsonify({
@@ -1801,8 +1801,8 @@ def knowledge_files_api():
                 user = get_user_from_token(auth_header)
                 
                 # Use the connection directly
-                from utils.db_connection import get_db_connection
-                conn = get_db_connection()
+                from utils.db_connection import get_direct_connection
+                conn = get_direct_connection()
                 
                 # Get query parameters
                 limit = request.args.get('limit', 20, type=int)
@@ -1878,8 +1878,8 @@ def knowledge_file_get_api(file_id, user=None):
             user = get_user_from_token(request)
             
         # Create database connection
-        from utils.db_connection import get_db_connection
-        conn = get_db_connection()
+        from utils.db_connection import get_direct_connection
+        conn = get_direct_connection()
         if not conn:
             logger.error("Failed to get database connection")
             return jsonify({'error': 'Database connection error'}), 500
@@ -2205,10 +2205,10 @@ def direct_fix_email_disconnect():
     
     try:
         # Import database connection module
-        from utils.db_connection import get_db_connection
+        from utils.db_connection import get_direct_connection
         
         # Get a direct database connection
-        conn = get_db_connection()
+        conn = get_direct_connection()
         
         # Find any email integration
         with conn.cursor() as cursor:
@@ -2278,7 +2278,7 @@ def direct_fix_email_connect():
     
     try:
         # Import database connection module
-        from utils.db_connection import get_db_connection
+        from utils.db_connection import get_direct_connection
         import json
         
         # Parse request data
@@ -2295,7 +2295,7 @@ def direct_fix_email_connect():
         logger.info(f"Email config: {safe_config}")
         
         # Get a direct database connection
-        conn = get_db_connection()
+        conn = get_direct_connection()
         
         # Find the first user (for test/dev purposes)
         with conn.cursor() as cursor:
@@ -2438,8 +2438,8 @@ def direct_integrations_status():
     # Direct database query for email integration
     try:
         # Get database connection
-        from utils.db_connection import get_db_connection
-        conn = get_db_connection()
+        from utils.db_connection import get_direct_connection
+        conn = get_direct_connection()
         
         # Get user email from token data
         user_email = None
@@ -2531,12 +2531,12 @@ def direct_integrations_status():
 def super_direct_status():
     """Ultra-simplified endpoint for integration status"""
     try:
-        from utils.db_connection import get_db_connection
+        from utils.db_connection import get_direct_connection
         import logging
         logger = logging.getLogger(__name__)
         
         # Get direct database connection
-        conn = get_db_connection()
+        conn = get_direct_connection()
         
         # Initialize statuses
         slack_status = 'active'  # Assume Slack is active
