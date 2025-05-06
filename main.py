@@ -4,7 +4,7 @@ Dana AI Platform - Main Entry Point
 This is the main entry point for running the Dana AI Platform.
 """
 
-from app import app, socketio
+from app import app, socketio, csrf_exempt
 import threading
 import logging
 import subprocess
@@ -1528,6 +1528,7 @@ def get_email_status_direct():
         'version': '1.0.0'
     })
 
+@csrf_exempt
 @app.route('/api/integrations/email/connect', methods=['POST', 'OPTIONS'])
 def connect_email_direct_v2():
     """Connect to email service - direct endpoint (v2)"""
@@ -1670,6 +1671,7 @@ def get_email_configure_direct():
             'message': f'An error occurred while getting email configuration schema: {str(e)}'
         }), 500
 
+@csrf_exempt
 @app.route('/api/integrations/email/disconnect', methods=['POST', 'OPTIONS'])
 def disconnect_email_direct():
     """Disconnect from email service - direct endpoint"""

@@ -67,6 +67,15 @@ db.init_app(app)
 csrf = CSRFProtect()
 csrf.init_app(app)
 
+# CSRF exemption decorator
+def csrf_exempt(view_function):
+    '''Decorator to exempt a view from CSRF protection.'''
+    if not hasattr(view_function, '_csrf_exempt'):
+        view_function._csrf_exempt = True
+    return view_function
+
+
+
 # Exempt API endpoints from CSRF protection
 def exempt_csrf_for_api_endpoints():
     """Exempt specific API endpoints from CSRF protection"""
