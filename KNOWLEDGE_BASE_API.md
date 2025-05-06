@@ -61,29 +61,34 @@ Retrieves a paginated list of knowledge files for the authenticated user.
 GET /api/knowledge/files/{file_id}
 ```
 
-Retrieves detailed information about a specific knowledge file.
+Retrieves detailed information about a specific knowledge file, including its content for preview purposes.
 
 **Query Parameters:**
 - `exclude_content` (optional) - Set to 'true' to exclude file content in response (default: false)
 
+**Notes:**
+- This endpoint uses direct database connection via `get_direct_connection` for reliable database access
+- File content is available in both `content` and `binary_data` fields, with preference given to `binary_data` for binary content
+- This endpoint enables the file preview feature in the UI
+
 **Response Example:**
 ```json
 {
-  "id": "123",
-  "user_id": "user_456",
-  "file_name": "product_catalog.pdf",
-  "file_size": 1024567,
-  "file_type": "application/pdf",
-  "content": "Lorem ipsum dolor sit amet...",
-  "category": "Product Information",
-  "tags": ["catalog", "products", "2023"],
-  "metadata": {
-    "author": "John Smith",
-    "title": "Product Catalog 2023",
-    "pages": 42
-  },
-  "created_at": "2023-06-15T14:30:45Z",
-  "updated_at": "2023-06-15T14:30:45Z"
+  "file": {
+    "id": "42782b4d-7de6-4b5f-8650-d430a0e3e935",
+    "user_id": "c94900e9-d587-4798-a3b0-38b92f3971dd",
+    "file_name": "product_catalog.pdf",
+    "file_size": 1024567,
+    "file_type": "application/pdf",
+    "content": "Lorem ipsum dolor sit amet...",
+    "category": "Product Information",
+    "tags": ["catalog", "products", "2023"],
+    "metadata": {
+      "file_path": "/storage/files/product_catalog.pdf"
+    },
+    "created_at": "2023-06-15T14:30:45Z",
+    "updated_at": "2023-06-15T14:30:45Z"
+  }
 }
 ```
 
@@ -489,6 +494,138 @@ async function searchKnowledgeBase(query, filters, token) {
     throw error;
   }
 }
+```
+
+## File Preview Functionality
+
+The Knowledge Base API includes built-in support for file preview functionality:
+
+### Preview Architecture
+
+1. **Direct File Retrieval**:
+   - Specialized file retrieval endpoint `/api/knowledge/files/{file_id}` provides content for previews
+   - Content is retrieved with user authorization checks to ensure security
+   - Support for both text and binary content formats
+
+2. **Content Processing**:
+   - Content normalization for consistent preview rendering
+   - Handles both `content` and `binary_data` fields with appropriate prioritization
+   - Base64 conversion for binary data when necessary
+
+3. **Metadata Support**:
+   - File metadata includes `file_path` for additional context
+   - Category and tag information maintained for organization
+   - Creation and modification timestamps for versioning awareness
+
+4. **Frontend Integration**:
+   - Frontend components use the file detail endpoint to fetch content for preview
+   - Rendering adapts based on file type (PDF, DOCX, TXT)
+   - Graceful fallback for unsupported file types
+
+### Implementation Notes
+
+The file preview system uses the `get_direct_connection()` function for database access instead of the ORM or other database connection methods. This ensures stable and reliable database access even when other components of the system experience issues.
+
+### Example: Frontend File Preview Implementation
+
+```jsx
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+
+const KnowledgeFilePreview = ({ fileId, token }) => {
+  const [fileData, setFileData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchFileDetails = async () => {
+      try {
+        setLoading(true);
+        const response = await axios.get(`/api/knowledge/files/${fileId}`, {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+        
+        if (response.data && response.data.file) {
+          setFileData(response.data.file);
+          console.log('File details loaded successfully:', response.data.file.file_name);
+        } else {
+          setError('Invalid response format');
+        }
+      } catch (err) {
+        console.error('Error fetching file details:', err);
+        setError('Failed to load file details for file preview');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (fileId && token) {
+      fetchFileDetails();
+    }
+  }, [fileId, token]);
+
+  const renderFilePreview = () => {
+    if (!fileData) return null;
+
+    const { file_type, content, file_name } = fileData;
+    
+    // Determine how to render based on file type
+    if (file_type.includes('pdf')) {
+      return (
+        <div className="pdf-preview">
+          <h3>{file_name}</h3>
+          <iframe
+            src={`data:application/pdf;base64,${content}`}
+            width="100%"
+            height="600px"
+            title={file_name}
+          />
+        </div>
+      );
+    } else if (file_type.includes('text') || file_type.includes('plain')) {
+      return (
+        <div className="text-preview">
+          <h3>{file_name}</h3>
+          <pre className="content-preview">{content}</pre>
+        </div>
+      );
+    } else if (file_type.includes('docx') || file_type.includes('doc')) {
+      // For DOCX files, just display the extracted text
+      return (
+        <div className="doc-preview">
+          <h3>{file_name}</h3>
+          <div className="content-preview">{content}</div>
+        </div>
+      );
+    } else {
+      // Generic file preview for unsupported types
+      return (
+        <div className="generic-preview">
+          <h3>{file_name}</h3>
+          <p>Preview not available for this file type: {file_type}</p>
+        </div>
+      );
+    }
+  };
+
+  if (loading) {
+    return <div className="loading">Loading file preview...</div>;
+  }
+
+  if (error) {
+    return <div className="error">{error}</div>;
+  }
+
+  return (
+    <div className="file-preview-container">
+      {renderFilePreview()}
+    </div>
+  );
+};
+
+export default KnowledgeFilePreview;
 ```
 
 ## Resilient Architecture

@@ -85,6 +85,7 @@ The Knowledge Base module integrates with other Dana AI components:
 - **Conversation System**: Automatically retrieve relevant information when responding to user queries
 - **Automation Engine**: Include knowledge base content in automated workflows
 - **User Dashboard**: Browse and search knowledge base files through the web interface
+- **File Preview**: Interactive file previewer for viewing document contents directly in the application
 
 ## File Parser Utilities
 
