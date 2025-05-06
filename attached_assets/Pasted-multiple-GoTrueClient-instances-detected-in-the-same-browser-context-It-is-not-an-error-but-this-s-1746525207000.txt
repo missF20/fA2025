@@ -1,0 +1,57 @@
+multiple GoTrueClient instances detected in the same browser context. It is not an error, but this should be avoided as it may produce undefined behavior when used concurrently under the same storage key.
+
+
+ChatGPT said:
+This warning is from Supabase Auth and means that multiple instances of GoTrueClient (Supabase's authentication client) are being created in the same browser environment — typically because your app is initializing Supabase more than once with the same configuration or localStorage key.
+
+Why it's a problem:
+Supabase uses localStorage (or IndexedDB) to persist the session.
+
+If multiple instances of GoTrueClient are created with the same storageKey, they may conflict when reading/writing auth state, leading to inconsistent or unexpected behavior — like logout events not syncing or session refresh issues.
+
+✅ How to Fix
+1. Ensure you're only initializing Supabase once:
+If you're calling createClient in multiple files (e.g., in React components, pages, or utils), it can lead to multiple GoTrueClient instances.
+
+Use a Singleton Pattern:
+Create a supabase.js file (or similar) and always import from it:
+
+js
+Copy
+Edit
+// supabase.js
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = 'https://your-project.supabase.co'
+const supabaseKey = 'your-anon-or-service-role-key'
+
+export const supabase = createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    storageKey: 'supabase.auth.token', // optional but consistent
+  },
+})
+Then use this instance everywhere:
+
+js
+Copy
+Edit
+import { supabase } from './supabase'
+2. Check for Hot Reload in Development:
+In development (especially with Next.js, React, Vite, etc.), hot module replacement (HMR) can cause files to be re-evaluated and create multiple clients.
+
+You can avoid this with a global singleton guard:
+
+js
+Copy
+Edit
+// supabase.js
+let supabase
+
+if (!globalThis.supabase) {
+  supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  globalThis.supabase = supabase
+} else {
+  supabase = globalThis.supabase
+}
+
+export { supabase }

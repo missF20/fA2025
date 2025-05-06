@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 
 // Environment variable validation
@@ -16,21 +16,38 @@ if (!env.success) {
   throw new Error(`Environment validation failed: ${env.error.message}`);
 }
 
-// Supabase client with retry and error handling
-export const supabase = createClient(
-  env.data.VITE_SUPABASE_URL,
-  env.data.VITE_SUPABASE_ANON_KEY,
-  {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true,
-    },
-    global: {
-      headers: { 'x-application-name': 'dana-ai' },
-    },
+// Singleton pattern for Supabase client to prevent multiple instances
+// This fixes the "Multiple GoTrueClient instances detected" warning
+let _supabaseClient: SupabaseClient | null = null;
+
+const createSupabaseClient = (): SupabaseClient => {
+  if (_supabaseClient) {
+    return _supabaseClient;
   }
-);
+  
+  console.log('Creating new Supabase client instance');
+  
+  _supabaseClient = createClient(
+    env.data.VITE_SUPABASE_URL,
+    env.data.VITE_SUPABASE_ANON_KEY,
+    {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        storageKey: 'dana-ai.auth.token', // Consistent storage key
+      },
+      global: {
+        headers: { 'x-application-name': 'dana-ai' },
+      },
+    }
+  );
+  
+  return _supabaseClient;
+};
+
+// Export a singleton instance of the Supabase client
+export const supabase = createSupabaseClient();
 
 // Input validation schemas
 export const profileSchema = z.object({
