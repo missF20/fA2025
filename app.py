@@ -234,6 +234,7 @@ def get_csrf_token_v2():
     """
     # Always enable CSRF for this direct endpoint to avoid CSRF issues
     from flask_wtf.csrf import generate_csrf
+    from flask import session
     
     # Generate a token or use a fixed dev token in development mode
     is_dev = (os.environ.get('FLASK_ENV') == 'development' or 
@@ -254,11 +255,16 @@ def get_csrf_token_v2():
     # Also attempt to store it in the session for regular CSRF validation
     try:
         session['csrf_token'] = csrf_token
+        logger.info('CSRF token stored in session')
     except Exception as e:
         logger.warning(f"Could not store CSRF token in session: {str(e)}")
     
-    # Return the token
-    return jsonify({'csrf_token': csrf_token})
+    # Set it as a cookie as well for better reliability
+    response = jsonify({'csrf_token': csrf_token})
+    response.set_cookie('csrf_token', csrf_token, httponly=False, secure=True, samesite='Lax')
+    logger.info(f'CSRF token generated successfully via direct endpoint: {csrf_token[:5]}...')
+    
+    return response
 
 @app.route('/api/test-usage')
 def test_usage_api():

@@ -330,6 +330,69 @@ def add_direct_email_integration_routes():
                 'schema': schema
             })
             
+        # Add a v1 status endpoint for backward compatibility - essential for the test page
+        @app.route('/api/integrations/email/status', methods=['GET'])
+        def direct_email_status_v1():
+            """
+            Direct endpoint for checking email integration status - v1 version for compatibility
+            This is the fallback version needed for our test page and frontend
+            """
+            # No CSRF check for GET request
+            # Token validation with fallback for dev tokens
+            auth_header = request.headers.get('Authorization')
+            
+            user = None
+            if auth_header in ['dev-token', 'test-token', 'Bearer dev-token', 'Bearer test-token']:
+                # For development tokens, use a fake user ID
+                user = {'id': '00000000-0000-0000-0000-000000000000'}
+                logger.info("Using development user for email status check")
+            else:
+                # For regular tokens, extract user from token
+                auth_result = token_required(request)
+                if isinstance(auth_result, tuple):
+                    return auth_result  # Return the error response
+                    
+                user = get_user_from_token(request)
+                
+            if not user:
+                return jsonify({'error': 'User not found'}), 404
+            
+            # Check if there's an existing email integration for this user
+            try:
+                conn = get_direct_connection()
+                cursor = conn.cursor()
+                
+                cursor.execute(
+                    "SELECT id, config FROM integration_configs WHERE user_id = %s AND type = 'email'",
+                    (user['id'],)
+                )
+                result = cursor.fetchone()
+                
+                cursor.close()
+                conn.close()
+                
+                if result:
+                    integration_id, config = result
+                    config_dict = json.loads(config)
+                    
+                    # Mask the password
+                    if 'password' in config_dict:
+                        config_dict['password'] = '********'
+                    
+                    return jsonify({
+                        'connected': True,
+                        'integration_id': str(integration_id),
+                        'config': config_dict
+                    })
+                else:
+                    return jsonify({
+                        'connected': False
+                    })
+                
+            except Exception as e:
+                logger.exception(f"Database error checking email integration status: {str(e)}")
+                return jsonify({'error': f'Database error: {str(e)}'}), 500
+            
         logger.info("Direct email integration routes added successfully")
         
         # Update the frontend API service to use the new v2 endpoints
