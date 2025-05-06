@@ -331,7 +331,7 @@ def direct_email_connect():
                         return jsonify({
                             'success': True,
                             'message': 'Email integration updated successfully',
-                            'id': updated[0]
+                            'id': updated_id
                         })
                     else:
                         logger.error("Failed to update existing integration")
@@ -2609,7 +2609,7 @@ def direct_fix_email_connect():
                     return jsonify({
                         'success': True,
                         'message': 'Email integration connected successfully',
-                        'id': updated[0]
+                        'id': updated_id
                     })
                 else:
                     logger.error("Failed to update integration")
