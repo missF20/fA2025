@@ -25,10 +25,13 @@ def ensure_token_tracking_table() -> bool:
         token_limits_sql = """
         CREATE TABLE IF NOT EXISTS token_limits (
             id SERIAL PRIMARY KEY,
-            user_id UUID NOT NULL,
-            model TEXT DEFAULT NULL,
-            token_limit INTEGER DEFAULT 0,
-            UNIQUE (user_id, model)
+            user_id VARCHAR(255) NOT NULL,
+            monthly_token_limit INTEGER DEFAULT 50000,
+            daily_token_limit INTEGER DEFAULT 10000,
+            response_token_limit INTEGER DEFAULT 1000,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            UNIQUE (user_id)
         );
         """
         execute_sql(token_limits_sql, fetch_all=False)
@@ -224,7 +227,7 @@ def get_token_limit(user_id: str, model: Optional[str] = None) -> int:
         sql = """
         SELECT monthly_token_limit
         FROM token_limits
-        WHERE user_id::text = %s
+        WHERE user_id = %s
         """
         
         params = [user_id]
@@ -281,7 +284,7 @@ def check_token_limit_exceeded(user_id: str, model: Optional[str] = None) -> Dic
         sql = """
         SELECT SUM(total_tokens) AS total_tokens
         FROM token_usage
-        WHERE user_id = %s::uuid AND timestamp >= %s
+        WHERE user_id = UUID(%s) AND timestamp >= %s
         """
         
         params = [user_id, start_of_month]
@@ -347,7 +350,7 @@ def update_user_token_limit(
         
         # Check if the user already has a token limit record
         check_sql = """
-        SELECT id FROM token_limits WHERE user_id::text = %s
+        SELECT id FROM token_limits WHERE user_id = %s
         """
         
         result = execute_sql(check_sql, (user_id,))
@@ -358,7 +361,7 @@ def update_user_token_limit(
             UPDATE token_limits
             SET monthly_token_limit = %s,
                 updated_at = NOW()
-            WHERE user_id::text = %s
+            WHERE user_id = %s
             """
             execute_sql(sql, (token_limit, user_id), fetch_all=False)
         else:
@@ -372,7 +375,7 @@ def update_user_token_limit(
                 created_at,
                 updated_at
             )
-            VALUES (%s::uuid, %s, %s, %s, NOW(), NOW())
+            VALUES (%s, %s, %s, %s, NOW(), NOW())
             """
             # Set daily and response limits to reasonable defaults
             daily_limit = token_limit // 30 if token_limit > 0 else 0  # Monthly / 30 days
