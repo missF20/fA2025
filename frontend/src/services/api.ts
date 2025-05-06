@@ -255,6 +255,27 @@ export const api = {
       }
     },
 
+    // Fetch a CSRF token for secure form submissions
+    async getCsrfToken(): Promise<string | null> {
+      try {
+        const response = await fetch('/api/csrf/token', {
+          method: 'GET',
+          credentials: 'include'  // Important for cookies
+        });
+        
+        if (!response.ok) {
+          console.error(`Failed to get CSRF token: ${response.status} ${response.statusText}`);
+          return null;
+        }
+        
+        const data = await response.json();
+        return data.csrf_token;
+      } catch (error) {
+        console.error('Error fetching CSRF token:', error);
+        return null;
+      }
+    },
+    
     // Helper method to connect with a provided token
     async _connectWithToken(integrationType: string, config: any, token: string) {
       // Handle special case for email integration
@@ -265,12 +286,39 @@ export const api = {
       console.log(`Connecting to ${integrationType} using endpoint: ${endpoint} with provided token`);
       
       // Prepare the request body based on integration type
-      let requestBody;
+      let requestBody: any;
       
-      // For email, the backend expects direct parameters, not nested in config
+      // Get CSRF token for email integration which requires it
+      let headers: Record<string, string> = {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      };
+      
+      // For email integration, we need to add CSRF token
       if (integrationType === 'email') {
         console.log('Email integration config:', config);
-        requestBody = JSON.stringify(config);
+        
+        // Try to get a CSRF token
+        try {
+          const csrfToken = await this.getCsrfToken();
+          if (csrfToken) {
+            // Add token to both headers and request body (to cover all bases)
+            headers['X-CSRF-Token'] = csrfToken;
+            requestBody = JSON.stringify({
+              ...config,
+              csrf_token: csrfToken
+            });
+            console.log('Added CSRF token to request');
+          } else {
+            // No CSRF token available, proceed without it
+            requestBody = JSON.stringify(config);
+            console.warn('No CSRF token available for email integration');
+          }
+        } catch (error) {
+          // Fallback if CSRF token fetch fails
+          requestBody = JSON.stringify(config);
+          console.error('Failed to get CSRF token:', error);
+        }
       } else {
         // For other integrations, the backend expects config nested
         requestBody = JSON.stringify({ config });
@@ -279,11 +327,9 @@ export const api = {
       try {
         const response = await fetch(endpoint, {
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: requestBody
+          headers,
+          body: requestBody,
+          credentials: 'include'  // Include cookies for CSRF validation
         });
 
         console.log(`Response status: ${response.status}, ${response.statusText}`);
@@ -323,18 +369,40 @@ export const api = {
       
       console.log(`Disconnecting from ${integrationId} using endpoint: ${endpoint} with provided token`);
 
+      // Prepare headers and request body
+      let headers: Record<string, string> = {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      };
+      
+      let requestBody: any = {};
+      
+      // For email integration, we need to add CSRF token
+      if (integrationId === 'email') {
+        // Try to get a CSRF token
+        try {
+          const csrfToken = await this.getCsrfToken();
+          if (csrfToken) {
+            // Add token to both headers and request body
+            headers['X-CSRF-Token'] = csrfToken;
+            requestBody = { csrf_token: csrfToken };
+            console.log('Added CSRF token to disconnect request');
+          }
+        } catch (error) {
+          console.error('Failed to get CSRF token for disconnect:', error);
+        }
+      }
+      
       try {
         // Add debugging information
         console.log(`Authorization token: Bearer ${token.substring(0, 10)}...`);
         
         const response = await fetch(endpoint, {
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
+          headers,
           // Add empty body to ensure proper request format
-          body: JSON.stringify({})
+          body: JSON.stringify(requestBody),
+          credentials: 'include'  // Include cookies for CSRF validation
         });
 
         console.log(`Response status: ${response.status}, ${response.statusText}`);
@@ -384,13 +452,36 @@ export const api = {
       
       console.log(`Syncing ${integrationId} using endpoint: ${endpoint} with provided token`);
 
+      // Prepare headers and request body
+      let headers: Record<string, string> = {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      };
+      
+      let requestBody: any = {};
+      
+      // For email integration, we need to add CSRF token
+      if (integrationId === 'email') {
+        // Try to get a CSRF token
+        try {
+          const csrfToken = await this.getCsrfToken();
+          if (csrfToken) {
+            // Add token to both headers and request body
+            headers['X-CSRF-Token'] = csrfToken;
+            requestBody = { csrf_token: csrfToken };
+            console.log('Added CSRF token to sync request');
+          }
+        } catch (error) {
+          console.error('Failed to get CSRF token for sync:', error);
+        }
+      }
+
       try {
         const response = await fetch(endpoint, {
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
+          headers,
+          body: JSON.stringify(requestBody),
+          credentials: 'include'  // Include cookies for CSRF validation
         });
 
         console.log(`Response status: ${response.status}, ${response.statusText}`);

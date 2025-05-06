@@ -315,6 +315,7 @@ def register_blueprints():
         from routes.usage import usage_bp
         from routes.auth import auth_bp
         from routes.subscription import subscription_bp
+        from routes.csrf import csrf_bp
         
         # Register existing blueprints
         app.register_blueprint(ai_test_bp)
@@ -324,6 +325,7 @@ def register_blueprints():
         app.register_blueprint(knowledge_binary_bp)
         app.register_blueprint(usage_bp)
         app.register_blueprint(auth_bp)
+        app.register_blueprint(csrf_bp, url_prefix='/api')
         app.register_blueprint(subscription_bp)
         logger.info("Knowledge blueprint registered successfully")
         logger.info("Knowledge binary upload blueprint registered successfully")
