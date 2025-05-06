@@ -29,10 +29,53 @@ except ImportError:
 # Configure logging
 logger = logging.getLogger(__name__)
 
+# Load environment variables from .env file if dotenv is available
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+    logger.info("Loaded environment variables from .env file")
+except ImportError:
+    logger.warning("python-dotenv not installed, environment variables must be set manually")
+
+# Function to get environment variables with proper logging
+def get_env_var(name, default=''):
+    """Get environment variable with logging"""
+    value = os.environ.get(name, default)
+    if not value and name.startswith('PESAPAL_'):
+        logger.warning(f"Environment variable {name} not set")
+    return value
+
 # PesaPal API configuration
-PESAPAL_CONSUMER_KEY = os.environ.get('PESAPAL_CONSUMER_KEY', '')
-PESAPAL_CONSUMER_SECRET = os.environ.get('PESAPAL_CONSUMER_SECRET', '')
-PESAPAL_IPN_URL = os.environ.get('PESAPAL_IPN_URL', '')
+PESAPAL_CONSUMER_KEY = get_env_var('PESAPAL_CONSUMER_KEY', '')
+PESAPAL_CONSUMER_SECRET = get_env_var('PESAPAL_CONSUMER_SECRET', '')
+PESAPAL_IPN_URL = get_env_var('PESAPAL_IPN_URL', '')
+
+# Log PesaPal configuration
+logger.info(f"PesaPal configuration loaded:")
+logger.info(f"PESAPAL_CONSUMER_KEY: {'Set' if PESAPAL_CONSUMER_KEY else 'Not set'}")
+logger.info(f"PESAPAL_CONSUMER_SECRET: {'Set' if PESAPAL_CONSUMER_SECRET else 'Not set'}")
+logger.info(f"PESAPAL_IPN_URL: {'Set' if PESAPAL_IPN_URL else 'Not set'}")
+
+# Set default IPN URL if not set (using Replit domain if available)
+if not PESAPAL_IPN_URL:
+    domain = None
+    # Try Replit domain first
+    replit_domains = os.environ.get('REPLIT_DOMAINS')
+    if replit_domains:
+        domain = replit_domains.split(',')[0]
+    
+    # Fallback to dev domain
+    if not domain:
+        domain = os.environ.get('REPLIT_DEV_DOMAIN')
+    
+    # Fallback to generic domain
+    if not domain:
+        domain = 'dana-ai.com'
+    
+    # Set IPN URL
+    PESAPAL_IPN_URL = f"https://{domain}/api/payments/ipn"
+    os.environ['PESAPAL_IPN_URL'] = PESAPAL_IPN_URL
+    logger.info(f"Set default PESAPAL_IPN_URL to {PESAPAL_IPN_URL}")
 
 # PesaPal API endpoints
 PESAPAL_BASE_URL = "https://pay.pesapal.com/v3"  # Production
@@ -63,52 +106,76 @@ def _http_request(method: str, url: str, headers: Dict[str, str] = None,
     Raises:
         Exception: If request fails
     """
-    # Parse URL
-    parsed_url = urlparse(url)
-    
-    # Add query parameters if provided
-    if params:
-        query = urllib.parse.urlencode(params)
-        path = f"{parsed_url.path}?{query}"
-    else:
-        path = parsed_url.path
-    
-    # Create connection
-    if parsed_url.scheme == 'https':
-        conn = http.client.HTTPSConnection(parsed_url.netloc)
-    else:
-        conn = http.client.HTTPConnection(parsed_url.netloc)
-    
-    # Set default headers
-    if headers is None:
-        headers = {}
-    
-    if json_data is not None:
-        headers['Content-Type'] = 'application/json'
-        body = json.dumps(json_data).encode('utf-8')
-    else:
-        body = None
-    
-    # Make request
-    conn.request(method, path, body=body, headers=headers)
-    
-    # Get response
-    response = conn.getresponse()
-    
-    # Read response body
-    response_body = response.read().decode('utf-8')
-    
-    # Parse JSON response
     try:
-        data = json.loads(response_body)
-    except json.JSONDecodeError:
-        data = {'status': str(response.status), 'body': response_body}
-    
-    # Check response status
-    if response.status >= 400:
-        raise Exception(f"HTTP error {response.status}: {response_body}")
-    
-    return data
+        # Parse URL
+        parsed_url = urlparse(url)
+        
+        # Add query parameters if provided
+        if params:
+            query = urllib.parse.urlencode(params)
+            path = f"{parsed_url.path}?{query}"
+        else:
+            path = parsed_url.path
+        
+        # Log request details (for debugging)
+        logger.info(f"HTTP Request: {method} {url}")
+        if path != parsed_url.path:
+            logger.info(f"Full path with query params: {path}")
+        if headers:
+            logger.info(f"Headers: {json.dumps({k: '***' if k.lower() in ['authorization', 'x-api-key'] else v for k, v in headers.items()})}")
+        if json_data:
+            safe_data = {k: ('***' if k.lower() in ['consumer_secret', 'key', 'secret', 'password', 'token'] else v) for k, v in json_data.items()}
+            logger.info(f"Payload: {json.dumps(safe_data)}")
+        
+        # Create connection with longer timeout
+        logger.info(f"Connecting to: {parsed_url.netloc}")
+        if parsed_url.scheme == 'https':
+            conn = http.client.HTTPSConnection(parsed_url.netloc, timeout=30)
+        else:
+            conn = http.client.HTTPConnection(parsed_url.netloc, timeout=30)
+        
+        # Set default headers
+        if headers is None:
+            headers = {}
+        
+        if json_data is not None:
+            headers['Content-Type'] = 'application/json'
+            body = json.dumps(json_data).encode('utf-8')
+        else:
+            body = None
+        
+        # Make request
+        logger.info(f"Sending request: {method} {path}")
+        conn.request(method, path, body=body, headers=headers)
+        
+        # Get response
+        logger.info("Getting response...")
+        response = conn.getresponse()
+        logger.info(f"Response status: {response.status} {response.reason}")
+        
+        # Read response body
+        response_body = response.read().decode('utf-8')
+        
+        # Log first part of response (for debugging)
+        logger.info(f"Response body preview: {response_body[:200]}{'...' if len(response_body) > 200 else ''}")
+        
+        # Parse JSON response
+        try:
+            data = json.loads(response_body)
+            logger.info("Successfully parsed JSON response")
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON decode error: {str(e)}")
+            data = {'status': str(response.status), 'body': response_body, 'error': 'JSON decode error'}
+        
+        # Check response status
+        if response.status >= 400:
+            logger.error(f"HTTP error {response.status}: {response_body}")
+            raise Exception(f"HTTP error {response.status}: {response_body}")
+        
+        return data
+    except Exception as e:
+        logger.error(f"HTTP request error: {str(e)}")
+        raise
 
 def get_auth_token() -> Optional[str]:
     """
