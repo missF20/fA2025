@@ -14,7 +14,7 @@ import uuid
 import base64
 import flask
 from datetime import datetime
-from flask import jsonify, request
+from flask import jsonify, request, render_template
 
 # Import auth module
 from utils.auth import token_required, get_user_from_token, validate_token
