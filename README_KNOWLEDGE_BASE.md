@@ -4,6 +4,8 @@
 
 The Knowledge Base module is a core component of the Dana AI Platform that enables organizations to store, organize, and retrieve information effectively. This module provides robust file parsing capabilities for various document formats (PDF, DOCX, TXT) along with advanced search functionality.
 
+The module features a resilient architecture with direct endpoint registration that ensures high availability even when standard blueprint registration mechanisms encounter issues.
+
 ## Features
 
 - **Multi-format document parsing**: Extract content and metadata from PDF, DOCX, and TXT files
@@ -12,6 +14,8 @@ The Knowledge Base module is a core component of the Dana AI Platform that enabl
 - **Base64 support**: Process base64-encoded files for easy API integration
 - **Secure file handling**: Properly manage temporary files and sanitize content
 - **Comprehensive error handling**: Graceful handling of parsing errors and unsupported formats
+- **Resilient architecture**: Direct endpoint registration ensures high availability and redundancy
+- **Fault-tolerant design**: Multiple access paths to critical functionality for enhanced reliability
 
 ## Getting Started
 

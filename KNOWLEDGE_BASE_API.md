@@ -4,6 +4,8 @@
 
 The Knowledge Base API provides comprehensive endpoints for managing knowledge files, searching, categorizing, and tagging content. It supports various file formats including PDF, DOCX, TXT, and HTML, with automatic content extraction and metadata parsing.
 
+The API features a resilient architecture with direct endpoint registration that ensures high availability and fault tolerance. This implementation bypasses the standard Flask blueprint registration system to guarantee consistent access to knowledge management functionality even when other system components experience issues.
+
 ## Key Features
 
 - File upload with automatic content extraction
@@ -12,6 +14,9 @@ The Knowledge Base API provides comprehensive endpoints for managing knowledge f
 - Tagging and categorization
 - Advanced search with filtering and snippets
 - Content management (create, read, update, delete)
+- Direct endpoint registration for enhanced reliability
+- Redundant access paths to critical functionality
+- Fault-tolerant architecture with automatic recovery
 
 ## API Endpoints
 
@@ -486,6 +491,30 @@ async function searchKnowledgeBase(query, filters, token) {
 }
 ```
 
+## Resilient Architecture
+
+The Knowledge Base API implements a resilient architecture designed to ensure high availability and fault tolerance:
+
+1. **Direct Endpoint Registration**:
+   - Critical endpoints are registered directly with the Flask application
+   - Bypasses the Flask blueprint registration system that may fail in certain conditions
+   - Ensures knowledge management functionality remains available even when other components experience issues
+
+2. **Redundant Access Paths**:
+   - Multiple ways to access the same functionality
+   - Both blueprint-based and direct routes to key features
+   - Automatic failover between access methods
+
+3. **Database Connection Handling**:
+   - Robust connection management with automatic retry mechanisms
+   - Fallback connection methods when primary approaches fail
+   - Connection pooling to optimize performance
+
+4. **Error Recovery**:
+   - Comprehensive error handling with graceful degradation
+   - Automatic recovery from transient failures
+   - Detailed logging for troubleshooting
+
 ## Best Practices
 
 1. **File Handling**:
@@ -507,3 +536,4 @@ async function searchKnowledgeBase(query, filters, token) {
    - Paginate file lists for large knowledge bases
    - Exclude content when retrieving file lists
    - Cache frequently accessed files client-side
+   - Use the force_refresh parameter when you need the latest data
