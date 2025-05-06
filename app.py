@@ -115,7 +115,7 @@ def platform_features():
 @app.route('/subscriptions', methods=['GET'])
 def subscription_management():
     """Subscription management page"""
-    return render_template('subscription_management.html')
+    return render_template('subscription_page.html')
 
 @app.route('/dashboard', methods=['GET'])
 def complete_dashboard():
@@ -309,6 +309,7 @@ def register_blueprints():
         from routes.knowledge_binary import knowledge_binary_bp
         from routes.usage import usage_bp
         from routes.auth import auth_bp
+        from routes.subscription import subscription_bp
         
         # Register existing blueprints
         app.register_blueprint(ai_test_bp)
@@ -318,10 +319,12 @@ def register_blueprints():
         app.register_blueprint(knowledge_binary_bp)
         app.register_blueprint(usage_bp)
         app.register_blueprint(auth_bp)
+        app.register_blueprint(subscription_bp)
         logger.info("Knowledge blueprint registered successfully")
         logger.info("Knowledge binary upload blueprint registered successfully")
         logger.info("Token usage blueprint registered successfully")
         logger.info("Auth blueprint registered successfully")
+        logger.info("Subscription blueprint registered successfully")
         
         # Register payments blueprint - which depends on requests
         try:
