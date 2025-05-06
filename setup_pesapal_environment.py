@@ -13,9 +13,9 @@ import os
 import sys
 import json
 import logging
+import re
 from pathlib import Path
 import psycopg2
-import dotenv
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, 
@@ -33,11 +33,24 @@ def ensure_env_file_exists():
         env_path.touch()
     return env_path
 
+def read_env_file(env_path):
+    """Read environment file and return a dictionary of values"""
+    env_vars = {}
+    if not env_path.exists():
+        return env_vars
+    
+    with open(env_path, 'r') as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
+            key, value = line.split('=', 1)
+            env_vars[key.strip()] = value.strip()
+    
+    return env_vars
+
 def setup_pesapal_env_vars():
     """Set up PesaPal environment variables in .env file"""
-    # Load existing environment variables
-    dotenv.load_dotenv()
-    
     # Get Replit domains
     replit_domains = os.environ.get('REPLIT_DOMAINS')
     replit_dev_domain = os.environ.get('REPLIT_DEV_DOMAIN')
@@ -58,7 +71,7 @@ def setup_pesapal_env_vars():
     
     # Check if we need to update .env file
     env_path = ensure_env_file_exists()
-    env_vars = dotenv.dotenv_values(env_path)
+    env_vars = read_env_file(env_path)
     
     # Update .env file with new variables
     updated = False
@@ -104,21 +117,23 @@ def update_database_config(ipn_url):
         cursor = conn.cursor()
         
         # Check if PesaPal configuration exists
-        cursor.execute("SELECT * FROM payment_configs WHERE provider = 'pesapal' LIMIT 1")
+        cursor.execute("SELECT * FROM payment_configs WHERE gateway = 'pesapal' LIMIT 1")
         config_row = cursor.fetchone()
         
         # Get existing configuration data
         if config_row:
             # Update existing configuration
             config_id = config_row[0]  # Assuming ID is the first column
-            config_data = json.loads(config_row[3])  # Assuming config_data is the 4th column
+            config_data = config_row[1]  # Assuming config is the 2nd column
+            if isinstance(config_data, str):
+                config_data = json.loads(config_data)
             
             # Update callback URL in config
             config_data['callback_url'] = ipn_url
             
             # Update database
             cursor.execute(
-                "UPDATE payment_configs SET config_data = %s, updated_at = NOW() WHERE id = %s",
+                "UPDATE payment_configs SET config = %s, updated_at = NOW() WHERE id = %s",
                 (json.dumps(config_data), config_id)
             )
             logger.info(f"Updated existing PesaPal configuration with new IPN URL: {ipn_url}")
@@ -139,7 +154,7 @@ def update_database_config(ipn_url):
             }
             
             cursor.execute(
-                "INSERT INTO payment_configs (provider, is_active, config_data, created_at, updated_at) "
+                "INSERT INTO payment_configs (gateway, active, config, created_at, updated_at) "
                 "VALUES (%s, %s, %s, NOW(), NOW())",
                 ('pesapal', True, json.dumps(config_data))
             )
