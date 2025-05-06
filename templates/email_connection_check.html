@@ -79,11 +79,31 @@
             margin-top: 20px;
             border: 1px solid #ffd54f;
         }
+        .alert {
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .alert-warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+        }
     </style>
 </head>
 <body>
     <h1>Email Integration Test Page</h1>
     <p>This page tests the email integration connection process and helps diagnose CSRF token issues.</p>
+
+    <div class="alert alert-warning">
+        <strong>Version 2.0 Update:</strong> This test page has been updated to work with both V1 and V2 API endpoints.
+    </div>
 
     <div class="hint">
         <strong>Important:</strong> Click "Get CSRF Token" first before trying any other operations to ensure proper authentication.
@@ -181,13 +201,39 @@
                 html += '<p>Not found! Click "Get CSRF Token" first.</p>';
             }
             
+            // Check authentication token
+            const authToken = localStorage.getItem('sb-yerujijddmqcbhsynylp-auth-token');
+            html += '<h4>Authentication Token:</h4>';
+            if (authToken) {
+                html += '<p>Auth token found in localStorage ✓</p>';
+            } else {
+                html += '<p>Auth token NOT found! Please log in first.</p>';
+            }
+            
             authDebug.innerHTML = html;
         }
 
         // Test CSRF token generation
         document.getElementById('getTokenBtn').addEventListener('click', async () => {
             try {
-                const response = await fetch('/api/v2/csrf-token');
+                // Try V2 endpoint first
+                try {
+                    const response = await fetch('/api/v2/csrf-token');
+                    const data = await response.json();
+                    displayResult('csrfResult', data);
+                    
+                    // Store token for later use
+                    localStorage.setItem('csrf_token', data.csrf_token);
+                    
+                    // Also check stored tokens
+                    checkStoredTokens();
+                    return;
+                } catch (error) {
+                    console.log("V2 CSRF endpoint failed, trying v1:", error);
+                }
+                
+                // Fall back to V1 endpoint
+                const response = await fetch('/api/csrf/token');
                 const data = await response.json();
                 displayResult('csrfResult', data);
                 
@@ -210,8 +256,30 @@
         document.getElementById('checkStatusBtn').addEventListener('click', async () => {
             try {
                 const token = localStorage.getItem('csrf_token');
+                
+                // Need authorization token from Supabase
+                const authToken = localStorage.getItem('sb-yerujijddmqcbhsynylp-auth-token');
+                let accessToken = null;
+                
+                if (authToken) {
+                    try {
+                        const parsed = JSON.parse(authToken);
+                        accessToken = parsed.access_token;
+                    } catch (e) {
+                        console.error("Failed to parse auth token:", e);
+                    }
+                }
+                
+                if (!accessToken) {
+                    displayResult('statusResult', {
+                        error: "No authentication token found. Please sign in first."
+                    }, true);
+                    return;
+                }
+                
                 const headers = {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${accessToken}`
                 };
                 
                 if (token) {
@@ -220,6 +288,7 @@
                 
                 // First try v1 endpoint
                 try {
+                    console.log("Checking status with headers:", headers);
                     const response = await fetch('/api/integrations/email/status', {
                         method: 'GET',
                         headers: headers
@@ -260,8 +329,29 @@
                     throw new Error('Email and password are required');
                 }
                 
+                // Need authorization token from Supabase
+                const authToken = localStorage.getItem('sb-yerujijddmqcbhsynylp-auth-token');
+                let accessToken = null;
+                
+                if (authToken) {
+                    try {
+                        const parsed = JSON.parse(authToken);
+                        accessToken = parsed.access_token;
+                    } catch (e) {
+                        console.error("Failed to parse auth token:", e);
+                    }
+                }
+                
+                if (!accessToken) {
+                    displayResult('connectResult', {
+                        error: "No authentication token found. Please sign in first."
+                    }, true);
+                    return;
+                }
+                
                 const headers = {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${accessToken}`
                 };
                 
                 if (token) {
@@ -279,7 +369,10 @@
                     csrf_token: token
                 };
                 
-                console.log("Connecting with payload:", payload);
+                console.log("Connecting with payload:", {
+                    ...payload,
+                    password: "*******" // Don't log the actual password
+                });
                 
                 // First try v1 endpoint
                 try {
@@ -314,8 +407,30 @@
         document.getElementById('disconnectBtn').addEventListener('click', async () => {
             try {
                 const token = localStorage.getItem('csrf_token');
+                
+                // Need authorization token from Supabase
+                const authToken = localStorage.getItem('sb-yerujijddmqcbhsynylp-auth-token');
+                let accessToken = null;
+                
+                if (authToken) {
+                    try {
+                        const parsed = JSON.parse(authToken);
+                        accessToken = parsed.access_token;
+                    } catch (e) {
+                        console.error("Failed to parse auth token:", e);
+                    }
+                }
+                
+                if (!accessToken) {
+                    displayResult('disconnectResult', {
+                        error: "No authentication token found. Please sign in first."
+                    }, true);
+                    return;
+                }
+                
                 const headers = {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${accessToken}`
                 };
                 
                 if (token) {
