@@ -6,7 +6,7 @@ Main application module for the Dana AI Platform.
 
 import os
 import logging
-from flask import request, Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_socketio import SocketIO
@@ -63,64 +63,9 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
 # Initialize extensions
 db.init_app(app)
 
-# Initialize CSRF protection with custom exempt paths
+# Initialize CSRF protection
 csrf = CSRFProtect()
-
-# Define exempt paths before initializing CSRF
-class CustomCSRFProtect(CSRFProtect):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.exempt_paths = [
-            '/api/integrations/email/connect',
-            '/api/integrations/email/disconnect',
-            '/api/integrations/email/simple/connect',
-            '/api/integrations/email/simple/disconnect',
-            '/api/integrations/slack/connect',
-            '/api/integrations/slack/disconnect'
-        ]
-        logger.info(f"CSRF exempt paths: {self.exempt_paths}")
-    
-    def protect(self):
-        if request.path in self.exempt_paths:
-            logger.info(f"Skipping CSRF protection for exempt path: {request.path}")
-            return
-        return super().protect()
-
-# Replace standard CSRFProtect with custom implementation
-csrf = CustomCSRFProtect()
 csrf.init_app(app)
-
-# CSRF exemption decorator (kept for backwards compatibility)
-def csrf_exempt(view_function):
-    '''Decorator to exempt a view from CSRF protection.'''
-    if not hasattr(view_function, '_csrf_exempt'):
-        view_function._csrf_exempt = True
-    return view_function
-
-
-
-# Exempt API endpoints from CSRF protection
-def exempt_csrf_for_api_endpoints():
-    """Exempt specific API endpoints from CSRF protection"""
-    # Create a list of endpoints to exempt
-    exempt_routes = [
-        '/api/integrations/email/connect',
-        '/api/integrations/email/disconnect',
-        '/api/integrations/slack/connect',
-        '/api/integrations/slack/disconnect',
-        '/api/integrations/hubspot/connect',
-        '/api/integrations/hubspot/disconnect',
-        '/api/integrations/salesforce/connect',
-        '/api/integrations/salesforce/disconnect',
-    ]
-    
-    # Use view_decorators to exempt these routes
-    for rule in app.url_map.iter_rules():
-        if rule.rule in exempt_routes:
-            logger.info(f"Exempting route from CSRF protection: {rule.rule}")
-            csrf.exempt(app.view_functions[rule.endpoint])
-
-# We'll call this function after all routes are registered
 
 # Initialize login manager
 login_manager = LoginManager()
@@ -642,15 +587,6 @@ def init_app():
         logger.info("Direct token usage endpoint added successfully")
     except Exception as e:
         logger.error(f"Failed to add direct token usage endpoint: {str(e)}")
-        
-    # Exempt specific API endpoints from CSRF protection
-    # This must be done after all routes are registered
-    try:
-        # Call the function to exempt CSRF for specific API routes
-        exempt_csrf_for_api_endpoints()
-        logger.info("CSRF exemptions applied to integration API endpoints")
-    except Exception as e:
-        logger.error(f"Error applying CSRF exemptions: {str(e)}", exc_info=True)
     
     # Initialize Row Level Security
     init_rls()

@@ -4,7 +4,7 @@ Dana AI Platform - Main Entry Point
 This is the main entry point for running the Dana AI Platform.
 """
 
-from app import app, socketio, csrf_exempt
+from app import app, socketio
 import threading
 import logging
 import subprocess
@@ -13,16 +13,6 @@ import json
 import uuid
 import base64
 import flask
-
-# Add simplified email routes
-try:
-    from direct_fix_email_routes import add_direct_email_routes
-    add_direct_email_routes(app)
-    logger = logging.getLogger(__name__)
-    logger.info("Simplified direct email routes added successfully")
-except Exception as e:
-    logger = logging.getLogger(__name__)
-    logger.error(f"Failed to add simplified email routes: {str(e)}")
 from datetime import datetime
 from flask import jsonify, request
 
@@ -308,10 +298,7 @@ def direct_email_connect():
                 existing = cursor.fetchone()
                 
                 if existing:
-                    # Access the result as a dictionary to avoid indexing errors
-                    existing_id = existing[0] if isinstance(existing, tuple) else existing.get('id')
-                    existing_status = existing[1] if isinstance(existing, tuple) else existing.get('status')
-                    logger.info(f"Email integration already exists for user (ID: {existing_id}, status: {existing_status})")
+                    logger.info(f"Email integration already exists for user (ID: {existing[0]}, status: {existing[1]})")
                     # Update status to active
                     cursor.execute(
                         """
@@ -320,18 +307,17 @@ def direct_email_connect():
                         WHERE id = %s
                         RETURNING id
                         """,
-                        (datetime.now(), existing_id if "existing_id" in locals() else existing[0])
+                        (datetime.now(), existing[0])
                     )
                     conn.commit()
                     updated = cursor.fetchone()
                     
                     if updated:
-                        updated_id = updated[0] if isinstance(updated, tuple) else updated.get("id")
-                        logger.info(f"Updated existing integration {updated_id} to active")
+                        logger.info(f"Updated existing integration {updated[0]} to active")
                         return jsonify({
                             'success': True,
                             'message': 'Email integration updated successfully',
-                            'id': updated_id
+                            'id': updated[0]
                         })
                     else:
                         logger.error("Failed to update existing integration")
@@ -462,8 +448,7 @@ def direct_email_disconnect():
                     conn.commit()
                     
                 if deleted:
-                    deleted_id = deleted[0] if isinstance(deleted, tuple) else deleted.get("id")
-                    logger.info(f"Successfully deleted integration {deleted_id}")
+                    logger.info(f"Successfully deleted integration {deleted[0]}")
                     return jsonify({
                         'success': True,
                         'message': 'Email integration disconnected successfully'
@@ -738,13 +723,12 @@ def direct_email_disconnect():
                 """
                 
                 with conn.cursor() as cursor:
-                    cursor.execute(delete_sql, (int(integration_id) if isinstance(integration_id, str) and integration_id.isdigit() else integration_id,))
+                    cursor.execute(delete_sql, (integration_id,))
                     deleted = cursor.fetchone()
                     conn.commit()
                     
                 if deleted:
-                    deleted_id = deleted[0] if isinstance(deleted, tuple) else deleted.get("id")
-                    logger.info(f"Successfully deleted integration {deleted_id}")
+                    logger.info(f"Successfully deleted integration {deleted[0]}")
                     return jsonify({
                         'success': True,
                         'message': 'Email integration disconnected successfully'
@@ -756,7 +740,7 @@ def direct_email_disconnect():
                         'message': 'Failed to delete integration'
                     }), 500
             else:
-                logger.warning(f"No email integration found for user {user_uuid}")
+                logger.warning(f"No email integration found for user {user_uuid} or {str(db_user.id)}")
                 return jsonify({
                     'success': False,
                     'message': 'No email integration found'
@@ -1544,14 +1528,13 @@ def get_email_status_direct():
         'version': '1.0.0'
     })
 
-@csrf_exempt
 @app.route('/api/integrations/email/connect', methods=['POST', 'OPTIONS'])
 def connect_email_direct_v2():
     """Connect to email service - direct endpoint (v2)"""
     # Handle OPTIONS request (CORS preflight)
     if request.method == 'OPTIONS':
         response = jsonify({})
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-CSRF-Token')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
         response.headers.add('Access-Control-Allow-Methods', 'POST, OPTIONS')
         response.headers.add('Access-Control-Allow-Origin', '*')
         response.headers.add('Access-Control-Allow-Credentials', 'true')
@@ -1563,73 +1546,8 @@ def connect_email_direct_v2():
         data = request.get_json() or {}
         config = data.get('config', {})
         
-        # Check for CSRF token - either in request body or headers
-        csrf_token = data.get('csrf_token')
-        if not csrf_token and 'X-CSRF-Token' in request.headers:
-            csrf_token = request.headers.get('X-CSRF-Token')
-            
-        # For testing purposes, if 'test-token' is provided as Authorization, 
-        # bypass CSRF validation
-        test_mode = request.headers.get('Authorization') == 'test-token'
-        
-        # Validate CSRF token if not in test mode
-        if not test_mode and not csrf_token:
-            logger.warning("CSRF token missing in request")
-            return jsonify({
-                'success': False,
-                'error': 'CSRF token missing',
-                'message': 'CSRF token is required for this operation'
-            }), 400
-        
-        # Simplified implementation - just update the status file
-        try:
-            # Update status in file for testing
-            with open('email_status.txt', 'w') as f:
-                f.write('active')
-                
-            # If database is available, also update the database status
-            try:
-                from utils.db_connection import get_direct_connection
-                conn = get_direct_connection()
-                # Check if the email integration exists
-                with conn.cursor() as cursor:
-                    cursor.execute(
-                        """
-                        SELECT id FROM integration_configs 
-                        WHERE integration_type = 'email'
-                        """
-                    )
-                    result = cursor.fetchone()
-                    
-                    if result:
-                        # Update existing record
-                        cursor.execute(
-                            """
-                            UPDATE integration_configs 
-                            SET status = 'active', config = %s, updated_at = NOW()
-                            WHERE integration_type = 'email'
-                            """,
-                            (json.dumps(config),)
-                        )
-                    else:
-                        # Insert new record
-                        cursor.execute(
-                            """
-                            INSERT INTO integration_configs 
-                            (integration_type, status, config, created_at, updated_at)
-                            VALUES ('email', 'active', %s, NOW(), NOW())
-                            """,
-                            (json.dumps(config),)
-                        )
-                    
-                    conn.commit()
-                    logger.info("Email integration status updated in database")
-            except Exception as db_error:
-                logger.error(f"Could not update database, falling back to file: {str(db_error)}")
-        except Exception as file_error:
-            logger.error(f"Error writing to status file: {str(file_error)}")
-            
-        # Return success response
+        # For testing, we just return a successful response
+        # TODO: Implement actual email connection logic with the config parameters
         return jsonify({
             'success': True,
             'message': 'Connected to email service successfully',
@@ -1687,14 +1605,13 @@ def get_email_configure_direct():
             'message': f'An error occurred while getting email configuration schema: {str(e)}'
         }), 500
 
-@csrf_exempt
 @app.route('/api/integrations/email/disconnect', methods=['POST', 'OPTIONS'])
 def disconnect_email_direct():
     """Disconnect from email service - direct endpoint"""
     # Handle OPTIONS request (CORS preflight)
     if request.method == 'OPTIONS':
         response = jsonify({})
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-CSRF-Token')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
         response.headers.add('Access-Control-Allow-Methods', 'POST, OPTIONS')
         response.headers.add('Access-Control-Allow-Origin', '*')
         response.headers.add('Access-Control-Allow-Credentials', 'true')
@@ -1702,58 +1619,16 @@ def disconnect_email_direct():
         return response, 204
         
     try:
-        # Get data from request
-        data = request.get_json() or {}
+        from utils.auth import token_required_impl
         
-        # Check for CSRF token - either in request body or headers
-        csrf_token = data.get('csrf_token')
-        if not csrf_token and 'X-CSRF-Token' in request.headers:
-            csrf_token = request.headers.get('X-CSRF-Token')
+        # Check authentication manually
+        auth_result = token_required_impl()
+        if isinstance(auth_result, tuple):
+            # Auth failed, return the error response
+            return auth_result
             
-        # For testing purposes, if 'test-token' is provided as Authorization, 
-        # bypass CSRF validation
-        test_mode = request.headers.get('Authorization') == 'test-token'
-        
-        # Validate CSRF token if not in test mode
-        if not test_mode and not csrf_token:
-            logger.warning("CSRF token missing in request")
-            return jsonify({
-                'success': False,
-                'error': 'CSRF token missing',
-                'message': 'CSRF token is required for this operation'
-            }), 400
-            
-        # Simplified implementation - just update the status file
-        try:
-            # Update status in file for testing
-            with open('email_status.txt', 'w') as f:
-                f.write('inactive')
-                
-            # If database is available, also update the database status
-            try:
-                from utils.db_connection import get_direct_connection
-                conn = get_direct_connection()
-                # Update the email integration status to inactive
-                with conn.cursor() as cursor:
-                    cursor.execute(
-                        """
-                        UPDATE integration_configs 
-                        SET status = 'inactive', updated_at = NOW()
-                        WHERE integration_type = 'email'
-                        """
-                    )
-                    conn.commit()
-                    
-                    # Check if the update was successful
-                    if cursor.rowcount > 0:
-                        logger.info(f"Email integration disconnected in database (affected rows: {cursor.rowcount})")
-                    else:
-                        logger.warning("No email integration found to disconnect in database")
-            except Exception as db_error:
-                logger.error(f"Could not update database, falling back to file: {str(db_error)}")
-        except Exception as file_error:
-            logger.error(f"Error writing to status file: {str(file_error)}")
-        
+        # For testing, we just return a successful response
+        # TODO: Implement actual email disconnection logic
         return jsonify({
             'success': True,
             'message': 'Disconnected from email service successfully'
@@ -2503,8 +2378,7 @@ def direct_fix_email_disconnect():
             conn.commit()
             
             if deleted:
-                    deleted_id = deleted[0] if isinstance(deleted, tuple) else deleted.get("id")
-                    logger.info(f"Successfully deleted integration {deleted_id}")
+                logger.info(f"Successfully deleted integration {deleted[0]}")
                 return jsonify({
                     'success': True,
                     'message': 'Email integration disconnected successfully'
@@ -2612,7 +2486,7 @@ def direct_fix_email_connect():
                     return jsonify({
                         'success': True,
                         'message': 'Email integration connected successfully',
-                        'id': updated_id
+                        'id': updated[0]
                     })
                 else:
                     logger.error("Failed to update integration")
