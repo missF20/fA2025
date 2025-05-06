@@ -31,7 +31,7 @@ def ensure_token_tracking_table() -> bool:
             UNIQUE (user_id, model)
         );
         """
-        execute_sql(token_limits_sql, fetch_results=False)
+        execute_sql(token_limits_sql, fetch_all=False)
         
         logger.info("Token tracking tables created successfully")
         return True
@@ -70,7 +70,7 @@ def record_token_usage(
         INSERT INTO token_usage (user_id, model, total_tokens, request_tokens, response_tokens, endpoint)
         VALUES (UUID(%s), %s, %s, %s, %s, %s)
         """
-        execute_sql(sql, (user_id, model, total_tokens, prompt_tokens, completion_tokens, endpoint), fetch_results=False)
+        execute_sql(sql, (user_id, model, total_tokens, prompt_tokens, completion_tokens, endpoint), fetch_all=False)
         
         logger.info(f"Recorded {total_tokens} tokens for user {user_id} using model {model}")
         return True
@@ -360,7 +360,7 @@ def update_user_token_limit(
                 updated_at = NOW()
             WHERE user_id::text = %s
             """
-            execute_sql(sql, (token_limit, user_id), fetch_results=False)
+            execute_sql(sql, (token_limit, user_id), fetch_all=False)
         else:
             # Insert new record
             sql = """
@@ -378,7 +378,7 @@ def update_user_token_limit(
             daily_limit = token_limit // 30 if token_limit > 0 else 0  # Monthly / 30 days
             response_limit = 4000  # Default max response size
             
-            execute_sql(sql, (user_id, token_limit, daily_limit, response_limit), fetch_results=False)
+            execute_sql(sql, (user_id, token_limit, daily_limit, response_limit), fetch_all=False)
         
         logger.info(f"Updated token limit for user {user_id} to {token_limit}")
         
