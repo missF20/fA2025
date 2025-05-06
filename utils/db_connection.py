@@ -5,6 +5,7 @@ This module provides utilities for establishing database connections.
 """
 import os
 import logging
+from typing import Any, Dict, List, Optional, Tuple, Union
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
@@ -39,4 +40,48 @@ def get_direct_connection():
         return conn
     except Exception as e:
         logger.error(f"Error connecting to database: {str(e)}")
+        raise
+
+def execute_sql(sql: str, params: Optional[Tuple[Any, ...]] = None, fetch_all: bool = True) -> Union[List[Dict[str, Any]], Dict[str, Any], None]:
+    """
+    Execute a SQL statement and return the results
+    
+    Args:
+        sql: The SQL statement to execute
+        params: Parameters for the SQL statement (optional)
+        fetch_all: Whether to fetch all results or just one (default: True)
+        
+    Returns:
+        List of dictionaries with query results if fetch_all=True
+        Single dictionary if fetch_all=False
+        None if no results or an error occurs
+    """
+    try:
+        conn = get_direct_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute(sql, params or ())
+        
+        # For SELECT statements, return results
+        if sql.strip().upper().startswith("SELECT") or "RETURNING" in sql.upper():
+            if fetch_all:
+                result = cursor.fetchall()
+            else:
+                result = cursor.fetchone()
+        else:
+            # For INSERT, UPDATE, DELETE statements, commit and return None
+            conn.commit()
+            result = None
+        
+        cursor.close()
+        conn.close()
+        
+        logger.info("SQL statements executed successfully")
+        return result
+    except Exception as e:
+        logger.error(f"Error executing SQL: {str(e)}")
+        # Log the SQL statement for debugging
+        logger.error(f"SQL statement: {sql}")
+        if params:
+            logger.error(f"Parameters: {params}")
         raise
