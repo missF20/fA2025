@@ -1,369 +1,420 @@
-from flask import Blueprint, request, jsonify
-import logging
+"""
+Authentication Routes
+
+This module provides routes for user authentication including email login and Google OAuth.
+"""
 import os
-from utils.validation import validate_request_json
-from utils.supabase import get_supabase_client
-from utils.auth import generate_token, verify_token, get_current_user as get_user_from_token
-from utils.rate_limit import rate_limit_middleware
-from models import SignUp, Login, PasswordReset, PasswordChange
+import json
+import logging
+from datetime import datetime, timedelta
+from functools import wraps
+import secrets
+import uuid
+from typing import Dict, List, Optional, Any
 
+from flask import Blueprint, request, jsonify, redirect, url_for, current_app, session, render_template
+import jwt
+import requests
+from werkzeug.security import generate_password_hash, check_password_hash
+from oauthlib.oauth2 import WebApplicationClient
+
+from utils.db_connection import get_direct_connection
+from utils.auth import token_required, admin_required, generate_token, verify_token
+
+# Create logger
 logger = logging.getLogger(__name__)
-auth_bp = Blueprint('auth', __name__, url_prefix='/api/auth')
-supabase = get_supabase_client()
 
-# Rate limit settings for authentication
-SIGNUP_LIMIT = os.environ.get('RATE_LIMIT_SIGNUP', '10 per hour')
-LOGIN_LIMIT = os.environ.get('RATE_LIMIT_LOGIN', '15 per hour') 
-PASSWORD_RESET_LIMIT = os.environ.get('RATE_LIMIT_PASSWORD_RESET', '5 per hour')
+# Create blueprint
+auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
-@auth_bp.route('/signup', methods=['POST'])
-@rate_limit_middleware(SIGNUP_LIMIT)  # Strict rate limiting for signup to prevent abuse
-@validate_request_json(SignUp)
-def signup():
+# Get Google OAuth config
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_OAUTH_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET")
+GOOGLE_DISCOVERY_URL = "https://accounts.google.com/.well-known/openid-configuration"
+
+# Initialize OAuth client if Google credentials are available
+google_client = None
+if GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET:
+    google_client = WebApplicationClient(GOOGLE_CLIENT_ID)
+    logger.info("Google OAuth client initialized")
+else:
+    logger.warning("Google OAuth credentials not found. Google login will be disabled.")
+
+def get_user_by_email(email: str) -> Optional[Dict[str, Any]]:
     """
-    Register a new user
-    ---
-    parameters:
-      - name: body
-        in: body
-        required: true
-        schema:
-          $ref: '#/definitions/SignUp'
-    responses:
-      201:
-        description: User created successfully
-      400:
-        description: Invalid request data
-      409:
-        description: User already exists
-      500:
-        description: Server error
-    """
-    data = request.json
-    email = data['email']
-    password = data['password']
-    company = data.get('company', '')
+    Get a user by email from the database
     
+    Args:
+        email: The user's email address
+        
+    Returns:
+        User data if found, None otherwise
+    """
     try:
-        # Check if user already exists
-        user_check = supabase.auth.admin.list_users()
-        existing_users = [u for u in user_check if u.email == email]
-        if existing_users:
-            return jsonify({'error': 'User with this email already exists'}), 409
+        conn = get_direct_connection()
+        cursor = conn.cursor()
         
-        # Create user in Supabase Auth
-        user_response = supabase.auth.sign_up({
-            "email": email,
-            "password": password
-        })
+        # Query the users table
+        sql = "SELECT id, email, username, password_hash, is_admin FROM users WHERE email = %s"
+        cursor.execute(sql, (email,))
         
-        if not user_response.user:
-            return jsonify({'error': 'Failed to create user'}), 500
+        user = cursor.fetchone()
+        cursor.close()
+        conn.close()
         
-        # Create profile in profiles table
-        profile_data = {
-            'id': user_response.user.id,
+        if user:
+            # Convert to dictionary
+            return {
+                'id': user[0],
+                'email': user[1],
+                'username': user[2],
+                'password_hash': user[3],
+                'is_admin': user[4]
+            }
+        
+        return None
+    except Exception as e:
+        logger.error(f"Error in get_user_by_email: {str(e)}")
+        return None
+
+def create_user(email: str, username: str, password: str = None, is_oauth: bool = False) -> Optional[Dict[str, Any]]:
+    """
+    Create a new user in the database
+    
+    Args:
+        email: User's email address
+        username: User's username
+        password: Optional password (not used for OAuth)
+        is_oauth: Whether this is an OAuth user
+        
+    Returns:
+        The created user data if successful, None otherwise
+    """
+    try:
+        conn = get_direct_connection()
+        cursor = conn.cursor()
+        
+        # Generate password hash if password provided
+        password_hash = None
+        if password:
+            password_hash = generate_password_hash(password)
+            
+        # Generate a unique ID for the user
+        user_id = str(uuid.uuid4())
+        
+        # Insert the new user
+        sql = """
+        INSERT INTO users (id, email, username, password_hash, is_admin, created_at) 
+        VALUES (%s, %s, %s, %s, %s, NOW())
+        RETURNING id
+        """
+        
+        # Default to non-admin
+        is_admin = False
+        
+        cursor.execute(sql, (user_id, email, username, password_hash, is_admin))
+        conn.commit()
+        
+        # Get the inserted user
+        user = {
+            'id': user_id,
             'email': email,
-            'company': company,
-            'account_setup_complete': False,
-            'welcome_email_sent': False
+            'username': username,
+            'is_admin': is_admin
         }
         
-        profile_result = supabase.table('profiles').insert(profile_data).execute()
+        cursor.close()
+        conn.close()
         
-        if not profile_result.data:
-            # Rollback user creation if profile creation fails
-            logger.error(f"Failed to create profile for user {email}")
-            # Note: In a production environment, implement proper rollback
-            
-        # Generate and return JWT token
-        token = generate_token(user_response.user.id)
-        
-        return jsonify({
-            'message': 'User created successfully',
-            'token': token,
-            'user': {
-                'id': user_response.user.id,
-                'email': email
-            }
-        }), 201
-        
+        return user
     except Exception as e:
-        logger.error(f"Error in signup: {str(e)}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Error in create_user: {str(e)}")
+        return None
 
-@auth_bp.route('/login', methods=['POST'])
-@rate_limit_middleware(LOGIN_LIMIT)  # Limit login attempts to prevent brute force attacks
-@validate_request_json(Login)
-def login():
-    """
-    Authenticate a user
-    ---
-    parameters:
-      - name: body
-        in: body
-        required: true
-        schema:
-          $ref: '#/definitions/Login'
-    responses:
-      200:
-        description: Login successful
-      400:
-        description: Invalid request data
-      401:
-        description: Invalid credentials
-      500:
-        description: Server error
-    """
-    data = request.json
-    email = data['email']
-    password = data['password']
+@auth_bp.route('/status', methods=['GET'])
+def auth_status():
+    """Get the current authentication status"""
+    # Get auth header
+    auth_header = request.headers.get('Authorization')
     
-    try:
-        # Sign in with Supabase
-        auth_response = supabase.auth.sign_in_with_password({
-            "email": email,
-            "password": password
+    if not auth_header:
+        token = request.cookies.get('token') or request.args.get('token')
+    else:
+        parts = auth_header.split()
+        if len(parts) == 2 and parts[0].lower() == 'bearer':
+            token = parts[1]
+        else:
+            token = None
+    
+    if not token:
+        return jsonify({
+            'authenticated': False,
+            'message': 'No authentication token provided'
         })
-        
-        if not auth_response.user:
-            return jsonify({'error': 'Invalid credentials'}), 401
-        
-        # Get user profile
-        profile_result = supabase.table('profiles').select('*').eq('id', auth_response.user.id).execute()
-        
-        if not profile_result.data:
-            return jsonify({'error': 'User profile not found'}), 404
-            
-        # Generate and return JWT token
-        token = generate_token(auth_response.user.id)
-            
+    
+    # Verify token
+    user = verify_token(token)
+    
+    if not user:
         return jsonify({
-            'message': 'Login successful',
-            'token': token,
-            'user': {
-                'id': auth_response.user.id,
-                'email': email,
-                'profile': profile_result.data[0]
-            }
-        }), 200
-        
-    except Exception as e:
-        logger.error(f"Error in login: {str(e)}", exc_info=True)
-        return jsonify({'error': 'Invalid credentials'}), 401
+            'authenticated': False,
+            'message': 'Invalid or expired token'
+        })
+    
+    # Return user info
+    return jsonify({
+        'authenticated': True,
+        'user': {
+            'id': user.get('id'),
+            'email': user.get('email'),
+            'username': user.get('username'),
+            'is_admin': user.get('is_admin', False)
+        }
+    })
 
-@auth_bp.route('/reset-password', methods=['POST'])
-@rate_limit_middleware(PASSWORD_RESET_LIMIT)  # Strict rate limiting for password reset to prevent abuse
-@validate_request_json(PasswordReset)
-def reset_password():
-    """
-    Request password reset
-    ---
-    parameters:
-      - name: body
-        in: body
-        required: true
-        schema:
-          $ref: '#/definitions/PasswordReset'
-    responses:
-      200:
-        description: Password reset link sent
-      400:
-        description: Invalid request data
-      404:
-        description: User not found
-      500:
-        description: Server error
-    """
-    data = request.json
-    email = data['email']
+@auth_bp.route('/login', methods=['GET', 'POST'])
+def login():
+    """Handle user login via email/password"""
+    if request.method == 'GET':
+        return render_template('login.html')
+    
+    # Get login data
+    data = request.get_json()
+    
+    if not data:
+        # Try form data
+        email = request.form.get('email')
+        password = request.form.get('password')
+    else:
+        email = data.get('email')
+        password = data.get('password')
+    
+    if not email or not password:
+        return jsonify({
+            'error': 'Missing credentials',
+            'message': 'Email and password are required'
+        }), 400
+    
+    # Get user by email
+    user = get_user_by_email(email)
+    
+    if not user or not user.get('password_hash') or not check_password_hash(user.get('password_hash', ''), password):
+        return jsonify({
+            'error': 'Authentication failed',
+            'message': 'Invalid email or password'
+        }), 401
+    
+    # Generate token
+    token = generate_token(user)
+    
+    # Respond with token and user data
+    return jsonify({
+        'token': token,
+        'user': {
+            'id': user.get('id'),
+            'email': user.get('email'),
+            'username': user.get('username'),
+            'is_admin': user.get('is_admin', False)
+        }
+    })
+
+@auth_bp.route('/register', methods=['GET', 'POST'])
+def register():
+    """Handle user registration via email/password"""
+    if request.method == 'GET':
+        return render_template('register.html')
+    
+    # Get registration data
+    data = request.get_json()
+    
+    if not data:
+        # Try form data
+        email = request.form.get('email')
+        username = request.form.get('username')
+        password = request.form.get('password')
+    else:
+        email = data.get('email')
+        username = data.get('username')
+        password = data.get('password')
+    
+    if not email or not username or not password:
+        return jsonify({
+            'error': 'Missing data',
+            'message': 'Email, username, and password are required'
+        }), 400
+    
+    # Check if user already exists
+    existing_user = get_user_by_email(email)
+    
+    if existing_user:
+        return jsonify({
+            'error': 'Registration failed',
+            'message': 'Email already in use'
+        }), 409
+    
+    # Create the user
+    user = create_user(email, username, password)
+    
+    if not user:
+        return jsonify({
+            'error': 'Registration failed',
+            'message': 'Failed to create user'
+        }), 500
+    
+    # Generate token
+    token = generate_token(user)
+    
+    # Respond with token and user data
+    return jsonify({
+        'token': token,
+        'user': {
+            'id': user.get('id'),
+            'email': user.get('email'),
+            'username': user.get('username'),
+            'is_admin': user.get('is_admin', False)
+        }
+    })
+
+@auth_bp.route('/logout', methods=['GET', 'POST'])
+def logout():
+    """Handle user logout"""
+    return jsonify({
+        'message': 'Logged out successfully'
+    })
+
+# Google OAuth routes
+@auth_bp.route('/google/login')
+def google_login():
+    """Initiate Google OAuth flow"""
+    if not google_client:
+        return jsonify({
+            'error': 'Google OAuth not configured',
+            'message': 'Google OAuth credentials not provided'
+        }), 503
     
     try:
-        # Check if user exists
-        user_check = supabase.auth.admin.list_users()
-        existing_users = [u for u in user_check if u.email == email]
-        if not existing_users:
-            # For security reasons, still return success to avoid email enumeration
-            return jsonify({
-                'message': 'If a user with that email exists, a password reset link has been sent'
-            }), 200
+        # Get Google OAuth provider config
+        google_provider_cfg = requests.get(GOOGLE_DISCOVERY_URL).json()
+        authorization_endpoint = google_provider_cfg["authorization_endpoint"]
         
-        # Build the redirect URL for the reset link
-        frontend_url = request.headers.get('Origin', 'https://dana-ai.replit.app')
-        redirect_url = f"{frontend_url}/reset-password"
+        # Determine redirect URI
+        # Determine proper host for the callback URL
+        if os.environ.get('REPLIT_DEPLOYMENT'):
+            # Production domain
+            redirect_uri = f"https://{os.environ.get('REPLIT_DOMAINS').split(',')[0]}/auth/google/callback"
+        elif os.environ.get('REPLIT_DEV_DOMAIN'):
+            # Development domain
+            redirect_uri = f"https://{os.environ.get('REPLIT_DEV_DOMAIN')}/auth/google/callback"
+        else:
+            # Fallback to localhost
+            redirect_uri = request.base_url.replace("login", "callback")
         
-        # Send password reset email with redirect
-        reset_response = supabase.auth.reset_password_for_email(
-            email,
-            options={"redirect_to": redirect_url}
+        # Generate request URI
+        request_uri = google_client.prepare_request_uri(
+            authorization_endpoint,
+            redirect_uri=redirect_uri,
+            scope=["openid", "email", "profile"]
         )
         
-        # Log success but don't expose details to client
-        logger.info(f"Password reset email sent to {email}")
-        
-        return jsonify({
-            'message': 'If a user with that email exists, a password reset link has been sent'
-        }), 200
-        
+        # Redirect to Google OAuth
+        return redirect(request_uri)
     except Exception as e:
-        logger.error(f"Error in reset_password: {str(e)}", exc_info=True)
-        # For security reasons, still return success to avoid email enumeration
+        logger.error(f"Error in Google login: {str(e)}")
         return jsonify({
-            'message': 'If a user with that email exists, a password reset link has been sent'
-        }), 200
+            'error': 'Google OAuth error',
+            'message': str(e)
+        }), 500
 
-@auth_bp.route('/change-password', methods=['POST'])
-@rate_limit_middleware(PASSWORD_RESET_LIMIT)  # Strict rate limiting for password changes to prevent abuse
-@validate_request_json(PasswordChange)
-def change_password():
-    """
-    Change password using reset token
-    ---
-    parameters:
-      - name: body
-        in: body
-        required: true
-        schema:
-          $ref: '#/definitions/PasswordChange'
-    responses:
-      200:
-        description: Password changed successfully
-      400:
-        description: Invalid request data
-      401:
-        description: Invalid token
-      500:
-        description: Server error
-    """
-    data = request.json
-    token = data['token']
-    new_password = data['new_password']
+@auth_bp.route('/google/callback')
+def google_callback():
+    """Handle Google OAuth callback"""
+    if not google_client:
+        return jsonify({
+            'error': 'Google OAuth not configured',
+            'message': 'Google OAuth credentials not provided'
+        }), 503
     
     try:
-        # Verify password meets requirements
-        if len(new_password) < 8:
-            return jsonify({'error': 'Password must be at least 8 characters long'}), 400
+        # Get authorization code from request
+        code = request.args.get('code')
+        
+        if not code:
+            return jsonify({
+                'error': 'OAuth error',
+                'message': 'No authorization code provided'
+            }), 400
+        
+        # Get Google OAuth provider config
+        google_provider_cfg = requests.get(GOOGLE_DISCOVERY_URL).json()
+        token_endpoint = google_provider_cfg["token_endpoint"]
+        
+        # Determine callback URL (must match the one used in the login route)
+        if os.environ.get('REPLIT_DEPLOYMENT'):
+            # Production domain
+            redirect_uri = f"https://{os.environ.get('REPLIT_DOMAINS').split(',')[0]}/auth/google/callback"
+        elif os.environ.get('REPLIT_DEV_DOMAIN'):
+            # Development domain
+            redirect_uri = f"https://{os.environ.get('REPLIT_DEV_DOMAIN')}/auth/google/callback"
+        else:
+            # Fallback to localhost
+            redirect_uri = request.base_url
+        
+        # Exchange code for token
+        token_url, headers, body = google_client.prepare_token_request(
+            token_endpoint,
+            authorization_response=request.url,
+            redirect_url=redirect_uri,
+            code=code
+        )
+        
+        token_response = requests.post(
+            token_url,
+            headers=headers,
+            data=body,
+            auth=(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET)
+        )
+        
+        # Parse the token response
+        google_client.parse_request_body_response(json.dumps(token_response.json()))
+        
+        # Get user info from Google
+        userinfo_endpoint = google_provider_cfg["userinfo_endpoint"]
+        uri, headers, body = google_client.add_token(userinfo_endpoint)
+        userinfo_response = requests.get(uri, headers=headers, data=body)
+        userinfo = userinfo_response.json()
+        
+        # Validate email address
+        if not userinfo.get("email_verified", False):
+            return jsonify({
+                'error': 'OAuth validation error',
+                'message': 'Email not verified by Google'
+            }), 400
+        
+        # Get user info
+        email = userinfo["email"]
+        username = userinfo.get("given_name", email.split('@')[0])
+        
+        # Check if user exists
+        user = get_user_by_email(email)
+        
+        if not user:
+            # Create new user
+            user = create_user(email, username, is_oauth=True)
             
-        # Update user's password with the reset token
-        supabase.auth.set_session(token)
-        update_response = supabase.auth.update_user({
-            "password": new_password
-        })
+            if not user:
+                return jsonify({
+                    'error': 'Registration failed',
+                    'message': 'Failed to create user'
+                }), 500
         
-        if not update_response.user:
-            return jsonify({'error': 'Invalid token or password'}), 401
-            
-        # Force sign out any existing sessions
-        supabase.auth.sign_out()
+        # Generate token
+        token = generate_token(user)
         
-        # Log the event (omitting sensitive details)
-        logger.info(f"Password successfully changed for user {update_response.user.id}")
-        
-        return jsonify({
-            'message': 'Password changed successfully. Please log in with your new password.',
-            'user_id': update_response.user.id
-        }), 200
-        
+        # Redirect to frontend with token
+        return redirect(f"/?token={token}")
     except Exception as e:
-        logger.error(f"Error in change_password: {str(e)}", exc_info=True)
-        return jsonify({'error': 'Error changing password. Please try again or request a new reset link.'}), 500
-
-@auth_bp.route('/me', methods=['GET'])
-@rate_limit_middleware("30 per minute")  # More relaxed rate limiting for profile access
-def get_user_profile():
-    """
-    Get authenticated user profile
-    ---
-    parameters:
-      - name: Authorization
-        in: header
-        type: string
-        required: true
-        description: Bearer token
-    responses:
-      200:
-        description: User profile
-      401:
-        description: Unauthorized
-      404:
-        description: Profile not found
-      500:
-        description: Server error
-    """
-    # Extract token from header
-    auth_header = request.headers.get("Authorization")
-    token = None
-    if auth_header and auth_header.startswith("Bearer "):
-        token = auth_header[7:]
-    
-    if not token:
-        return jsonify({'error': 'Authorization header missing or invalid'}), 401
-        
-    user = get_user_from_token(token)
-    
-    if not user:
-        return jsonify({'error': 'Unauthorized - invalid or expired token'}), 401
-    
-    try:
-        # Get user profile
-        profile_result = supabase.table('profiles').select('*').eq('id', user['id']).execute()
-        
-        if not profile_result.data:
-            return jsonify({'error': 'User profile not found'}), 404
-        
+        logger.error(f"Error in Google callback: {str(e)}")
         return jsonify({
-            'user': {
-                'id': user['id'],
-                'profile': profile_result.data[0]
-            }
-        }), 200
-        
-    except Exception as e:
-        logger.error(f"Error getting user profile: {str(e)}", exc_info=True)
-        return jsonify({'error': 'Error getting user profile'}), 500
-
-@auth_bp.route('/logout', methods=['POST'])
-@rate_limit_middleware("20 per minute")  # Rate limiting for logout
-def logout():
-    """
-    Log out user
-    ---
-    parameters:
-      - name: Authorization
-        in: header
-        type: string
-        required: true
-        description: Bearer token
-    responses:
-      200:
-        description: Logged out successfully
-      401:
-        description: Unauthorized
-      500:
-        description: Server error
-    """
-    # Extract token from header
-    auth_header = request.headers.get("Authorization")
-    token = None
-    if auth_header and auth_header.startswith("Bearer "):
-        token = auth_header[7:]
-    
-    if not token:
-        return jsonify({'error': 'Authorization header missing or invalid'}), 401
-        
-    user = get_user_from_token(token)
-    
-    if not user:
-        return jsonify({'error': 'Unauthorized - invalid or expired token'}), 401
-    
-    try:
-        # Sign out with Supabase
-        supabase.auth.sign_out()
-        
-        return jsonify({
-            'message': 'Logged out successfully'
-        }), 200
-        
-    except Exception as e:
-        logger.error(f"Error in logout: {str(e)}", exc_info=True)
-        return jsonify({'error': 'Error logging out'}), 500
+            'error': 'Google OAuth error',
+            'message': str(e)
+        }), 500
