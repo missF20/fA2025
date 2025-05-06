@@ -55,7 +55,7 @@ def fix_knowledge_endpoints():
                     user = get_user_from_token(request)
                 
                 # Get database connection
-                conn = get_direct_connection()
+                conn = get_db_connection()
                 
                 try:
                     # Extract user ID for query
@@ -105,7 +105,7 @@ def fix_knowledge_endpoints():
                 return jsonify({'tags': []}), 200
         
         # Add direct endpoint for getting knowledge categories
-        @app.route('/api/knowledge/files/categories', methods=['GET', 'OPTIONS'])
+        @app.route('/api/knowledge/categories', methods=['GET', 'OPTIONS'])
         @token_required
         def direct_knowledge_categories(user=None):
             """Get all categories in the knowledge base"""
@@ -124,7 +124,7 @@ def fix_knowledge_endpoints():
                     user = get_user_from_token(request)
                 
                 # Get database connection
-                conn = get_direct_connection()
+                conn = get_db_connection()
                 
                 try:
                     # Extract user ID for query
@@ -192,7 +192,7 @@ def fix_knowledge_endpoints():
                     user = get_user_from_token(request)
                 
                 # Get database connection
-                conn = get_direct_connection()
+                conn = get_db_connection()
                 
                 try:
                     # Import necessary modules for database cursor
@@ -294,7 +294,7 @@ def fix_knowledge_endpoints():
                         return jsonify({"error": f"Missing required field: {field}"}), 400
                 
                 # Get database connection
-                conn = get_direct_connection()
+                conn = get_db_connection()
                 
                 try:
                     # Extract file data
