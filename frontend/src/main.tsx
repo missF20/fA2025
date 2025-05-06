@@ -10,6 +10,7 @@ import { AppErrorBoundary } from './components/ErrorBoundary';
 import App from './App';
 import './index.css';
 import { reportWebVitals } from './reportWebVitals';
+import { AuthProvider } from './contexts/AuthContext';
 
 // Initialize Sentry
 const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN;
@@ -48,7 +49,9 @@ createRoot(document.getElementById('root')!).render(
     <QueryClientProvider client={queryClient}>
       <AppErrorBoundary>
         <BrowserRouter>
-          <App />
+          <AuthProvider>
+            <App />
+          </AuthProvider>
         </BrowserRouter>
       </AppErrorBoundary>
     </QueryClientProvider>
