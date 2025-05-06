@@ -38,6 +38,7 @@ except Exception as e:
     from flask import session, jsonify
     
     @app.route('/api/csrf/token', methods=['GET'])
+    @app.route('/api/v2/csrf-token', methods=['GET'])
     def direct_csrf_token():
         """Direct CSRF token endpoint that doesn't rely on external dependencies"""
         try:

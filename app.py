@@ -117,6 +117,12 @@ def subscription_management():
     """Subscription management page"""
     return render_template('subscription_page.html')
 
+@app.route('/integrations', methods=['GET'])
+@app.route('/integrations/', methods=['GET'])
+def integrations():
+    """Integrations management page"""
+    return render_template('index.html')
+
 @app.route('/dashboard', methods=['GET'])
 def complete_dashboard():
     """Complete dashboard experience"""
