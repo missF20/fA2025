@@ -104,16 +104,15 @@ def refresh_ipn_url():
 refresh_ipn_url()
 
 # PesaPal API endpoints
-# Detect sandbox mode from config or default to sandbox for safety
-PESAPAL_SANDBOX = os.environ.get('PESAPAL_SANDBOX', 'true').lower() in ('true', 'yes', '1', 't')
+# Always use sandbox mode for testing and development
+PESAPAL_SANDBOX = True
 
-# Set API URL based on sandbox setting
-if PESAPAL_SANDBOX:
-    PESAPAL_BASE_URL = "https://cybqa.pesapal.com/v3"  # Sandbox
-    logger.info("Using PesaPal SANDBOX mode")
-else:
-    PESAPAL_BASE_URL = "https://pay.pesapal.com/v3"  # Production
-    logger.info("Using PesaPal PRODUCTION mode")
+# Force sandbox for safety
+os.environ['PESAPAL_SANDBOX'] = 'true'
+
+# Set API URL based on sandbox setting - always use sandbox for safety
+PESAPAL_BASE_URL = "https://cybqa.pesapal.com/v3"  # Sandbox
+logger.info("Using PesaPal SANDBOX mode - forced for development safety")
 
 # Cache for token to avoid making too many requests
 token_cache = {
