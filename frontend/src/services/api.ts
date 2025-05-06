@@ -49,6 +49,25 @@ const createSupabaseClient = (): SupabaseClient => {
 // Export a singleton instance of the Supabase client
 export const supabase = createSupabaseClient();
 
+// Helper function to get the Supabase URL from environment variables
+export const getSupabaseUrl = (): string => {
+  if (env.success) {
+    return env.data.VITE_SUPABASE_URL;
+  }
+  // Fallback
+  return import.meta.env.VITE_SUPABASE_URL || '';
+};
+
+// Helper function to generate the correct storage key based on Supabase URL
+export const getSupabaseStorageKey = (): string => {
+  const supabaseUrl = getSupabaseUrl();
+  // Extract the domain without 'https://' and other parts
+  const urlDomain = supabaseUrl.replace(/^https?:\/\//, '').split('.')[0];
+  
+  // Common patterns for Supabase storage keys
+  return `sb-${urlDomain}-auth-token`;
+};
+
 // Input validation schemas
 export const profileSchema = z.object({
   id: z.string().uuid(),
@@ -241,16 +260,52 @@ export const api = {
       if (!token) {
         // Try to get the session directly from localStorage as a fallback
         try {
-          const storedSession = localStorage.getItem('dana-ai.auth.token');
-          if (storedSession) {
-            const parsedSession = JSON.parse(storedSession);
-            if (parsedSession?.access_token) {
-              console.log("Using token from localStorage");
-              return this._connectWithToken(integrationType, config, parsedSession.access_token);
+          // Check multiple possible storage keys
+          const storageKeys = [
+            'dana-ai.auth.token',
+            'supabase.auth.token',
+            'sb-' + process.env.REACT_APP_SUPABASE_URL?.replace(/^https?:\/\//, '') + '-auth-token'
+          ];
+          console.log("Checking localStorage keys:", storageKeys);
+          
+          // Log all localStorage keys for debugging
+          console.log("All localStorage keys:");
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            console.log(`- ${key}`);
+          }
+          
+          let foundToken = null;
+          
+          // Try each possible storage key
+          for (const key of storageKeys) {
+            console.log(`Checking localStorage key: ${key}`);
+            const storedData = localStorage.getItem(key);
+            if (storedData) {
+              console.log(`Found data in key: ${key}`);
+              try {
+                const parsedData = JSON.parse(storedData);
+                if (parsedData?.access_token) {
+                  console.log(`Found access_token in key: ${key}`);
+                  foundToken = parsedData.access_token;
+                  break;
+                } else if (parsedData?.data?.session?.access_token) {
+                  console.log(`Found nested access_token in key: ${key}`);
+                  foundToken = parsedData.data.session.access_token;
+                  break;
+                }
+              } catch (parseErr) {
+                console.error(`Error parsing data from key ${key}:`, parseErr);
+              }
             }
           }
+          
+          if (foundToken) {
+            console.log("Using token from localStorage");
+            return this._connectWithToken(integrationType, config, foundToken);
+          }
         } catch (e) {
-          console.error("Error parsing stored session:", e);
+          console.error("Error accessing localStorage:", e);
         }
         
         throw new Error("Authentication required. Please sign in again.");
@@ -381,16 +436,52 @@ export const api = {
       if (!token) {
         // Try to get the session directly from localStorage as a fallback
         try {
-          const storedSession = localStorage.getItem('dana-ai.auth.token');
-          if (storedSession) {
-            const parsedSession = JSON.parse(storedSession);
-            if (parsedSession?.access_token) {
-              console.log("Using token from localStorage");
-              return this._disconnectWithToken(integrationId, parsedSession.access_token);
+          // Check multiple possible storage keys
+          const storageKeys = [
+            'dana-ai.auth.token',
+            'supabase.auth.token',
+            'sb-' + process.env.REACT_APP_SUPABASE_URL?.replace(/^https?:\/\//, '') + '-auth-token'
+          ];
+          console.log("Checking localStorage keys:", storageKeys);
+          
+          // Log all localStorage keys for debugging
+          console.log("All localStorage keys:");
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            console.log(`- ${key}`);
+          }
+          
+          let foundToken = null;
+          
+          // Try each possible storage key
+          for (const key of storageKeys) {
+            console.log(`Checking localStorage key: ${key}`);
+            const storedData = localStorage.getItem(key);
+            if (storedData) {
+              console.log(`Found data in key: ${key}`);
+              try {
+                const parsedData = JSON.parse(storedData);
+                if (parsedData?.access_token) {
+                  console.log(`Found access_token in key: ${key}`);
+                  foundToken = parsedData.access_token;
+                  break;
+                } else if (parsedData?.data?.session?.access_token) {
+                  console.log(`Found nested access_token in key: ${key}`);
+                  foundToken = parsedData.data.session.access_token;
+                  break;
+                }
+              } catch (parseErr) {
+                console.error(`Error parsing data from key ${key}:`, parseErr);
+              }
             }
           }
+          
+          if (foundToken) {
+            console.log("Using token from localStorage");
+            return this._disconnectWithToken(integrationId, foundToken);
+          }
         } catch (e) {
-          console.error("Error parsing stored session:", e);
+          console.error("Error accessing localStorage:", e);
         }
         
         throw new Error("Authentication required. Please sign in again.");
@@ -505,16 +596,52 @@ export const api = {
       if (!token) {
         // Try to get the session directly from localStorage as a fallback
         try {
-          const storedSession = localStorage.getItem('dana-ai.auth.token');
-          if (storedSession) {
-            const parsedSession = JSON.parse(storedSession);
-            if (parsedSession?.access_token) {
-              console.log("Using token from localStorage");
-              return this._syncWithToken(integrationId, parsedSession.access_token);
+          // Check multiple possible storage keys
+          const storageKeys = [
+            'dana-ai.auth.token',
+            'supabase.auth.token',
+            'sb-' + process.env.REACT_APP_SUPABASE_URL?.replace(/^https?:\/\//, '') + '-auth-token'
+          ];
+          console.log("Checking localStorage keys:", storageKeys);
+          
+          // Log all localStorage keys for debugging
+          console.log("All localStorage keys:");
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            console.log(`- ${key}`);
+          }
+          
+          let foundToken = null;
+          
+          // Try each possible storage key
+          for (const key of storageKeys) {
+            console.log(`Checking localStorage key: ${key}`);
+            const storedData = localStorage.getItem(key);
+            if (storedData) {
+              console.log(`Found data in key: ${key}`);
+              try {
+                const parsedData = JSON.parse(storedData);
+                if (parsedData?.access_token) {
+                  console.log(`Found access_token in key: ${key}`);
+                  foundToken = parsedData.access_token;
+                  break;
+                } else if (parsedData?.data?.session?.access_token) {
+                  console.log(`Found nested access_token in key: ${key}`);
+                  foundToken = parsedData.data.session.access_token;
+                  break;
+                }
+              } catch (parseErr) {
+                console.error(`Error parsing data from key ${key}:`, parseErr);
+              }
             }
           }
+          
+          if (foundToken) {
+            console.log("Using token from localStorage");
+            return this._syncWithToken(integrationId, foundToken);
+          }
         } catch (e) {
-          console.error("Error parsing stored session:", e);
+          console.error("Error accessing localStorage:", e);
         }
         
         throw new Error("Authentication required. Please sign in again.");
