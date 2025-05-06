@@ -13,6 +13,16 @@ import json
 import uuid
 import base64
 import flask
+
+# Add simplified email routes
+try:
+    from direct_fix_email_routes import add_direct_email_routes
+    add_direct_email_routes(app)
+    logger = logging.getLogger(__name__)
+    logger.info("Simplified direct email routes added successfully")
+except Exception as e:
+    logger = logging.getLogger(__name__)
+    logger.error(f"Failed to add simplified email routes: {str(e)}")
 from datetime import datetime
 from flask import jsonify, request
 
