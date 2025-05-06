@@ -462,7 +462,8 @@ def direct_email_disconnect():
                     conn.commit()
                     
                 if deleted:
-                    logger.info(f"Successfully deleted integration {deleted[0]}")
+                    deleted_id = deleted[0] if isinstance(deleted, tuple) else deleted.get("id")
+                    logger.info(f"Successfully deleted integration {deleted_id}")
                     return jsonify({
                         'success': True,
                         'message': 'Email integration disconnected successfully'
@@ -737,12 +738,13 @@ def direct_email_disconnect():
                 """
                 
                 with conn.cursor() as cursor:
-                    cursor.execute(delete_sql, (integration_id,))
+                    cursor.execute(delete_sql, (int(integration_id) if isinstance(integration_id, str) and integration_id.isdigit() else integration_id,))
                     deleted = cursor.fetchone()
                     conn.commit()
                     
                 if deleted:
-                    logger.info(f"Successfully deleted integration {deleted[0]}")
+                    deleted_id = deleted[0] if isinstance(deleted, tuple) else deleted.get("id")
+                    logger.info(f"Successfully deleted integration {deleted_id}")
                     return jsonify({
                         'success': True,
                         'message': 'Email integration disconnected successfully'
@@ -754,7 +756,7 @@ def direct_email_disconnect():
                         'message': 'Failed to delete integration'
                     }), 500
             else:
-                logger.warning(f"No email integration found for user {user_uuid} or {str(db_user.id)}")
+                logger.warning(f"No email integration found for user {user_uuid}")
                 return jsonify({
                     'success': False,
                     'message': 'No email integration found'
@@ -2501,7 +2503,8 @@ def direct_fix_email_disconnect():
             conn.commit()
             
             if deleted:
-                logger.info(f"Successfully deleted integration {deleted[0]}")
+                    deleted_id = deleted[0] if isinstance(deleted, tuple) else deleted.get("id")
+                    logger.info(f"Successfully deleted integration {deleted_id}")
                 return jsonify({
                     'success': True,
                     'message': 'Email integration disconnected successfully'
