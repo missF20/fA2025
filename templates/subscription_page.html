@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dana AI Platform - Subscription Management</title>
+    <link href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">Dana AI Platform</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/dashboard">Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/slack_dashboard">Slack</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/subscriptions">Subscriptions</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/platform">Platform</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-5">
+        <div class="row mb-5">
+            <div class="col-12">
+                <h1>Subscription Management</h1>
+                <p class="lead">Manage your Dana AI Platform subscription and usage.</p>
+            </div>
+        </div>
+        
+        <!-- Current Plan -->
+        <div class="row mb-5">
+            <div class="col-12">
+                <div class="card border-0 shadow mb-4">
+                    <div class="card-header bg-transparent">
+                        <h3 class="mb-0">Current Plan</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col-md-6">
+                                <h4 id="current-plan-name">Free Plan</h4>
+                                <p id="current-plan-description">Basic features for getting started</p>
+                                <p><strong>Status:</strong> <span id="plan-status" class="badge bg-success">Active</span></p>
+                                <p><strong>Next billing date:</strong> <span id="next-billing-date">N/A</span></p>
+                            </div>
+                            <div class="col-md-6">
+                                <div>
+                                    <h5>Token Usage</h5>
+                                    <div class="progress mb-2" style="height: 20px;">
+                                        <div id="usage-progress" class="progress-bar" role="progressbar" style="width: 15%;" aria-valuenow="15" aria-valuemin="0" aria-valuemax="100">15%</div>
+                                    </div>
+                                    <small><span id="tokens-used">750</span> / <span id="token-limit">5,000</span> tokens used this month</small>
+                                </div>
+                                <div class="mt-3">
+                                    <button id="upgrade-btn" class="btn btn-outline-primary">Upgrade Plan</button>
+                                    <button id="cancel-btn" class="btn btn-outline-danger ms-2">Cancel Subscription</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Available Plans -->
+        <div class="row mb-5">
+            <div class="col-12">
+                <h2 class="mb-4">Available Plans</h2>
+                <div class="row" id="plans-container">
+                    <!-- Free Plan -->
+                    <div class="col-md-3 mb-4">
+                        <div class="card border-0 shadow h-100">
+                            <div class="card-header bg-transparent text-center">
+                                <h4>Free</h4>
+                            </div>
+                            <div class="card-body d-flex flex-column">
+                                <div class="text-center mb-4">
+                                    <span class="display-6">$0</span>
+                                    <span class="text-muted">/month</span>
+                                </div>
+                                <ul class="list-unstyled mb-4">
+                                    <li class="mb-2">✓ 5,000 tokens/month</li>
+                                    <li class="mb-2">✓ Basic AI responses</li>
+                                    <li class="mb-2">✓ Limited knowledge base</li>
+                                    <li class="mb-2">✓ 5 integrations</li>
+                                </ul>
+                                <div class="mt-auto d-grid">
+                                    <button class="btn btn-outline-primary select-plan-btn" data-plan="free">Select Plan</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Basic Plan -->
+                    <div class="col-md-3 mb-4">
+                        <div class="card border-0 shadow h-100">
+                            <div class="card-header bg-transparent text-center">
+                                <h4>Basic</h4>
+                            </div>
+                            <div class="card-body d-flex flex-column">
+                                <div class="text-center mb-4">
+                                    <span class="display-6">$9.99</span>
+                                    <span class="text-muted">/month</span>
+                                </div>
+                                <ul class="list-unstyled mb-4">
+                                    <li class="mb-2">✓ 50,000 tokens/month</li>
+                                    <li class="mb-2">✓ Advanced AI responses</li>
+                                    <li class="mb-2">✓ Standard knowledge base</li>
+                                    <li class="mb-2">✓ 10 integrations</li>
+                                    <li class="mb-2">✓ Email support</li>
+                                </ul>
+                                <div class="mt-auto d-grid">
+                                    <button class="btn btn-outline-primary select-plan-btn" data-plan="basic">Select Plan</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Pro Plan -->
+                    <div class="col-md-3 mb-4">
+                        <div class="card border-0 shadow h-100 border-primary">
+                            <div class="card-header bg-transparent text-center">
+                                <h4>Professional</h4>
+                                <span class="badge bg-primary">Popular</span>
+                            </div>
+                            <div class="card-body d-flex flex-column">
+                                <div class="text-center mb-4">
+                                    <span class="display-6">$29.99</span>
+                                    <span class="text-muted">/month</span>
+                                </div>
+                                <ul class="list-unstyled mb-4">
+                                    <li class="mb-2">✓ 200,000 tokens/month</li>
+                                    <li class="mb-2">✓ Premium AI responses</li>
+                                    <li class="mb-2">✓ Enhanced knowledge base</li>
+                                    <li class="mb-2">✓ Unlimited integrations</li>
+                                    <li class="mb-2">✓ Priority support</li>
+                                </ul>
+                                <div class="mt-auto d-grid">
+                                    <button class="btn btn-primary select-plan-btn" data-plan="pro">Select Plan</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Enterprise Plan -->
+                    <div class="col-md-3 mb-4">
+                        <div class="card border-0 shadow h-100">
+                            <div class="card-header bg-transparent text-center">
+                                <h4>Enterprise</h4>
+                            </div>
+                            <div class="card-body d-flex flex-column">
+                                <div class="text-center mb-4">
+                                    <span class="display-6">$99.99</span>
+                                    <span class="text-muted">/month</span>
+                                </div>
+                                <ul class="list-unstyled mb-4">
+                                    <li class="mb-2">✓ 1,000,000 tokens/month</li>
+                                    <li class="mb-2">✓ Custom AI responses</li>
+                                    <li class="mb-2">✓ Advanced knowledge base</li>
+                                    <li class="mb-2">✓ Dedicated integrations</li>
+                                    <li class="mb-2">✓ 24/7 support</li>
+                                </ul>
+                                <div class="mt-auto d-grid">
+                                    <button class="btn btn-outline-primary select-plan-btn" data-plan="enterprise">Select Plan</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Usage History -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card border-0 shadow">
+                    <div class="card-header bg-transparent">
+                        <h3 class="mb-0">Usage History</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Tokens Used</th>
+                                        <th>Service</th>
+                                        <th>Request Type</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="usage-history">
+                                    <tr>
+                                        <td>2025-05-06</td>
+                                        <td>150</td>
+                                        <td>AI Responses</td>
+                                        <td>Text Generation</td>
+                                    </tr>
+                                    <tr>
+                                        <td>2025-05-05</td>
+                                        <td>200</td>
+                                        <td>Knowledge Base</td>
+                                        <td>Document Analysis</td>
+                                    </tr>
+                                    <tr>
+                                        <td>2025-05-04</td>
+                                        <td>400</td>
+                                        <td>AI Responses</td>
+                                        <td>Text Generation</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal for Plan Confirmation -->
+    <div class="modal fade" id="plan-modal" tabindex="-1" aria-labelledby="plan-modal-label" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="plan-modal-label">Confirm Subscription Change</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to change your subscription to <span id="selected-plan-name">Basic</span>?</p>
+                    <p id="plan-price"></p>
+                    
+                    <form id="payment-form">
+                        <div class="mb-3">
+                            <label for="card-number" class="form-label">Card Number</label>
+                            <input type="text" class="form-control" id="card-number" placeholder="1234 5678 9012 3456">
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="expiry-date" class="form-label">Expiry Date</label>
+                                <input type="text" class="form-control" id="expiry-date" placeholder="MM/YY">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="cvc" class="form-label">CVC</label>
+                                <input type="text" class="form-control" id="cvc" placeholder="123">
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="confirm-plan-btn">Confirm</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal for Cancellation Confirmation -->
+    <div class="modal fade" id="cancel-modal" tabindex="-1" aria-labelledby="cancel-modal-label" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="cancel-modal-label">Confirm Subscription Cancellation</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to cancel your subscription?</p>
+                    <p>You will lose access to premium features at the end of your current billing period.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">No, Keep Subscription</button>
+                    <button type="button" class="btn btn-danger" id="confirm-cancel-btn">Yes, Cancel Subscription</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Constants for plans
+        const PLANS = {
+            'free': {
+                name: 'Free',
+                price: 0,
+                token_limit: 5000,
+                features: ['Basic AI responses', 'Limited knowledge base', '5 integrations'],
+                description: 'Perfect for getting started'
+            },
+            'basic': {
+                name: 'Basic',
+                price: 9.99,
+                token_limit: 50000,
+                features: ['Advanced AI responses', 'Standard knowledge base', '10 integrations', 'Email support'],
+                description: 'Ideal for small teams'
+            },
+            'pro': {
+                name: 'Professional',
+                price: 29.99,
+                token_limit: 200000,
+                features: ['Premium AI responses', 'Enhanced knowledge base', 'Unlimited integrations', 'Priority support'],
+                description: 'Best for growing businesses'
+            },
+            'enterprise': {
+                name: 'Enterprise',
+                price: 99.99,
+                token_limit: 1000000,
+                features: ['Custom AI responses', 'Advanced knowledge base', 'Dedicated integrations', '24/7 support'],
+                description: 'Tailored for large organizations'
+            }
+        };
+        
+        // DOM elements
+        const currentPlanName = document.getElementById('current-plan-name');
+        const currentPlanDescription = document.getElementById('current-plan-description');
+        const planStatus = document.getElementById('plan-status');
+        const nextBillingDate = document.getElementById('next-billing-date');
+        const usageProgress = document.getElementById('usage-progress');
+        const tokensUsed = document.getElementById('tokens-used');
+        const tokenLimit = document.getElementById('token-limit');
+        const upgradeBtn = document.getElementById('upgrade-btn');
+        const cancelBtn = document.getElementById('cancel-btn');
+        const selectPlanBtns = document.querySelectorAll('.select-plan-btn');
+        const planModal = new bootstrap.Modal(document.getElementById('plan-modal'));
+        const cancelModal = new bootstrap.Modal(document.getElementById('cancel-modal'));
+        const selectedPlanName = document.getElementById('selected-plan-name');
+        const planPrice = document.getElementById('plan-price');
+        const confirmPlanBtn = document.getElementById('confirm-plan-btn');
+        const confirmCancelBtn = document.getElementById('confirm-cancel-btn');
+        
+        // Fetch user subscription data from API
+        let currentSubscription = 'free';
+        let currentPlan = PLANS[currentSubscription];
+        
+        // Mock data for demonstration
+        let mockSubscriptionData = {
+            subscription: {
+                tier: 'free',
+                status: 'active',
+                start_date: '2025-04-01T00:00:00Z',
+                end_date: null,
+                tier_details: PLANS.free
+            },
+            usage: {
+                total_tokens: 750,
+                requests: 15
+            },
+            tokens_remaining: 4250,
+            usage_percentage: 15
+        };
+        
+        // Initialize page with subscription data
+        function initSubscriptionPage(data) {
+            // Update current plan section
+            currentPlanName.textContent = data.subscription.tier_details.name + ' Plan';
+            currentPlanDescription.textContent = data.subscription.tier_details.description;
+            planStatus.textContent = data.subscription.status.charAt(0).toUpperCase() + data.subscription.status.slice(1);
+            
+            // Set next billing date
+            const startDate = new Date(data.subscription.start_date);
+            const nextMonth = new Date(startDate.setMonth(startDate.getMonth() + 1));
+            nextBillingDate.textContent = data.subscription.tier === 'free' ? 'N/A' : nextMonth.toLocaleDateString();
+            
+            // Update usage
+            usageProgress.style.width = data.usage_percentage + '%';
+            usageProgress.textContent = data.usage_percentage + '%';
+            usageProgress.setAttribute('aria-valuenow', data.usage_percentage);
+            
+            tokensUsed.textContent = data.usage.total_tokens.toLocaleString();
+            tokenLimit.textContent = data.subscription.tier_details.token_limit.toLocaleString();
+            
+            // Disable buttons as needed
+            if (data.subscription.tier === 'free') {
+                cancelBtn.disabled = true;
+            }
+            
+            // Update plan selection buttons
+            selectPlanBtns.forEach(btn => {
+                const planId = btn.getAttribute('data-plan');
+                if (planId === data.subscription.tier) {
+                    btn.textContent = 'Current Plan';
+                    btn.disabled = true;
+                } else {
+                    btn.textContent = 'Select Plan';
+                    btn.disabled = false;
+                }
+            });
+            
+            currentSubscription = data.subscription.tier;
+            currentPlan = PLANS[currentSubscription];
+        }
+        
+        // Initialize with mock data
+        initSubscriptionPage(mockSubscriptionData);
+        
+        // Event listeners for plan selection
+        selectPlanBtns.forEach(btn => {
+            btn.addEventListener('click', function() {
+                const planId = this.getAttribute('data-plan');
+                const plan = PLANS[planId];
+                
+                // Update modal
+                selectedPlanName.textContent = plan.name + ' Plan';
+                planPrice.textContent = plan.price === 0 ? 'Free' : `$${plan.price}/month`;
+                
+                // Show or hide payment form based on plan
+                const paymentForm = document.getElementById('payment-form');
+                paymentForm.style.display = plan.price > 0 ? 'block' : 'none';
+                
+                // Show modal
+                planModal.show();
+                
+                // Store selected plan ID
+                confirmPlanBtn.setAttribute('data-plan', planId);
+            });
+        });
+        
+        // Confirm plan change
+        confirmPlanBtn.addEventListener('click', function() {
+            const planId = this.getAttribute('data-plan');
+            
+            // Make API call to upgrade plan
+            // For now, just update the UI
+            mockSubscriptionData.subscription.tier = planId;
+            mockSubscriptionData.subscription.tier_details = PLANS[planId];
+            
+            // Update token limits
+            mockSubscriptionData.tokens_remaining = PLANS[planId].token_limit - mockSubscriptionData.usage.total_tokens;
+            mockSubscriptionData.usage_percentage = Math.round((mockSubscriptionData.usage.total_tokens / PLANS[planId].token_limit) * 100);
+            
+            // Refresh the page
+            initSubscriptionPage(mockSubscriptionData);
+            
+            // Hide modal
+            planModal.hide();
+            
+            // Show success message
+            alert(`Your subscription has been changed to the ${PLANS[planId].name} Plan.`);
+        });
+        
+        // Show cancel confirmation modal
+        cancelBtn.addEventListener('click', function() {
+            cancelModal.show();
+        });
+        
+        // Confirm cancellation
+        confirmCancelBtn.addEventListener('click', function() {
+            // Make API call to cancel subscription
+            // For now, just update the UI
+            mockSubscriptionData.subscription.status = 'cancelled';
+            
+            // Refresh the page
+            initSubscriptionPage(mockSubscriptionData);
+            
+            // Hide modal
+            cancelModal.hide();
+            
+            // Show success message
+            alert('Your subscription has been cancelled. You will have access to your current plan until the end of the billing period.');
+        });
+    </script>
+</body>
+</html>
