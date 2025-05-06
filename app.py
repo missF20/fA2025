@@ -102,9 +102,26 @@ def handle_server_error(error):
 
 # Register root routes
 @app.route("/")
-def index():
-    """Web UI homepage"""
+@app.route("/login")
+@app.route("/register")
+@app.route("/settings")
+@app.route("/profile")
+@app.route("/knowledge")
+@app.route("/integrations/<path:path>")
+@app.route("/oauth/<path:path>")
+@app.route("/reset-password")
+def index(path=None):
+    """Web UI homepage and frontend SPA routes"""
     return render_template("index.html")
+
+# Catch-all route for React SPA
+@app.route('/<path:path>')
+def catch_all(path):
+    """Catch-all route for React SPA routing"""
+    # Except for api/ routes, which should 404 if not defined
+    if path.startswith('api/'):
+        abort(404)
+    return render_template('index.html')
 
 # Additional navlink routes
 @app.route('/platform', methods=['GET'])
@@ -124,9 +141,10 @@ def integrations():
     return render_template('index.html')
 
 @app.route('/dashboard', methods=['GET'])
-def complete_dashboard():
+@app.route('/dashboard/<path:path>', methods=['GET'])
+def complete_dashboard(path=None):
     """Complete dashboard experience"""
-    return render_template('dashboard.html')
+    return render_template('index.html')
 
 @app.route("/frontend")
 def frontend():
@@ -176,9 +194,10 @@ def payment_setup():
     return render_template("payment_setup.html", status=status, app_url=app_url)
 
 @app.route("/usage")
-def usage_dashboard():
+@app.route("/usage/<path:path>")
+def usage_dashboard(path=None):
     """Token usage dashboard UI"""
-    return render_template("usage_dashboard.html")
+    return render_template("index.html")
 
 @app.route("/test/token-usage")
 def test_token_usage():
