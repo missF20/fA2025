@@ -302,9 +302,9 @@ export const api = {
         'Content-Type': 'application/json'
       };
       
-      // For email integration, we need to add CSRF token
-      if (integrationType === 'email') {
-        console.log('Email integration config:', config);
+      // For integrations that need CSRF token
+      if (integrationType === 'email' || integrationType === 'google_analytics') {
+        console.log(`${integrationType} integration config:`, config);
         
         // Try to get a CSRF token
         try {
@@ -313,18 +313,18 @@ export const api = {
             // Add token to both headers and as a separate parameter in the body
             headers['X-CSRF-Token'] = csrfToken;
             
-            // Create email config with CSRF token as a top-level property
-            const emailConfigWithToken = {
+            // Create config with CSRF token as a top-level property
+            const configWithToken = {
               ...config,
               csrf_token: csrfToken
             };
             
-            requestBody = JSON.stringify(emailConfigWithToken);
+            requestBody = JSON.stringify(configWithToken);
             console.log('Added CSRF token to request:', csrfToken.substring(0, 5) + '...');
           } else {
             // No CSRF token available, proceed without it
             requestBody = JSON.stringify(config);
-            console.warn('No CSRF token available for email integration');
+            console.warn(`No CSRF token available for ${integrationType} integration`);
           }
         } catch (error) {
           // Fallback if CSRF token fetch fails
@@ -397,8 +397,8 @@ export const api = {
       
       let requestBody: any = {};
       
-      // For email integration, we need to add CSRF token
-      if (integrationId === 'email') {
+      // For integrations that need CSRF token
+      if (integrationId === 'email' || integrationId === 'google_analytics') {
         // Try to get a CSRF token
         try {
           const csrfToken = await this.getCsrfToken();
@@ -488,8 +488,8 @@ export const api = {
       
       let requestBody: any = {};
       
-      // For email integration, we need to add CSRF token
-      if (integrationId === 'email') {
+      // For integrations that need CSRF token
+      if (integrationId === 'email' || integrationId === 'google_analytics') {
         // Try to get a CSRF token
         try {
           const csrfToken = await this.getCsrfToken();

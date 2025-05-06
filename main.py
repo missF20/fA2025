@@ -132,19 +132,35 @@ def direct_google_analytics_connect():
     
     # Process the connection request
     try:
+        # Import CSRF validation
+        from utils.csrf import validate_csrf_token
+        
+        # Validate CSRF token
+        csrf_result = validate_csrf_token(request)
+        if isinstance(csrf_result, tuple):
+            # If validation failed, return the error response
+            return csrf_result
+            
         # Import the required function
         from routes.integrations.google_analytics import connect_google_analytics
         
         # Get configuration data from request
         data = request.get_json()
-        if not data or 'config' not in data:
+        if not data:
             return jsonify({
                 'success': False, 
-                'message': 'Configuration data is required'
+                'message': 'Request data is required'
             }), 400
             
+        # For CSRF-enabled endpoints, the frontend sends the config directly, not nested
+        config = data
+        
+        # Remove CSRF token from config before sending to integration function
+        if 'csrf_token' in config:
+            del config['csrf_token']
+            
         # Connect to Google Analytics
-        success, message, status_code = connect_google_analytics(user_uuid, data['config'])
+        success, message, status_code = connect_google_analytics(user_uuid, config)
         
         # Return response
         return jsonify({
