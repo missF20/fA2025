@@ -56,30 +56,64 @@ logger.info(f"PESAPAL_CONSUMER_KEY: {'Set' if PESAPAL_CONSUMER_KEY else 'Not set
 logger.info(f"PESAPAL_CONSUMER_SECRET: {'Set' if PESAPAL_CONSUMER_SECRET else 'Not set'}")
 logger.info(f"PESAPAL_IPN_URL: {'Set' if PESAPAL_IPN_URL else 'Not set'}")
 
-# Set default IPN URL if not set (using Replit domain if available)
-if not PESAPAL_IPN_URL:
-    domain = None
-    # Try Replit domain first
-    replit_domains = os.environ.get('REPLIT_DOMAINS')
-    if replit_domains:
-        domain = replit_domains.split(',')[0]
+# Set/refresh IPN URL if needed
+def refresh_ipn_url():
+    """Refresh the IPN URL from environment variables"""
+    global PESAPAL_IPN_URL
+    # Get from environment
+    PESAPAL_IPN_URL = get_env_var('PESAPAL_IPN_URL', '')
     
-    # Fallback to dev domain
-    if not domain:
-        domain = os.environ.get('REPLIT_DEV_DOMAIN')
+    # If not set in environment, try to build one
+    if not PESAPAL_IPN_URL:
+        domain = None
+        # Try Replit domain first
+        replit_domains = os.environ.get('REPLIT_DOMAINS')
+        if replit_domains and ',' in replit_domains:
+            domain = replit_domains.split(',')[0]
+            logger.info(f"Using domain from REPLIT_DOMAINS: {domain}")
+        elif replit_domains:
+            domain = replit_domains
+            logger.info(f"Using domain from REPLIT_DOMAINS (single value): {domain}")
+        
+        # Fallback to dev domain
+        if not domain:
+            domain = os.environ.get('REPLIT_DEV_DOMAIN')
+            if domain:
+                logger.info(f"Using domain from REPLIT_DEV_DOMAIN: {domain}")
+        
+        # Fallback to Replit generic domain
+        if not domain:
+            replit_domain = os.environ.get('REPLIT_DOMAIN')
+            if replit_domain:
+                domain = replit_domain
+                logger.info(f"Using domain from REPLIT_DOMAIN: {domain}")
+        
+        # Fallback to generic domain
+        if not domain:
+            domain = 'dana-ai.com'
+            logger.warning(f"No Replit domain found, using generic domain: {domain}")
+        
+        # Set IPN URL
+        PESAPAL_IPN_URL = f"https://{domain}/api/payments/ipn"
+        os.environ['PESAPAL_IPN_URL'] = PESAPAL_IPN_URL
+        logger.info(f"Set PESAPAL_IPN_URL to {PESAPAL_IPN_URL}")
     
-    # Fallback to generic domain
-    if not domain:
-        domain = 'dana-ai.com'
-    
-    # Set IPN URL
-    PESAPAL_IPN_URL = f"https://{domain}/api/payments/ipn"
-    os.environ['PESAPAL_IPN_URL'] = PESAPAL_IPN_URL
-    logger.info(f"Set default PESAPAL_IPN_URL to {PESAPAL_IPN_URL}")
+    return PESAPAL_IPN_URL
+
+# Initialize IPN URL
+refresh_ipn_url()
 
 # PesaPal API endpoints
-PESAPAL_BASE_URL = "https://pay.pesapal.com/v3"  # Production
-# PESAPAL_BASE_URL = "https://cybqa.pesapal.com/v3"  # Sandbox - use this for testing
+# Detect sandbox mode from config or default to sandbox for safety
+PESAPAL_SANDBOX = os.environ.get('PESAPAL_SANDBOX', 'true').lower() in ('true', 'yes', '1', 't')
+
+# Set API URL based on sandbox setting
+if PESAPAL_SANDBOX:
+    PESAPAL_BASE_URL = "https://cybqa.pesapal.com/v3"  # Sandbox
+    logger.info("Using PesaPal SANDBOX mode")
+else:
+    PESAPAL_BASE_URL = "https://pay.pesapal.com/v3"  # Production
+    logger.info("Using PesaPal PRODUCTION mode")
 
 # Cache for token to avoid making too many requests
 token_cache = {
@@ -290,18 +324,22 @@ def submit_order(order_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     Returns:
         dict: Order response with payment URL if successful, None otherwise
     """
+    # Refresh IPN URL to ensure it's current
+    refresh_ipn_url()
+    
+    # Ensure we have authentication
     token = get_auth_token()
     if not token:
+        logger.error("Cannot submit order: Failed to get authentication token")
         return None
     
     # Validate required fields
-    required_fields = ['order_id', 'amount', 'currency', 'description', 
-                       'customer_email', 'callback_url']
+    required_fields = ['amount', 'currency', 'description', 'customer_email']
+    missing_fields = [field for field in required_fields if field not in order_data]
     
-    for field in required_fields:
-        if field not in order_data:
-            logger.error(f"Missing required field: {field}")
-            return None
+    if missing_fields:
+        logger.error(f"Cannot submit order: Missing required fields: {', '.join(missing_fields)}")
+        return None
     
     try:
         url = f"{PESAPAL_BASE_URL}/api/Transactions/SubmitOrderRequest"
@@ -309,6 +347,27 @@ def submit_order(order_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         # Generate a unique ID if one is not provided
         if not order_data.get('order_id'):
             order_data['order_id'] = str(uuid.uuid4())
+            logger.info(f"Generated order ID: {order_data['order_id']}")
+        
+        # Use environment callback URL if not provided
+        if not order_data.get('callback_url'):
+            # Try to generate a callback URL from replit domain
+            domain = None
+            replit_domains = os.environ.get('REPLIT_DOMAINS')
+            if replit_domains and ',' in replit_domains:
+                domain = replit_domains.split(',')[0]
+            elif replit_domains:
+                domain = replit_domains
+            
+            if not domain:
+                domain = os.environ.get('REPLIT_DEV_DOMAIN')
+            
+            if domain:
+                order_data['callback_url'] = f"https://{domain}/api/payments/callback"
+                logger.info(f"Generated callback URL: {order_data['callback_url']}")
+            else:
+                logger.error("Cannot submit order: No callback URL provided and could not generate one")
+                return None
         
         # Prepare payload
         payload = {
@@ -322,9 +381,9 @@ def submit_order(order_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
                 "email_address": order_data['customer_email'],
                 "phone_number": order_data.get('phone_number', ''),
                 "country_code": order_data.get('country_code', ''),
-                "first_name": order_data.get('first_name', ''),
+                "first_name": order_data.get('first_name', order_data.get('customer_name', '').split(' ')[0] if order_data.get('customer_name') else ''),
                 "middle_name": order_data.get('middle_name', ''),
-                "last_name": order_data.get('last_name', ''),
+                "last_name": order_data.get('last_name', ' '.join(order_data.get('customer_name', '').split(' ')[1:]) if order_data.get('customer_name') and len(order_data.get('customer_name', '').split(' ')) > 1 else ''),
                 "line_1": order_data.get('address_line', ''),
                 "line_2": order_data.get('address_line2', ''),
                 "city": order_data.get('city', ''),
