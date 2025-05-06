@@ -117,26 +117,35 @@ def simple_email_test():
 
 # Add direct email integration routes with improved error handling
 try:
-    # Use V10 version that properly exempts routes from CSRF validation
-    from direct_email_integration_fix_v10 import add_direct_email_integration_routes
+    # Use V11 version with fixed column names (date_created/date_updated) and CSRF exemption
+    from direct_email_integration_fix_v11 import add_direct_email_integration_routes
     if add_direct_email_integration_routes():
-        logger.info("Email integration routes added successfully with improved error handling and CSRF exemption")
+        logger.info("Email integration routes added successfully with fixed column names and CSRF exemption")
     else:
         logger.error("Failed to add email integration routes")
 except Exception as e:
-    # Try falling back to V9 if V10 fails
+    # Try falling back to V10 if V11 fails
     try:
-        logger.warning(f"Error with V10 email integration fix: {str(e)}, trying V9 as fallback")
-        from direct_email_integration_fix_v9 import add_direct_email_integration_routes
+        logger.warning(f"Error with V11 email integration fix: {str(e)}, trying V10 as fallback")
+        from direct_email_integration_fix_v10 import add_direct_email_integration_routes
         if add_direct_email_integration_routes():
-            logger.info("Email integration routes added successfully with V9 fallback")
+            logger.info("Email integration routes added successfully with V10 fallback")
         else:
-            logger.error("Failed to add email integration routes with V9 fallback")
+            logger.error("Failed to add email integration routes with V10 fallback")
     except Exception as fallback_error:
-        # Use logger if already initialized above
-        if not 'logger' in locals():
-            logger = logging.getLogger(__name__)
-        logger.error(f"Error setting up email integration routes: {str(fallback_error)}")
+        # Try falling back to V9 if both V11 and V10 fail
+        try:
+            logger.warning(f"Error with V10 email integration fix: {str(fallback_error)}, trying V9 as fallback")
+            from direct_email_integration_fix_v9 import add_direct_email_integration_routes
+            if add_direct_email_integration_routes():
+                logger.info("Email integration routes added successfully with V9 fallback")
+            else:
+                logger.error("Failed to add email integration routes with V9 fallback")
+        except Exception as final_error:
+            # Use logger if already initialized above
+            if not 'logger' in locals():
+                logger = logging.getLogger(__name__)
+            logger.error(f"Error setting up email integration routes: {str(final_error)}")
 
 # Add direct Google Analytics integration connect endpoint
 @app.route('/api/integrations/connect/google_analytics', methods=['POST', 'OPTIONS'])
