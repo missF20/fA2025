@@ -1,84 +1,104 @@
 """
 Fix Token Usage Route
 
-This script adds a direct route handler for token usage test endpoint to app.py
-to bypass any potential circular imports.
+This script directly adds a token usage endpoint to the main application.
+This ensures that token usage statistics are accessible regardless of the blueprint registration.
 """
 import logging
-import traceback
+import sys
+from datetime import datetime, timedelta
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+# Setup logger
 logger = logging.getLogger(__name__)
 
-def update_app_py():
+def add_direct_token_usage_endpoint():
     """
-    Update app.py to include a direct route handler for token usage test endpoint
+    Add direct token usage endpoint to the main app
     """
     try:
-        # Read app.py
-        with open('app.py', 'r') as f:
-            content = f.read()
-        
-        # Check if the test_token_usage endpoint already exists
-        if '@app.route("/api/usage/test", methods=["GET"])' in content:
-            logger.info("Token usage test endpoint already exists in app.py")
-            return True
-        
-        # Find a suitable location to insert the new route
-        # Right after the API status endpoints
-        insert_marker = '@app.route("/api/status")\ndef status():'
-        
-        # Prepare the new route function
-        new_route = """
-# Direct token usage test endpoint
-@app.route("/api/usage/test", methods=["GET"])
-def test_token_usage_endpoint():
-    \"\"\"
-    Test endpoint for token usage that doesn't require authentication
-    
-    Returns:
-        JSON response with sample token usage statistics
-    \"\"\"""
-    try:
-        # Use a test user ID for demonstration
+        # Import the Flask app
+        from app import app
+        # Import necessary utilities
+        from flask import request, jsonify
+        from utils.auth import login_required, get_current_user
         from utils.token_management import get_user_token_usage
         
-        user_id = '00000000-0000-0000-0000-000000000000'
+        logger.info("Adding direct token usage endpoint")
         
-        # Get usage statistics from token management utility
-        stats = get_user_token_usage(user_id)
+        # Add direct endpoint for token usage stats
+        @app.route('/api/usage/stats', methods=['GET'])
+        @login_required
+        def direct_get_usage_stats():
+            """Direct endpoint for token usage statistics"""
+            try:
+                # Get current user from auth token
+                user = get_current_user()
+                if not user:
+                    logger.error("No authenticated user found")
+                    return jsonify({"error": "Authentication required"}), 401
+                    
+                user_id = user.get('id')
+                if not user_id:
+                    return jsonify({"error": "User ID not found"}), 400
+                
+                # Support using a passed user_id for admins checking other users
+                requested_user_id = request.args.get('user_id')
+                
+                # Use the requested user ID if provided (admin feature)
+                if requested_user_id:
+                    user_id = requested_user_id
+                
+                # Get optional query parameters for date filtering
+                start_date_str = request.args.get('start_date')
+                end_date_str = request.args.get('end_date')
+                model = request.args.get('model')
+                
+                # Parse dates if provided
+                start_date = None
+                end_date = None
+                
+                if start_date_str:
+                    try:
+                        start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
+                    except ValueError:
+                        logger.warning(f"Invalid start_date format: {start_date_str}")
+                        
+                if end_date_str:
+                    try:
+                        end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
+                        # Set time to end of day for the end date
+                        end_date = end_date.replace(hour=23, minute=59, second=59)
+                    except ValueError:
+                        logger.warning(f"Invalid end_date format: {end_date_str}")
+                
+                # Get usage statistics from token management utility
+                stats = get_user_token_usage(str(user_id), start_date, end_date, model)
+                
+                # Return statistics as JSON
+                return jsonify(stats)
+            except Exception as e:
+                logger.error(f"Error getting direct usage statistics: {str(e)}")
+                return jsonify({"error": str(e)}), 500
         
-        # Return statistics as JSON
-        return jsonify({
-            "status": "success",
-            "message": "Test usage endpoint is working",
-            "statistics": stats
-        })
-    except Exception as e:
-        logger.error(f"Error in test usage endpoint: {str(e)}")
-        return jsonify({"error": str(e)}), 500
-
-"""
-        
-        # Insert the new route before the existing status function
-        updated_content = content.replace(insert_marker, new_route + insert_marker)
-        
-        # Write the updated content back to app.py
-        with open('app.py', 'w') as f:
-            f.write(updated_content)
-            
-        logger.info("Successfully added token usage test endpoint to app.py")
+        logger.info("Direct token usage endpoint added successfully")
         return True
+    except ImportError as e:
+        logger.error(f"Error importing required modules: {str(e)}")
+        return False
     except Exception as e:
-        logger.error(f"Error updating app.py: {str(e)}")
-        logger.error(traceback.format_exc())
+        logger.error(f"Error adding direct token usage endpoint: {str(e)}")
         return False
 
 if __name__ == "__main__":
-    logger.info("Fixing token usage route...")
-    success = update_app_py()
+    # Configure logging
+    logging.basicConfig(level=logging.INFO)
+    
+    # Add the direct token usage endpoint
+    success = add_direct_token_usage_endpoint()
+    
     if success:
-        logger.info("Token usage route fix applied successfully")
+        print("✅ Direct token usage endpoint added successfully")
+        sys.exit(0)
     else:
-        logger.error("Failed to apply token usage route fix")
+        print("❌ Failed to add direct token usage endpoint")
+        sys.exit(1)

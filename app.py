@@ -572,6 +572,16 @@ def init_app():
         logger.info("Direct knowledge management endpoints added successfully")
     except Exception as e:
         logger.error(f"Failed to add direct knowledge endpoints: {str(e)}")
+        
+    # Add direct token usage endpoint - bypassing blueprint registration system
+    try:
+        from fix_token_usage_route import add_direct_token_usage_endpoint
+        
+        logger.info("Adding direct token usage endpoint")
+        add_direct_token_usage_endpoint()
+        logger.info("Direct token usage endpoint added successfully")
+    except Exception as e:
+        logger.error(f"Failed to add direct token usage endpoint: {str(e)}")
     
     # Initialize Row Level Security
     init_rls()
