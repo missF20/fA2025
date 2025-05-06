@@ -513,17 +513,27 @@ def init_token_tracking():
 
 # Check for PesaPal configuration
 def check_pesapal_config():
-    """Check if PesaPal is properly configured"""
+    """Check if PesaPal is properly configured and run setup if needed"""
     try:
         pesapal_keys_exist = all([
             os.environ.get('PESAPAL_CONSUMER_KEY'),
-            os.environ.get('PESAPAL_CONSUMER_SECRET'),
-            os.environ.get('PESAPAL_IPN_URL')
+            os.environ.get('PESAPAL_CONSUMER_SECRET')
         ])
         
         if not pesapal_keys_exist:
             logger.warning("PesaPal API keys not configured. Payment functionality will be limited.")
-            logger.warning("Run setup_pesapal.py to configure PesaPal integration.")
+            return
+        
+        # Check if IPN URL is configured
+        if not os.environ.get('PESAPAL_IPN_URL'):
+            # Run setup script
+            logger.info("PesaPal IPN URL not configured. Running setup script...")
+            try:
+                import setup_pesapal_environment
+                setup_pesapal_environment.main()
+            except Exception as setup_error:
+                logger.error(f"Error running PesaPal setup script: {str(setup_error)}")
+                logger.warning("Run setup_pesapal_environment.py manually to configure PesaPal integration.")
         else:
             logger.info("PesaPal configuration detected.")
     except Exception as e:

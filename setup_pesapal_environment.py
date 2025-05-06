@@ -124,9 +124,35 @@ def update_database_config(ipn_url):
         if config_row:
             # Update existing configuration
             config_id = config_row[0]  # Assuming ID is the first column
-            config_data = config_row[1]  # Assuming config is the 2nd column
-            if isinstance(config_data, str):
-                config_data = json.loads(config_data)
+            config_data = config_row[2]  # config is the 3rd column (index 2)
+            
+            # Parse the config_data based on its type
+            if isinstance(config_data, dict):
+                # Already a dict, no need to parse
+                pass
+            elif isinstance(config_data, str):
+                try:
+                    # Try to parse as JSON string
+                    config_data = json.loads(config_data)
+                except json.JSONDecodeError:
+                    # If it fails, it might be a double-encoded JSON string
+                    logger.warning("Failed to parse config_data as JSON string")
+                    # Create a new config dictionary
+                    config_data = {
+                        "sandbox": True,
+                        "callback_url": ipn_url,
+                        "consumer_key": os.environ.get('PESAPAL_CONSUMER_KEY', ''),
+                        "consumer_secret": os.environ.get('PESAPAL_CONSUMER_SECRET', '')
+                    }
+            else:
+                # Unknown type, create a new config
+                logger.warning(f"Unknown config_data type: {type(config_data)}")
+                config_data = {
+                    "sandbox": True,
+                    "callback_url": ipn_url,
+                    "consumer_key": os.environ.get('PESAPAL_CONSUMER_KEY', ''),
+                    "consumer_secret": os.environ.get('PESAPAL_CONSUMER_SECRET', '')
+                }
             
             # Update callback URL in config
             config_data['callback_url'] = ipn_url
