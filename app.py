@@ -67,6 +67,29 @@ db.init_app(app)
 csrf = CSRFProtect()
 csrf.init_app(app)
 
+# Exempt API endpoints from CSRF protection
+def exempt_csrf_for_api_endpoints():
+    """Exempt specific API endpoints from CSRF protection"""
+    # Create a list of endpoints to exempt
+    exempt_routes = [
+        '/api/integrations/email/connect',
+        '/api/integrations/email/disconnect',
+        '/api/integrations/slack/connect',
+        '/api/integrations/slack/disconnect',
+        '/api/integrations/hubspot/connect',
+        '/api/integrations/hubspot/disconnect',
+        '/api/integrations/salesforce/connect',
+        '/api/integrations/salesforce/disconnect',
+    ]
+    
+    # Use view_decorators to exempt these routes
+    for rule in app.url_map.iter_rules():
+        if rule.rule in exempt_routes:
+            logger.info(f"Exempting route from CSRF protection: {rule.rule}")
+            csrf.exempt(app.view_functions[rule.endpoint])
+
+# We'll call this function after all routes are registered
+
 # Initialize login manager
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -587,6 +610,15 @@ def init_app():
         logger.info("Direct token usage endpoint added successfully")
     except Exception as e:
         logger.error(f"Failed to add direct token usage endpoint: {str(e)}")
+        
+    # Exempt specific API endpoints from CSRF protection
+    # This must be done after all routes are registered
+    try:
+        # Call the function to exempt CSRF for specific API routes
+        exempt_csrf_for_api_endpoints()
+        logger.info("CSRF exemptions applied to integration API endpoints")
+    except Exception as e:
+        logger.error(f"Error applying CSRF exemptions: {str(e)}", exc_info=True)
     
     # Initialize Row Level Security
     init_rls()
