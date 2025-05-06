@@ -68,6 +68,79 @@ export const getSupabaseStorageKey = (): string => {
   return `sb-${urlDomain}-auth-token`;
 };
 
+// Helper function to get an authentication token from multiple possible sources
+export const getAuthToken = async (): Promise<string | null> => {
+  // Try to get from Supabase auth session first (recommended approach)
+  try {
+    const { data: session } = await supabase.auth.getSession();
+    const token = session?.session?.access_token;
+    if (token) {
+      console.log("Found token in auth session");
+      return token;
+    }
+  } catch (err) {
+    console.warn("Failed to get session from Supabase auth:", err);
+  }
+  
+  // Try to refresh and get new token
+  try {
+    const { data, error } = await supabase.auth.refreshSession();
+    if (!error && data?.session?.access_token) {
+      console.log("Found token after refreshing session");
+      return data.session.access_token;
+    }
+  } catch (err) {
+    console.warn("Failed to refresh token:", err);
+  }
+  
+  // Fall back to localStorage as a last resort
+  try {
+    // Check multiple possible storage keys
+    const storageKeys = [
+      'dana-ai.auth.token',
+      'supabase.auth.token',
+      getSupabaseStorageKey(),
+      // Try any keys that start with sb- (Supabase pattern)
+      ...Object.keys(localStorage).filter(key => key.startsWith('sb-'))
+    ];
+    console.log("Checking localStorage keys:", storageKeys);
+    
+    // Log all localStorage keys for debugging
+    console.log("All localStorage keys:");
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      console.log(`- ${key}`);
+    }
+    
+    // Try each possible storage key
+    for (const key of storageKeys) {
+      console.log(`Checking localStorage key: ${key}`);
+      const storedData = localStorage.getItem(key);
+      if (storedData) {
+        console.log(`Found data in key: ${key}`);
+        try {
+          const parsedData = JSON.parse(storedData);
+          if (parsedData?.access_token) {
+            console.log(`Found access_token in key: ${key}`);
+            return parsedData.access_token;
+          } else if (parsedData?.data?.session?.access_token) {
+            console.log(`Found nested access_token in key: ${key}`);
+            return parsedData.data.session.access_token;
+          }
+        } catch (parseErr) {
+          console.error(`Error parsing data from key ${key}:`, parseErr);
+        }
+      }
+    }
+  } catch (e) {
+    console.error("Error accessing localStorage:", e);
+  }
+  
+  // No token found
+  console.error("No authentication token found in any source");
+  return null;
+};
+
 // Input validation schemas
 export const profileSchema = z.object({
   id: z.string().uuid(),
@@ -128,15 +201,8 @@ export const api = {
 
   integrations: {
     async getStatus() {
-      // Ensure we have a fresh token by refreshing the session
-      try {
-        await supabase.auth.refreshSession();
-      } catch (err) {
-        console.warn("Failed to refresh token:", err);
-      }
-      
-      const { data: session } = await supabase.auth.getSession();
-      const token = session.session?.access_token;
+      // Get authentication token using our centralized helper function
+      const token = await getAuthToken();
       
       if (!token) {
         console.warn("No authentication token found");
@@ -159,14 +225,8 @@ export const api = {
           
           // Handle auth error
           if (response.status === 401) {
-            // Try to sign in again if possible
-            const refreshResult = await supabase.auth.refreshSession();
-            if (refreshResult.error) {
-              console.error("Authentication failed. Please sign in again.");
-              return [];
-            }
-            // Retry with new token
-            return this.getStatus();
+            console.error("Authentication failed. Please sign in again.");
+            return [];
           }
           
           try {
@@ -242,131 +302,16 @@ export const api = {
     },
     
     async connect(integrationType: string, config: any) {
-      // Ensure we have a fresh token by refreshing the session
-      try {
-        const { data, error } = await supabase.auth.refreshSession();
-        if (error) {
-          console.error("Failed to refresh token:", error);
-        }
-      } catch (err) {
-        console.warn("Failed to refresh token:", err);
+      // Get authentication token using our centralized helper function
+      const token = await getAuthToken();
+      
+      // If token found, use it to connect
+      if (token) {
+        return this._connectWithToken(integrationType, config, token);
       }
       
-      const { data: session } = await supabase.auth.getSession();
-      const token = session?.session?.access_token;
-      
-      console.log("Authentication token available:", !!token);
-      
-      if (!token) {
-        // Try to get the session directly from localStorage as a fallback
-        try {
-          // Check multiple possible storage keys
-          const storageKeys = [
-            'dana-ai.auth.token',
-            'supabase.auth.token',
-            'sb-' + process.env.REACT_APP_SUPABASE_URL?.replace(/^https?:\/\//, '') + '-auth-token'
-          ];
-          console.log("Checking localStorage keys:", storageKeys);
-          
-          // Log all localStorage keys for debugging
-          console.log("All localStorage keys:");
-          for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            console.log(`- ${key}`);
-          }
-          
-          let foundToken = null;
-          
-          // Try each possible storage key
-          for (const key of storageKeys) {
-            console.log(`Checking localStorage key: ${key}`);
-            const storedData = localStorage.getItem(key);
-            if (storedData) {
-              console.log(`Found data in key: ${key}`);
-              try {
-                const parsedData = JSON.parse(storedData);
-                if (parsedData?.access_token) {
-                  console.log(`Found access_token in key: ${key}`);
-                  foundToken = parsedData.access_token;
-                  break;
-                } else if (parsedData?.data?.session?.access_token) {
-                  console.log(`Found nested access_token in key: ${key}`);
-                  foundToken = parsedData.data.session.access_token;
-                  break;
-                }
-              } catch (parseErr) {
-                console.error(`Error parsing data from key ${key}:`, parseErr);
-              }
-            }
-          }
-          
-          if (foundToken) {
-            console.log("Using token from localStorage");
-            return this._connectWithToken(integrationType, config, foundToken);
-          }
-        } catch (e) {
-          console.error("Error accessing localStorage:", e);
-        }
-        
-        throw new Error("Authentication required. Please sign in again.");
-      }
-
-      // Handle special case for email integration
-      const endpoint = integrationType === 'email' 
-        ? `/api/integrations/email/connect`
-        : `/api/integrations/connect/${integrationType}`;
-      
-      console.log(`Connecting to ${integrationType} using endpoint: ${endpoint}`);
-      
-      // Prepare the request body based on integration type
-      let requestBody;
-      
-      // For email, the backend expects direct parameters, not nested in config
-      if (integrationType === 'email') {
-        // Log the config for debugging
-        console.log('Email integration config:', config);
-        
-        requestBody = JSON.stringify(config);
-      } else {
-        // For other integrations, the backend expects config nested
-        requestBody = JSON.stringify({ config });
-      }
-      
-      try {
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: requestBody
-        });
-
-        console.log(`Response status: ${response.status}, ${response.statusText}`);
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error(`Error response body: ${errorText}`);
-          
-          // Handle auth error
-          if (response.status === 401) {
-            // Try to sign in again if possible
-            const refreshResult = await supabase.auth.refreshSession();
-            if (refreshResult.error) {
-              throw new Error("Authentication failed. Please sign in again.");
-            }
-            // Retry with new token
-            return this.connect(integrationType, config);
-          }
-          
-          throw new Error(`Failed to connect ${integrationType}: ${response.status} ${response.statusText}`);
-        }
-
-        return await response.json();
-      } catch (error) {
-        console.error(`Error connecting to ${integrationType}:`, error);
-        throw error;
-      }
+      // No token found after trying all sources
+      throw new Error("Authentication required. Please sign in again.");
     },
 
     // Helper method to disconnect with a provided token
@@ -418,130 +363,16 @@ export const api = {
     },
     
     async disconnect(integrationId: string) {
-      // Ensure we have a fresh token by refreshing the session
-      try {
-        const { data, error } = await supabase.auth.refreshSession();
-        if (error) {
-          console.error("Failed to refresh token:", error);
-        }
-      } catch (err) {
-        console.warn("Failed to refresh token:", err);
+      // Get authentication token using our centralized helper function
+      const token = await getAuthToken();
+      
+      // If token found, use it to disconnect
+      if (token) {
+        return this._disconnectWithToken(integrationId, token);
       }
       
-      const { data: session } = await supabase.auth.getSession();
-      const token = session?.session?.access_token;
-      
-      console.log("Authentication token available:", !!token);
-      
-      if (!token) {
-        // Try to get the session directly from localStorage as a fallback
-        try {
-          // Check multiple possible storage keys
-          const storageKeys = [
-            'dana-ai.auth.token',
-            'supabase.auth.token',
-            'sb-' + process.env.REACT_APP_SUPABASE_URL?.replace(/^https?:\/\//, '') + '-auth-token'
-          ];
-          console.log("Checking localStorage keys:", storageKeys);
-          
-          // Log all localStorage keys for debugging
-          console.log("All localStorage keys:");
-          for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            console.log(`- ${key}`);
-          }
-          
-          let foundToken = null;
-          
-          // Try each possible storage key
-          for (const key of storageKeys) {
-            console.log(`Checking localStorage key: ${key}`);
-            const storedData = localStorage.getItem(key);
-            if (storedData) {
-              console.log(`Found data in key: ${key}`);
-              try {
-                const parsedData = JSON.parse(storedData);
-                if (parsedData?.access_token) {
-                  console.log(`Found access_token in key: ${key}`);
-                  foundToken = parsedData.access_token;
-                  break;
-                } else if (parsedData?.data?.session?.access_token) {
-                  console.log(`Found nested access_token in key: ${key}`);
-                  foundToken = parsedData.data.session.access_token;
-                  break;
-                }
-              } catch (parseErr) {
-                console.error(`Error parsing data from key ${key}:`, parseErr);
-              }
-            }
-          }
-          
-          if (foundToken) {
-            console.log("Using token from localStorage");
-            return this._disconnectWithToken(integrationId, foundToken);
-          }
-        } catch (e) {
-          console.error("Error accessing localStorage:", e);
-        }
-        
-        throw new Error("Authentication required. Please sign in again.");
-      }
-
-      // Handle special case for email integration
-      const endpoint = integrationId === 'email' 
-        ? `/api/integrations/email/disconnect`  // Use standard endpoint
-        : `/api/integrations/disconnect/${integrationId}`;
-      
-      console.log(`Disconnecting from ${integrationId} using endpoint: ${endpoint}`);
-
-      try {
-        // Add debugging information
-        console.log(`Authorization token: Bearer ${token.substring(0, 10)}...`);
-        
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          // Add empty body to ensure proper request format
-          body: JSON.stringify({})
-        });
-
-        console.log(`Response status: ${response.status}, ${response.statusText}`);
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error(`Error response body: ${errorText}`);
-          
-          // Handle auth error
-          if (response.status === 401) {
-            // Try to sign in again if possible
-            const refreshResult = await supabase.auth.refreshSession();
-            if (refreshResult.error) {
-              throw new Error("Authentication failed. Please sign in again.");
-            }
-            // Retry with new token
-            return this.disconnect(integrationId);
-          }
-          
-          if (response.status === 404) {
-            // Special handling for 404 errors - the API is working but no integration found
-            console.warn(`Integration ${integrationId} not found, but proceeding as if disconnected`);
-            return {
-              success: true,
-              message: `${integrationId} integration disconnected successfully (not found)`
-            };
-          }
-          
-          throw new Error(`Failed to disconnect ${integrationId}: ${response.status} ${response.statusText}`);
-        }
-
-        return await response.json();
-      } catch (error) {
-        console.error(`Error disconnecting from ${integrationId}:`, error);
-        throw error;
-      }
+      // No token found after trying all sources
+      throw new Error("Authentication required. Please sign in again.");
     },
 
     // Helper method to sync with a provided token
@@ -578,116 +409,16 @@ export const api = {
     },
     
     async sync(integrationId: string) {
-      // Ensure we have a fresh token by refreshing the session
-      try {
-        const { data, error } = await supabase.auth.refreshSession();
-        if (error) {
-          console.error("Failed to refresh token:", error);
-        }
-      } catch (err) {
-        console.warn("Failed to refresh token:", err);
+      // Get authentication token using our centralized helper function
+      const token = await getAuthToken();
+      
+      // If token found, use it to sync
+      if (token) {
+        return this._syncWithToken(integrationId, token);
       }
       
-      const { data: session } = await supabase.auth.getSession();
-      const token = session?.session?.access_token;
-      
-      console.log("Authentication token available:", !!token);
-      
-      if (!token) {
-        // Try to get the session directly from localStorage as a fallback
-        try {
-          // Check multiple possible storage keys
-          const storageKeys = [
-            'dana-ai.auth.token',
-            'supabase.auth.token',
-            'sb-' + process.env.REACT_APP_SUPABASE_URL?.replace(/^https?:\/\//, '') + '-auth-token'
-          ];
-          console.log("Checking localStorage keys:", storageKeys);
-          
-          // Log all localStorage keys for debugging
-          console.log("All localStorage keys:");
-          for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            console.log(`- ${key}`);
-          }
-          
-          let foundToken = null;
-          
-          // Try each possible storage key
-          for (const key of storageKeys) {
-            console.log(`Checking localStorage key: ${key}`);
-            const storedData = localStorage.getItem(key);
-            if (storedData) {
-              console.log(`Found data in key: ${key}`);
-              try {
-                const parsedData = JSON.parse(storedData);
-                if (parsedData?.access_token) {
-                  console.log(`Found access_token in key: ${key}`);
-                  foundToken = parsedData.access_token;
-                  break;
-                } else if (parsedData?.data?.session?.access_token) {
-                  console.log(`Found nested access_token in key: ${key}`);
-                  foundToken = parsedData.data.session.access_token;
-                  break;
-                }
-              } catch (parseErr) {
-                console.error(`Error parsing data from key ${key}:`, parseErr);
-              }
-            }
-          }
-          
-          if (foundToken) {
-            console.log("Using token from localStorage");
-            return this._syncWithToken(integrationId, foundToken);
-          }
-        } catch (e) {
-          console.error("Error accessing localStorage:", e);
-        }
-        
-        throw new Error("Authentication required. Please sign in again.");
-      }
-
-      // Handle special case for email integration
-      const endpoint = integrationId === 'email' 
-        ? `/api/integrations/email/sync`
-        : `/api/integrations/sync/${integrationId}`;
-      
-      console.log(`Syncing ${integrationId} using endpoint: ${endpoint}`);
-
-      try {
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-
-        console.log(`Response status: ${response.status}, ${response.statusText}`);
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error(`Error response body: ${errorText}`);
-          
-          // Handle auth error
-          if (response.status === 401) {
-            // Try to sign in again if possible
-            const refreshResult = await supabase.auth.refreshSession();
-            if (refreshResult.error) {
-              throw new Error("Authentication failed. Please sign in again.");
-            }
-            // Retry with new token
-            return this.sync(integrationId);
-          }
-          
-          throw new Error(`Failed to sync ${integrationId}: ${response.status} ${response.statusText}`);
-        }
-
-        return await response.json();
-      } catch (error) {
-        console.error(`Error syncing ${integrationId}:`, error);
-        throw error;
-      }
+      // No token found after trying all sources
+      throw new Error("Authentication required. Please sign in again.");
     }
   }
 };
