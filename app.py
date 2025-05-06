@@ -151,6 +151,11 @@ def frontend():
     """Frontend access instructions"""
     return render_template("frontend.html")
 
+@app.route("/email-connection-test")
+def email_connection_test():
+    """Email integration connection test page"""
+    return render_template("email_connection_check.html")
+
 @app.route("/slack")
 @app.route("/slack_dashboard")
 def slack_dashboard():
@@ -220,6 +225,40 @@ def api_index():
             "/api/usage"
         ]
     })
+
+@app.route("/api/v2/csrf-token", methods=['GET'])
+def get_csrf_token_v2():
+    """
+    Get a CSRF token for form validation
+    More reliable implementation that always returns a token even in development mode
+    """
+    # Always enable CSRF for this direct endpoint to avoid CSRF issues
+    from flask_wtf.csrf import generate_csrf
+    
+    # Generate a token or use a fixed dev token in development mode
+    is_dev = (os.environ.get('FLASK_ENV') == 'development' or 
+              os.environ.get('DEVELOPMENT_MODE') == 'true' or 
+              os.environ.get('APP_ENV') == 'development')
+    
+    if is_dev:
+        # In development mode, use a fixed token for easier testing
+        csrf_token = 'development_csrf_token_for_testing'
+        logger.info('Using fixed development CSRF token')
+    else:
+        # In production, use proper CSRF tokens
+        csrf_token = generate_csrf()
+    
+    # Store the token in the app.config for persistence
+    app.config['CSRF_TOKEN'] = csrf_token
+    
+    # Also attempt to store it in the session for regular CSRF validation
+    try:
+        session['csrf_token'] = csrf_token
+    except Exception as e:
+        logger.warning(f"Could not store CSRF token in session: {str(e)}")
+    
+    # Return the token
+    return jsonify({'csrf_token': csrf_token})
 
 @app.route('/api/test-usage')
 def test_usage_api():

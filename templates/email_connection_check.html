@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Integration Status Check</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+        .card {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .status {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .connected {
+            color: #27ae60;
+        }
+        .not-connected {
+            color: #e74c3c;
+        }
+        .info {
+            color: #3498db;
+        }
+        pre {
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            padding: 15px;
+            overflow-x: auto;
+            font-family: 'Courier New', Courier, monospace;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .error {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        .endpoint {
+            background-color: #f5f5f5;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .csrf-token {
+            word-break: break-all;
+            background-color: #f1f1f1;
+            padding: 5px;
+            border-radius: 4px;
+            max-width: 100%;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Email Integration Status Check</h1>
+    
+    <div class="card">
+        <h2>CSRF Token</h2>
+        <div id="csrf-status" class="status info">Checking CSRF token...</div>
+        <div>
+            <strong>Token from V2 endpoint:</strong> 
+            <pre class="csrf-token" id="csrf-token-v2">Loading...</pre>
+        </div>
+        <div>
+            <strong>Token from legacy endpoint:</strong> 
+            <pre class="csrf-token" id="csrf-token-legacy">Loading...</pre>
+        </div>
+        <button onclick="refreshCsrfTokens()">Refresh Tokens</button>
+    </div>
+
+    <div class="card">
+        <h2>Email Integration Status</h2>
+        <div id="connection-status" class="status info">Checking connection status...</div>
+        <div id="integration-details"></div>
+        <button onclick="checkStatus()">Refresh Status</button>
+    </div>
+
+    <div class="card">
+        <h2>Test Connect/Disconnect</h2>
+        <div>
+            <p>Use these buttons to test the email integration endpoints:</p>
+            <button onclick="testConnect()">Test Connect</button>
+            <button onclick="testDisconnect()">Test Disconnect</button>
+        </div>
+        <div id="test-result" class="status"></div>
+        <pre id="test-details"></pre>
+    </div>
+
+    <script>
+        // Get authentication token from localStorage
+        function getAuthToken() {
+            // Try to get the token from localStorage
+            try {
+                const supabase = localStorage.getItem('supabase.auth.token');
+                if (supabase) {
+                    const parsed = JSON.parse(supabase);
+                    if (parsed?.currentSession?.access_token) {
+                        return parsed.currentSession.access_token;
+                    }
+                }
+            } catch (e) {
+                console.error('Error getting token from localStorage:', e);
+            }
+            
+            // If we get here, no token was found
+            return null;
+        }
+        
+        // Fetch CSRF token from V2 endpoint
+        async function getCsrfTokenV2() {
+            try {
+                const response = await fetch('/api/v2/csrf-token', {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to get CSRF token: ${response.status} ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                return data.csrf_token;
+            } catch (error) {
+                console.error('Error fetching CSRF token from V2 endpoint:', error);
+                return `Error: ${error.message}`;
+            }
+        }
+        
+        // Fetch CSRF token from legacy endpoint
+        async function getCsrfTokenLegacy() {
+            try {
+                const response = await fetch('/api/csrf/token', {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to get CSRF token: ${response.status} ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                return data.csrf_token;
+            } catch (error) {
+                console.error('Error fetching CSRF token from legacy endpoint:', error);
+                return `Error: ${error.message}`;
+            }
+        }
+        
+        // Check email integration status
+        async function checkStatus() {
+            const statusElement = document.getElementById('connection-status');
+            const detailsElement = document.getElementById('integration-details');
+            
+            statusElement.textContent = 'Checking connection status...';
+            statusElement.className = 'status info';
+            
+            try {
+                const token = getAuthToken();
+                if (!token) {
+                    throw new Error('No authentication token found. Please log in first.');
+                }
+                
+                const response = await fetch('/api/v2/integrations/email/status', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    },
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to check status: ${response.status} ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.connected) {
+                    statusElement.textContent = 'Connected';
+                    statusElement.className = 'status connected';
+                    
+                    // Show connection details
+                    const config = data.config;
+                    detailsElement.innerHTML = `
+                        <p><strong>Integration ID:</strong> ${data.integration_id}</p>
+                        <p><strong>Email:</strong> ${config.from_email || config.email || 'N/A'}</p>
+                        <p><strong>Host:</strong> ${config.host || config.smtp_server || 'N/A'}</p>
+                        <p><strong>Port:</strong> ${config.port || config.smtp_port || 'N/A'}</p>
+                    `;
+                } else {
+                    statusElement.textContent = 'Not Connected';
+                    statusElement.className = 'status not-connected';
+                    detailsElement.innerHTML = '<p>No email integration is currently configured.</p>';
+                }
+            } catch (error) {
+                console.error('Error checking email integration status:', error);
+                statusElement.textContent = `Error: ${error.message}`;
+                statusElement.className = 'status error';
+                detailsElement.innerHTML = '';
+            }
+        }
+        
+        // Refresh CSRF tokens
+        async function refreshCsrfTokens() {
+            const csrfStatusElement = document.getElementById('csrf-status');
+            const csrfTokenV2Element = document.getElementById('csrf-token-v2');
+            const csrfTokenLegacyElement = document.getElementById('csrf-token-legacy');
+            
+            csrfStatusElement.textContent = 'Refreshing CSRF tokens...';
+            csrfStatusElement.className = 'status info';
+            
+            try {
+                // Get tokens from both endpoints
+                const [tokenV2, tokenLegacy] = await Promise.all([
+                    getCsrfTokenV2(),
+                    getCsrfTokenLegacy()
+                ]);
+                
+                // Update UI with tokens
+                csrfTokenV2Element.textContent = tokenV2 || 'Not available';
+                csrfTokenLegacyElement.textContent = tokenLegacy || 'Not available';
+                
+                if (tokenV2 && !tokenV2.startsWith('Error')) {
+                    csrfStatusElement.textContent = 'CSRF tokens retrieved successfully';
+                    csrfStatusElement.className = 'status connected';
+                } else if (tokenLegacy && !tokenLegacy.startsWith('Error')) {
+                    csrfStatusElement.textContent = 'Legacy CSRF token available, V2 endpoint failed';
+                    csrfStatusElement.className = 'status info';
+                } else {
+                    csrfStatusElement.textContent = 'Failed to retrieve CSRF tokens';
+                    csrfStatusElement.className = 'status error';
+                }
+            } catch (error) {
+                console.error('Error refreshing CSRF tokens:', error);
+                csrfStatusElement.textContent = `Error: ${error.message}`;
+                csrfStatusElement.className = 'status error';
+            }
+        }
+        
+        // Test email connection
+        async function testConnect() {
+            const resultElement = document.getElementById('test-result');
+            const detailsElement = document.getElementById('test-details');
+            
+            resultElement.textContent = 'Testing connection...';
+            resultElement.className = 'status info';
+            detailsElement.textContent = '';
+            
+            try {
+                const token = getAuthToken();
+                if (!token) {
+                    throw new Error('No authentication token found. Please log in first.');
+                }
+                
+                // Get CSRF token
+                const csrfToken = await getCsrfTokenV2();
+                if (!csrfToken || csrfToken.startsWith('Error')) {
+                    throw new Error('Failed to get CSRF token');
+                }
+                
+                // Test data
+                const testConfig = {
+                    host: 'smtp.example.com',
+                    port: 587,
+                    username: 'test@example.com',
+                    password: 'test-password',
+                    from_email: 'test@example.com',
+                    use_ssl: false,
+                    use_tls: true,
+                    csrf_token: csrfToken
+                };
+                
+                // Make the request
+                const response = await fetch('/api/v2/integrations/email/connect', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken
+                    },
+                    body: JSON.stringify(testConfig),
+                    credentials: 'include'
+                });
+                
+                // Get response as text first to ensure we can see any error
+                const responseText = await response.text();
+                let responseData;
+                
+                try {
+                    responseData = JSON.parse(responseText);
+                } catch (e) {
+                    responseData = { raw: responseText };
+                }
+                
+                // Update UI
+                if (response.ok) {
+                    resultElement.textContent = 'Connection test successful';
+                    resultElement.className = 'status connected';
+                } else {
+                    resultElement.textContent = `Connection test failed: ${response.status} ${response.statusText}`;
+                    resultElement.className = 'status error';
+                }
+                
+                detailsElement.textContent = JSON.stringify(responseData, null, 2);
+                
+                // Refresh status after test
+                checkStatus();
+            } catch (error) {
+                console.error('Error testing email connection:', error);
+                resultElement.textContent = `Error: ${error.message}`;
+                resultElement.className = 'status error';
+                detailsElement.textContent = '';
+            }
+        }
+        
+        // Test email disconnection
+        async function testDisconnect() {
+            const resultElement = document.getElementById('test-result');
+            const detailsElement = document.getElementById('test-details');
+            
+            resultElement.textContent = 'Testing disconnection...';
+            resultElement.className = 'status info';
+            detailsElement.textContent = '';
+            
+            try {
+                const token = getAuthToken();
+                if (!token) {
+                    throw new Error('No authentication token found. Please log in first.');
+                }
+                
+                // Get CSRF token
+                const csrfToken = await getCsrfTokenV2();
+                if (!csrfToken || csrfToken.startsWith('Error')) {
+                    throw new Error('Failed to get CSRF token');
+                }
+                
+                // Make the request
+                const response = await fetch('/api/v2/integrations/email/disconnect', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken
+                    },
+                    body: JSON.stringify({ csrf_token: csrfToken }),
+                    credentials: 'include'
+                });
+                
+                // Get response as text first to ensure we can see any error
+                const responseText = await response.text();
+                let responseData;
+                
+                try {
+                    responseData = JSON.parse(responseText);
+                } catch (e) {
+                    responseData = { raw: responseText };
+                }
+                
+                // Update UI
+                if (response.ok) {
+                    resultElement.textContent = 'Disconnection test successful';
+                    resultElement.className = 'status connected';
+                } else {
+                    resultElement.textContent = `Disconnection test failed: ${response.status} ${response.statusText}`;
+                    resultElement.className = 'status error';
+                }
+                
+                detailsElement.textContent = JSON.stringify(responseData, null, 2);
+                
+                // Refresh status after test
+                checkStatus();
+            } catch (error) {
+                console.error('Error testing email disconnection:', error);
+                resultElement.textContent = `Error: ${error.message}`;
+                resultElement.className = 'status error';
+                detailsElement.textContent = '';
+            }
+        }
+        
+        // Initialize the page
+        window.onload = function() {
+            refreshCsrfTokens();
+            checkStatus();
+        };
+    </script>
+</body>
+</html>
