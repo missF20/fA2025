@@ -29,6 +29,7 @@
             padding: 10px;
             border-radius: 3px;
             overflow-x: auto;
+            max-height: 300px;
         }
         .success {
             color: #27ae60;
@@ -64,11 +65,29 @@
         .test-group {
             margin-bottom: 30px;
         }
+        .hint {
+            background-color: #f0f7fb;
+            border-left: 5px solid #3498db;
+            padding: 10px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+        .auth-debug {
+            background-color: #fff8e1;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 20px;
+            border: 1px solid #ffd54f;
+        }
     </style>
 </head>
 <body>
     <h1>Email Integration Test Page</h1>
     <p>This page tests the email integration connection process and helps diagnose CSRF token issues.</p>
+
+    <div class="hint">
+        <strong>Important:</strong> Click "Get CSRF Token" first before trying any other operations to ensure proper authentication.
+    </div>
 
     <div class="card">
         <h2>1. Test CSRF Token Generation</h2>
@@ -77,25 +96,35 @@
     </div>
 
     <div class="card">
-        <h2>2. Check Email Integration Status</h2>
+        <h2>2. Check Authentication</h2>
+        <button id="checkAuthBtn">Check Auth</button>
+        <div class="auth-debug" id="authDebug"></div>
+    </div>
+
+    <div class="card">
+        <h2>3. Check Email Integration Status</h2>
         <button id="checkStatusBtn">Check Status</button>
         <div id="statusResult"></div>
     </div>
 
     <div class="card">
-        <h2>3. Test Email Connection</h2>
+        <h2>4. Test Email Connection</h2>
         <div>
             <input type="text" id="emailUsername" placeholder="Email Address">
             <input type="password" id="emailPassword" placeholder="Password">
             <input type="text" id="emailServer" placeholder="SMTP Server" value="smtp.gmail.com">
+            <input type="number" id="emailPort" placeholder="Port" value="587">
         </div>
-        <p></p>
+        <p>
+            <input type="checkbox" id="useSSL"> <label for="useSSL">Use SSL</label>
+            <input type="checkbox" id="useTLS" checked> <label for="useTLS">Use TLS</label>
+        </p>
         <button id="connectBtn">Connect Email</button>
         <div id="connectResult"></div>
     </div>
 
     <div class="card">
-        <h2>4. Test Email Disconnection</h2>
+        <h2>5. Test Email Disconnection</h2>
         <button id="disconnectBtn">Disconnect Email</button>
         <div id="disconnectResult"></div>
     </div>
@@ -115,6 +144,46 @@
             element.innerHTML = html;
         }
 
+        // Debug function to check available tokens
+        function checkStoredTokens() {
+            const authDebug = document.getElementById('authDebug');
+            let html = '<h3>Stored Tokens</h3>';
+            
+            // Check localStorage
+            html += '<h4>localStorage Keys:</h4><ul>';
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                let value = localStorage.getItem(key);
+                
+                // Truncate long values
+                if (value && value.length > 50) {
+                    value = value.substring(0, 30) + '...' + value.substring(value.length - 20);
+                }
+                
+                html += `<li><strong>${key}:</strong> ${value}</li>`;
+            }
+            html += '</ul>';
+            
+            // Check cookies
+            html += '<h4>Cookies:</h4><ul>';
+            document.cookie.split(';').forEach(cookie => {
+                const [name, value] = cookie.trim().split('=');
+                html += `<li><strong>${name}:</strong> ${value}</li>`;
+            });
+            html += '</ul>';
+            
+            // Add token from our storage
+            const csrfToken = localStorage.getItem('csrf_token');
+            html += '<h4>CSRF Token:</h4>';
+            if (csrfToken) {
+                html += `<p>${csrfToken.substring(0, 10)}...${csrfToken.substring(csrfToken.length - 5)}</p>`;
+            } else {
+                html += '<p>Not found! Click "Get CSRF Token" first.</p>';
+            }
+            
+            authDebug.innerHTML = html;
+        }
+
         // Test CSRF token generation
         document.getElementById('getTokenBtn').addEventListener('click', async () => {
             try {
@@ -124,9 +193,17 @@
                 
                 // Store token for later use
                 localStorage.setItem('csrf_token', data.csrf_token);
+                
+                // Also check stored tokens
+                checkStoredTokens();
             } catch (error) {
                 displayResult('csrfResult', {error: error.message}, true);
             }
+        });
+
+        // Check authentication tokens
+        document.getElementById('checkAuthBtn').addEventListener('click', async () => {
+            checkStoredTokens();
         });
 
         // Check email integration status
@@ -141,7 +218,22 @@
                     headers['X-CSRF-Token'] = token;
                 }
                 
-                const response = await fetch('/api/integrations/email/status', {
+                // First try v1 endpoint
+                try {
+                    const response = await fetch('/api/integrations/email/status', {
+                        method: 'GET',
+                        headers: headers
+                    });
+                    
+                    const data = await response.json();
+                    displayResult('statusResult', data);
+                    return;
+                } catch (error) {
+                    console.log("V1 endpoint failed, trying v2:", error);
+                }
+                
+                // If v1 fails, try v2 endpoint
+                const response = await fetch('/api/v2/integrations/email/status', {
                     method: 'GET',
                     headers: headers
                 });
@@ -160,6 +252,9 @@
                 const username = document.getElementById('emailUsername').value;
                 const password = document.getElementById('emailPassword').value;
                 const server = document.getElementById('emailServer').value;
+                const port = parseInt(document.getElementById('emailPort').value, 10) || 587;
+                const useSSL = document.getElementById('useSSL').checked;
+                const useTLS = document.getElementById('useTLS').checked;
                 
                 if (!username || !password) {
                     throw new Error('Email and password are required');
@@ -173,15 +268,39 @@
                     headers['X-CSRF-Token'] = token;
                 }
                 
-                const response = await fetch('/api/integrations/email/connect', {
+                const payload = {
+                    host: server,
+                    port: port,
+                    username: username,
+                    password: password,
+                    from_email: username,
+                    use_ssl: useSSL,
+                    use_tls: useTLS,
+                    csrf_token: token
+                };
+                
+                console.log("Connecting with payload:", payload);
+                
+                // First try v1 endpoint
+                try {
+                    const response = await fetch('/api/integrations/email/connect', {
+                        method: 'POST',
+                        headers: headers,
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    const data = await response.json();
+                    displayResult('connectResult', data);
+                    return;
+                } catch (error) {
+                    console.log("V1 connect endpoint failed, trying v2:", error);
+                }
+                
+                // If v1 fails, try v2 endpoint
+                const response = await fetch('/api/v2/integrations/email/connect', {
                     method: 'POST',
                     headers: headers,
-                    body: JSON.stringify({
-                        username: username,
-                        password: password,
-                        server: server,
-                        csrf_token: token
-                    })
+                    body: JSON.stringify(payload)
                 });
                 
                 const data = await response.json();
@@ -203,12 +322,30 @@
                     headers['X-CSRF-Token'] = token;
                 }
                 
-                const response = await fetch('/api/integrations/email/disconnect', {
+                const payload = {
+                    csrf_token: token
+                };
+                
+                // First try v1 endpoint
+                try {
+                    const response = await fetch('/api/integrations/email/disconnect', {
+                        method: 'POST',
+                        headers: headers,
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    const data = await response.json();
+                    displayResult('disconnectResult', data);
+                    return;
+                } catch (error) {
+                    console.log("V1 disconnect endpoint failed, trying v2:", error);
+                }
+                
+                // If v1 fails, try v2 endpoint
+                const response = await fetch('/api/v2/integrations/email/disconnect', {
                     method: 'POST',
                     headers: headers,
-                    body: JSON.stringify({
-                        csrf_token: token
-                    })
+                    body: JSON.stringify(payload)
                 });
                 
                 const data = await response.json();
@@ -217,6 +354,9 @@
                 displayResult('disconnectResult', {error: error.message}, true);
             }
         });
+        
+        // Initialize by showing available tokens
+        checkStoredTokens();
     </script>
 </body>
 </html>

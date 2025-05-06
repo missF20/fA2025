@@ -95,6 +95,26 @@ except Exception as e:
             logger.exception(f"Error generating CSRF token in direct endpoint: {str(e)}")
             return jsonify({'error': 'Failed to generate CSRF token'}), 500
 
+# Add email connection test page route
+@app.route('/email-connection-test')
+def email_connection_test_page():
+    """Email integration connection test page with detailed debugging tools"""
+    try:
+        from flask import render_template
+        return render_template('email_connection_check.html')
+    except Exception as e:
+        logger.exception(f"Error rendering email test page: {str(e)}")
+        # Simple fallback if template rendering fails
+        return """
+        <html>
+            <head><title>Email Test Page</title></head>
+            <body>
+                <h1>Email Connection Test</h1>
+                <p>Error loading test page template. Please check server logs.</p>
+            </body>
+        </html>
+        """
+
 # Add direct email integration routes with improved error handling
 try:
     # Use V5 version with unique route paths to avoid conflicts
