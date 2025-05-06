@@ -127,7 +127,7 @@ def add_direct_email_routes(app):
                     cursor.execute(
                         """
                         UPDATE integration_configs 
-                        SET status = 'inactive', updated_at = NOW()
+                        SET status = 'inactive', date_updated = NOW()
                         WHERE integration_type = 'email'
                         """
                     )

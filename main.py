@@ -308,7 +308,10 @@ def direct_email_connect():
                 existing = cursor.fetchone()
                 
                 if existing:
-                    logger.info(f"Email integration already exists for user (ID: {existing[0]}, status: {existing[1]})")
+                    # Access the result as a dictionary to avoid indexing errors
+                    existing_id = existing[0] if isinstance(existing, tuple) else existing.get('id')
+                    existing_status = existing[1] if isinstance(existing, tuple) else existing.get('status')
+                    logger.info(f"Email integration already exists for user (ID: {existing_id}, status: {existing_status})")
                     # Update status to active
                     cursor.execute(
                         """
