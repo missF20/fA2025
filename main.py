@@ -117,8 +117,8 @@ def simple_email_test():
 
 # Add direct email integration routes with improved error handling
 try:
-    # Use V7 version with unique route paths and avoiding circular imports
-    from direct_email_integration_fix_v7 import add_direct_email_integration_routes
+    # Use V8 version with unique route paths, avoiding circular imports, and robust JSON handling
+    from direct_email_integration_fix_v8 import add_direct_email_integration_routes
     if add_direct_email_integration_routes():
         logger.info("Email integration routes added successfully with improved error handling")
     else:
