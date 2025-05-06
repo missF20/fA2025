@@ -141,9 +141,9 @@ def get_user_token_usage(user_id: str) -> Dict[str, Any]:
         
         # Query the token_usage table
         sql = """
-        SELECT user_id, SUM(tokens_used) as total_tokens, COUNT(*) as requests
+        SELECT user_id, SUM(total_tokens) as total_tokens, COUNT(*) as requests
         FROM token_usage
-        WHERE user_id = %s AND created_at >= NOW() - INTERVAL '30 days'
+        WHERE user_id = %s AND timestamp >= NOW() - INTERVAL '30 days'
         GROUP BY user_id
         """
         cursor.execute(sql, (user_id,))
@@ -261,7 +261,8 @@ def upgrade_subscription():
         """
         cursor.execute(sql, (user_id, tier, 'active'))
         
-        subscription_id = cursor.fetchone()[0]
+        result = cursor.fetchone()
+        subscription_id = result[0] if result else None
         conn.commit()
         
         cursor.close()
