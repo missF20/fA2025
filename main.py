@@ -320,13 +320,14 @@ def direct_email_connect():
                         WHERE id = %s
                         RETURNING id
                         """,
-                        (datetime.now(), existing[0])
+                        (datetime.now(), existing_id if "existing_id" in locals() else existing[0])
                     )
                     conn.commit()
                     updated = cursor.fetchone()
                     
                     if updated:
-                        logger.info(f"Updated existing integration {updated[0]} to active")
+                        updated_id = updated[0] if isinstance(updated, tuple) else updated.get("id")
+                        logger.info(f"Updated existing integration {updated_id} to active")
                         return jsonify({
                             'success': True,
                             'message': 'Email integration updated successfully',
