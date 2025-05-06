@@ -561,6 +561,18 @@ def init_app():
     # Register blueprints
     register_blueprints()
     
+    # Add direct knowledge endpoints - bypassing blueprint registration system
+    try:
+        from fix_knowledge_direct_routes import add_direct_knowledge_routes
+        from utils.auth import token_required, get_user_from_token
+        from utils.db_connection import get_direct_connection
+        
+        logger.info("Adding direct knowledge management endpoints")
+        add_direct_knowledge_routes(app, token_required, get_user_from_token, get_direct_connection)
+        logger.info("Direct knowledge management endpoints added successfully")
+    except Exception as e:
+        logger.error(f"Failed to add direct knowledge endpoints: {str(e)}")
+    
     # Initialize Row Level Security
     init_rls()
     
