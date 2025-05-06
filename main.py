@@ -1888,7 +1888,7 @@ def knowledge_file_get_api(file_id, user=None):
             # Get file with content
             file_sql = """
             SELECT id, user_id, filename, file_size, file_type, content, 
-                   created_at, updated_at, category, tags, metadata, binary_data
+                   created_at, updated_at, category, tags, binary_data, file_path
             FROM knowledge_files 
             WHERE id = %s AND user_id = %s
             """
@@ -1932,13 +1932,9 @@ def knowledge_file_get_api(file_id, user=None):
                         # Keep as is if not valid JSON
                         pass
                 
-                # Process metadata if stored as JSON string
-                if 'metadata' in file_data and file_data['metadata'] and isinstance(file_data['metadata'], str):
-                    try:
-                        file_data['metadata'] = json.loads(file_data['metadata'])
-                    except:
-                        # Keep as is if not valid JSON
-                        pass
+                # We don't have a metadata field in this table, 
+                # but we can use file_path as additional metadata
+                file_data['metadata'] = {"file_path": file_data.get('file_path', '')}
                 
                 # Ensure we have a consistent format
                 normalized_file = {
