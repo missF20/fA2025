@@ -370,17 +370,38 @@ def add_direct_email_integration_routes():
             auth_header = request.headers.get('Authorization')
             
             user = None
-            if auth_header in ['dev-token', 'test-token', 'Bearer dev-token', 'Bearer test-token']:
+            # Handle case when there's no auth header
+            if not auth_header:
+                logger.info("No auth header provided, using default development user")
+                user = {'id': '00000000-0000-0000-0000-000000000000'}
+            # Handle dev tokens
+            elif auth_header in ['dev-token', 'test-token', 'Bearer dev-token', 'Bearer test-token']:
                 # For development tokens, use a fake user ID
                 user = {'id': '00000000-0000-0000-0000-000000000000'}
                 logger.info("Using development user for email status check")
             else:
                 # For regular tokens, extract user from token
-                auth_result = token_required(request)
-                if isinstance(auth_result, tuple):
-                    return auth_result  # Return the error response
+                # Don't use the decorator, call it directly since we're already inside a function
+                try:
+                    # Check if token is present
+                    token = None
+                    if auth_header.startswith('Bearer '):
+                        token = auth_header.split(' ')[1]
+                    else:
+                        token = auth_header
                     
-                user = get_user_from_token(request)
+                    # Validate token (simplified for compatibility)
+                    from utils.auth import validate_token
+                    auth_result = validate_token(auth_header)
+                    if not auth_result.get('valid', False):
+                        logger.warning("Invalid token in email status check")
+                        return jsonify({'error': 'Authentication failed'}), 401
+                        
+                    # Get user from token
+                    user = auth_result.get('user')
+                except Exception as e:
+                    logger.exception(f"Error validating token in email status check: {str(e)}")
+                    return jsonify({'error': 'Authentication error'}), 401
                 
             if not user:
                 return jsonify({'error': 'User not found'}), 404
