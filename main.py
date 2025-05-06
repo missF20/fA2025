@@ -117,17 +117,26 @@ def simple_email_test():
 
 # Add direct email integration routes with improved error handling
 try:
-    # Use V9 version with unique route paths, avoiding circular imports, robust JSON handling, and CSRF bypass
-    from direct_email_integration_fix_v9 import add_direct_email_integration_routes
+    # Use V10 version that properly exempts routes from CSRF validation
+    from direct_email_integration_fix_v10 import add_direct_email_integration_routes
     if add_direct_email_integration_routes():
-        logger.info("Email integration routes added successfully with improved error handling")
+        logger.info("Email integration routes added successfully with improved error handling and CSRF exemption")
     else:
         logger.error("Failed to add email integration routes")
 except Exception as e:
-    # Use logger if already initialized above
-    if not 'logger' in locals():
-        logger = logging.getLogger(__name__)
-    logger.error(f"Error setting up email integration routes: {str(e)}")
+    # Try falling back to V9 if V10 fails
+    try:
+        logger.warning(f"Error with V10 email integration fix: {str(e)}, trying V9 as fallback")
+        from direct_email_integration_fix_v9 import add_direct_email_integration_routes
+        if add_direct_email_integration_routes():
+            logger.info("Email integration routes added successfully with V9 fallback")
+        else:
+            logger.error("Failed to add email integration routes with V9 fallback")
+    except Exception as fallback_error:
+        # Use logger if already initialized above
+        if not 'logger' in locals():
+            logger = logging.getLogger(__name__)
+        logger.error(f"Error setting up email integration routes: {str(fallback_error)}")
 
 # Add direct Google Analytics integration connect endpoint
 @app.route('/api/integrations/connect/google_analytics', methods=['POST', 'OPTIONS'])
