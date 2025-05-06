@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import type { TokenUsageStats, UserTokenUsage } from '../types';
+import { useAuth } from '../contexts/AuthContext';
 
 // Add these types to your types.ts file
 export interface UsageStatsResult {
@@ -11,6 +12,7 @@ export interface UsageStatsResult {
 }
 
 export function useUsageStats(userId?: string, fetchAllUsers = false): UsageStatsResult {
+  const { token } = useAuth();
   const [stats, setStats] = useState<TokenUsageStats | null>(null);
   const [allUserStats, setAllUserStats] = useState<UserTokenUsage[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -25,13 +27,13 @@ export function useUsageStats(userId?: string, fetchAllUsers = false): UsageStat
         setError(null);
         
         // If fetchAllUsers is true, we fetch stats for all users (admin only)
-        if (fetchAllUsers) {
+        if (fetchAllUsers && token) {
           const response = await fetch('/api/admin/usage/all-users', {
             method: 'GET',
             headers: {
               'Content-Type': 'application/json',
               // Include authorization token from Supabase
-              'Authorization': `Bearer ${supabase.auth.session()?.access_token}`
+              'Authorization': `Bearer ${token}`
             }
           });
           
@@ -46,13 +48,13 @@ export function useUsageStats(userId?: string, fetchAllUsers = false): UsageStat
         }
         
         // If userId is provided, fetch individual user stats
-        if (userId) {
+        if (userId && token) {
           const response = await fetch(`/api/usage/stats?user_id=${userId}`, {
             method: 'GET',
             headers: {
               'Content-Type': 'application/json',
-              // Include authorization token from Supabase
-              'Authorization': `Bearer ${supabase.auth.session()?.access_token}`
+              // Include authorization token from context
+              'Authorization': `Bearer ${token}`
             }
           });
           
@@ -105,7 +107,7 @@ export function useUsageStats(userId?: string, fetchAllUsers = false): UsageStat
     return () => {
       isMounted = false;
     };
-  }, [userId, fetchAllUsers]);
+  }, [userId, fetchAllUsers, token]);
   
   return { stats, loading, error, allUserStats };
 }
