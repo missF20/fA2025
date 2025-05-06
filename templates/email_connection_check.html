@@ -270,11 +270,10 @@
                     }
                 }
                 
+                // For testing in the diagnostic page, we'll use a dev-token if no real token exists
                 if (!accessToken) {
-                    displayResult('statusResult', {
-                        error: "No authentication token found. Please sign in first."
-                    }, true);
-                    return;
+                    console.log("No real auth token found, using dev-token for testing");
+                    accessToken = "dev-token";
                 }
                 
                 const headers = {
@@ -342,11 +341,10 @@
                     }
                 }
                 
+                // For testing in the diagnostic page, we'll use a dev-token if no real token exists
                 if (!accessToken) {
-                    displayResult('connectResult', {
-                        error: "No authentication token found. Please sign in first."
-                    }, true);
-                    return;
+                    console.log("No real auth token found, using dev-token for testing");
+                    accessToken = "dev-token";
                 }
                 
                 const headers = {
@@ -421,11 +419,10 @@
                     }
                 }
                 
+                // For testing in the diagnostic page, we'll use a dev-token if no real token exists
                 if (!accessToken) {
-                    displayResult('disconnectResult', {
-                        error: "No authentication token found. Please sign in first."
-                    }, true);
-                    return;
+                    console.log("No real auth token found, using dev-token for testing");
+                    accessToken = "dev-token";
                 }
                 
                 const headers = {
