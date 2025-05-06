@@ -399,7 +399,7 @@ def get_admin_usage_stats():
                 
         # Get all users with token usage
         sql = """
-        SELECT DISTINCT user_id 
+        SELECT DISTINCT user_id::text as user_id
         FROM token_usage
         ORDER BY user_id
         """
@@ -407,9 +407,18 @@ def get_admin_usage_stats():
         
         # Fetch user details and token usage for each user
         users_data = []
+        if not users_result or not isinstance(users_result, list):
+            logger.warning("No users found with token usage")
+            users_result = []
+            
         for user_record in users_result:
+            if not isinstance(user_record, dict):
+                logger.warning(f"Unexpected user record format: {user_record}")
+                continue
+                
             user_id = user_record.get('user_id')
             if not user_id:
+                logger.warning(f"User record missing user_id: {user_record}")
                 continue
                 
             # Get user details
@@ -469,29 +478,58 @@ def get_user_details(user_id):
         Dictionary with user details
     """
     try:
-        # First try to get from the profiles table
-        sql = """
-        SELECT email, display_name, company
-        FROM profiles
-        WHERE id = UUID(%s)
-        """
-        result = execute_sql(sql, (user_id,))
-        
-        if result and len(result) > 0:
-            return result[0]
+        # Safely handle possible UUID format issues
+        try:
+            # Try to use with UUID format
+            sql = """
+            SELECT email, display_name, company
+            FROM profiles
+            WHERE id = UUID(%s)
+            """
+            result = execute_sql(sql, (user_id,))
+            
+            if result and len(result) > 0:
+                return result[0]
+                
+            # If not found as UUID, try as string
+            sql = """
+            SELECT email, display_name, company
+            FROM profiles
+            WHERE id = %s
+            """
+            result = execute_sql(sql, (user_id,))
+            
+            if result and len(result) > 0:
+                return result[0]
+        except Exception as uuid_error:
+            # If UUID conversion fails, try direct string match
+            logger.warning(f"UUID conversion failed, trying string match: {str(uuid_error)}")
+            sql = """
+            SELECT email, display_name, company
+            FROM profiles
+            WHERE id = %s
+            """
+            result = execute_sql(sql, (user_id,))
+            
+            if result and len(result) > 0:
+                return result[0]
             
         # If not found, try the auth.users table through Supabase
         # This part would need to be customized based on your authentication setup
+        # Safely slice the user_id string
+        user_id_prefix = user_id[:8] if isinstance(user_id, str) and len(user_id) >= 8 else str(user_id)
         return {
             "email": "unknown",
-            "display_name": f"User {user_id[:8]}",
+            "display_name": f"User {user_id_prefix}",
             "company": "Unknown"
         }
     except Exception as e:
         logger.error(f"Error getting user details: {str(e)}")
+        # Safely slice the user_id string
+        user_id_prefix = user_id[:8] if isinstance(user_id, str) and len(user_id) >= 8 else str(user_id)
         return {
             "email": "error",
-            "display_name": f"Error retrieving user {user_id[:8]}",
+            "display_name": f"Error retrieving user {user_id_prefix}",
             "company": "Error"
         }
 
