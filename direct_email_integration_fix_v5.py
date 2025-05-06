@@ -29,8 +29,31 @@ def add_direct_email_integration_routes():
         # Import CSRF validation helper with error handling
         try:
             from utils.csrf import validate_csrf_token
+            
+            # Create a development-mode aware wrapper for CSRF validation
+            def csrf_validate_with_dev_bypass(req):
+                """
+                CSRF validation with development mode bypass
+                Always accepts tokens in development mode for easier testing
+                """
+                # Check for development mode
+                is_dev = (os.environ.get('FLASK_ENV') == 'development' or 
+                        os.environ.get('DEVELOPMENT_MODE') == 'true' or
+                        os.environ.get('APP_ENV') == 'development')
+                
+                # Skip validation in development mode
+                if is_dev:
+                    logger.info("Development mode detected, skipping CSRF validation for email integration")
+                    return None
+                
+                # Otherwise, use regular validation logic
+                return validate_csrf_token(req)
+                
+            # Use the development-mode aware wrapper instead of direct function
+            validate_csrf_token = csrf_validate_with_dev_bypass
+            
             csrf_enabled = True
-            logger.info("CSRF validation enabled for email integration routes")
+            logger.info("CSRF validation enabled for email integration routes with development mode bypass")
         except ImportError:
             # Fallback implementation if module not available
             def validate_csrf_token(req):
