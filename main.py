@@ -32,6 +32,31 @@ except Exception as e:
     # Initialize logging
     logger = logging.getLogger(__name__)
     logger.error(f"Error setting up CSRF blueprint: {str(e)}")
+    
+    # Create a direct CSRF token endpoint as fallback
+    import secrets
+    from flask import session, jsonify
+    
+    @app.route('/api/csrf/token', methods=['GET'])
+    def direct_csrf_token():
+        """Direct CSRF token endpoint that doesn't rely on external dependencies"""
+        try:
+            # Generate a simple token
+            token = secrets.token_hex(16)
+            session['csrf_token'] = token
+            
+            # Return the token in both the response body and a cookie
+            response = jsonify({'csrf_token': token})
+            response.set_cookie('csrf_token', token, 
+                               httponly=True, 
+                               secure=True,
+                               samesite='Lax')
+            
+            logger.info("CSRF token generated successfully via direct endpoint")
+            return response
+        except Exception as e:
+            logger.exception(f"Error generating CSRF token in direct endpoint: {str(e)}")
+            return jsonify({'error': 'Failed to generate CSRF token'}), 500
 
 # Add direct email integration routes with improved error handling
 try:
