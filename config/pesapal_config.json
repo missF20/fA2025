@@ -4,5 +4,5 @@
   "sandbox": true,
   "callback_url": "https://ffc5fd18-be91-40ab-9444-47854100d895-00-1fgo5lh9hezdz.janeway.replit.dev/api/payments/ipn",
   "consumer_key": "AiU7H3Kdepc13tBEILdASM5WIBmm1SSS",
-  "consumer_secret": " w8ZQnF6yJGV7U+4HW8qLYgg4voE="
+  "consumer_secret": "w8ZQnF6yJGV7U+4HW8qLYgg4voE="
 }
