@@ -174,6 +174,11 @@ def usage_dashboard():
     """Token usage dashboard UI"""
     return render_template("usage_dashboard.html")
 
+@app.route("/test/token-usage")
+def test_token_usage():
+    """Test page for token usage API"""
+    return render_template("test_token_usage.html")
+
 @app.route("/api")
 def api_index():
     """API root endpoint"""

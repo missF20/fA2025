@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Token Usage Test</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .token-card {
+            max-width: 800px;
+            margin: 0 auto;
+            box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075);
+        }
+        .token-progress {
+            height: 10px;
+        }
+        #error-message {
+            color: #dc3545;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        #loading-spinner {
+            display: none;
+        }
+        .api-response {
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="text-center mb-4">Token Usage Test</h1>
+        
+        <div class="card token-card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">API Test</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label for="auth-token" class="form-label">Authorization Token</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="auth-token" placeholder="Paste your JWT token here">
+                        <button class="btn btn-outline-secondary" type="button" id="get-token-btn">Get Current Token</button>
+                    </div>
+                    <div class="form-text">This token will be used to authenticate the API request</div>
+                </div>
+
+                <button class="btn btn-primary" id="test-api-btn">
+                    <span class="spinner-border spinner-border-sm" id="loading-spinner" role="status" aria-hidden="true"></span>
+                    Test Token Usage API
+                </button>
+                <div id="error-message"></div>
+            </div>
+        </div>
+
+        <div class="card token-card mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="card-title mb-0">API Response</h5>
+            </div>
+            <div class="card-body">
+                <pre class="api-response" id="api-response">No response yet. Click "Test Token Usage API" to make a request.</pre>
+            </div>
+        </div>
+
+        <div class="card token-card">
+            <div class="card-header bg-info text-white">
+                <h5 class="card-title mb-0">Token Usage Visualization</h5>
+            </div>
+            <div class="card-body" id="token-card-container">
+                <div class="text-center text-muted">
+                    Token usage data will appear here after a successful API request
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const authTokenInput = document.getElementById('auth-token');
+            const testApiBtn = document.getElementById('test-api-btn');
+            const getTokenBtn = document.getElementById('get-token-btn');
+            const errorMessage = document.getElementById('error-message');
+            const apiResponse = document.getElementById('api-response');
+            const loadingSpinner = document.getElementById('loading-spinner');
+            const tokenCardContainer = document.getElementById('token-card-container');
+
+            // Get current token from localStorage (if available)
+            getTokenBtn.addEventListener('click', function() {
+                try {
+                    // Try to load token from local storage first
+                    let token = localStorage.getItem('sb-' + window.location.host + '-auth-token');
+                    if (token) {
+                        const parsed = JSON.parse(token);
+                        if (parsed && parsed.access_token) {
+                            authTokenInput.value = parsed.access_token;
+                            return;
+                        }
+                    }
+                    
+                    // Otherwise try to get it from Supabase client
+                    if (window.supabase && window.supabase.auth) {
+                        window.supabase.auth.getSession().then(result => {
+                            if (result.data && result.data.session) {
+                                authTokenInput.value = result.data.session.access_token;
+                            } else {
+                                errorMessage.textContent = 'No active session found. Please sign in first.';
+                            }
+                        });
+                    } else {
+                        errorMessage.textContent = 'Supabase client not found. Try entering token manually.';
+                    }
+                } catch (error) {
+                    errorMessage.textContent = 'Error getting token: ' + error.message;
+                }
+            });
+
+            // Test API
+            testApiBtn.addEventListener('click', function() {
+                const token = authTokenInput.value.trim();
+                if (!token) {
+                    errorMessage.textContent = 'Please enter an authorization token';
+                    return;
+                }
+
+                errorMessage.textContent = '';
+                loadingSpinner.style.display = 'inline-block';
+                testApiBtn.disabled = true;
+
+                // Make API request
+                fetch('/api/usage/stats', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('API request failed with status: ' + response.status);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Display the raw response
+                    apiResponse.textContent = JSON.stringify(data, null, 2);
+                    
+                    // Render the token usage card
+                    renderTokenUsageCard(data);
+                })
+                .catch(error => {
+                    errorMessage.textContent = error.message;
+                    apiResponse.textContent = 'Error: ' + error.message;
+                })
+                .finally(() => {
+                    loadingSpinner.style.display = 'none';
+                    testApiBtn.disabled = false;
+                });
+            });
+
+            function renderTokenUsageCard(data) {
+                // Extract necessary data
+                const { totals, limits, models } = data;
+                if (!totals || !limits) {
+                    tokenCardContainer.innerHTML = '<div class="alert alert-warning">Invalid data format</div>';
+                    return;
+                }
+
+                // Calculate percentage
+                const percentageUsed = limits.unlimited ? 0 : Math.min(100, Math.round((limits.used / limits.limit) * 100));
+                
+                // Determine color based on usage
+                let progressClass = 'bg-success';
+                if (percentageUsed > 90) {
+                    progressClass = 'bg-danger';
+                } else if (percentageUsed > 75) {
+                    progressClass = 'bg-warning';
+                }
+
+                // Create card HTML
+                let html = `
+                    <h5 class="card-title">Token Usage</h5>
+                    
+                    ${limits.unlimited ? `
+                        <div class="mb-3">
+                            <p class="text-success">
+                                <i class="bi bi-infinity me-2"></i>
+                                Unlimited tokens available
+                            </p>
+                            <p class="text-muted small">
+                                Used: ${totals.total_tokens.toLocaleString()} tokens
+                            </p>
+                        </div>
+                    ` : `
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Usage</span>
+                            <span>
+                                ${limits.used.toLocaleString()} / ${limits.limit.toLocaleString()} tokens
+                                (${percentageUsed}%)
+                            </span>
+                        </div>
+                        
+                        <div class="progress mb-2 token-progress">
+                            <div class="progress-bar ${progressClass}" 
+                                role="progressbar" 
+                                style="width: ${percentageUsed}%" 
+                                aria-valuenow="${percentageUsed}" 
+                                aria-valuemin="0" 
+                                aria-valuemax="100">
+                            </div>
+                        </div>
+                        
+                        ${limits.exceeded ? `
+                            <p class="text-danger mb-2 small">
+                                <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                                Token limit exceeded
+                            </p>
+                        ` : `
+                            <p class="text-muted mb-2 small">
+                                ${limits.remaining.toLocaleString()} tokens remaining
+                            </p>
+                        `}
+                    `}
+                `;
+
+                // Add model breakdown if available
+                if (models && models.length > 0) {
+                    html += `
+                        <div class="mt-4">
+                            <h6>Model Usage</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Model</th>
+                                            <th>Total Tokens</th>
+                                            <th>Prompt</th>
+                                            <th>Completion</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                    `;
+                    
+                    models.forEach(model => {
+                        html += `
+                            <tr>
+                                <td>${model.model || 'Unknown'}</td>
+                                <td>${model.total_tokens.toLocaleString()}</td>
+                                <td>${model.prompt_tokens.toLocaleString()}</td>
+                                <td>${model.completion_tokens.toLocaleString()}</td>
+                            </tr>
+                        `;
+                    });
+                    
+                    html += `
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                }
+
+                // Update the container
+                tokenCardContainer.innerHTML = html;
+            }
+        });
+    </script>
+</body>
+</html>
