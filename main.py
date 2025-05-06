@@ -45,7 +45,21 @@ except Exception as e:
             # Generate a simple token
             token = secrets.token_hex(16)
             
-            # Store in session if session is available
+            # In development mode, always use a fixed token for easier testing
+            is_dev = (os.environ.get('FLASK_ENV') == 'development' or 
+                     os.environ.get('DEVELOPMENT_MODE') == 'true' or
+                     os.environ.get('APP_ENV') == 'development')
+            
+            if is_dev:
+                # Use a fixed token in development for reliable testing
+                token = "development_csrf_token_for_testing"
+                logger.info("Using fixed development CSRF token for testing")
+            
+            # Store token in a global variable in app.config that utils/csrf.py can access
+            app.config['CSRF_TOKEN'] = token
+            logger.info("CSRF token stored in app config")
+            
+            # Also try to store in session if available, but as a fallback
             try:
                 session['csrf_token'] = token
                 logger.info("CSRF token stored in session")
@@ -58,7 +72,7 @@ except Exception as e:
             # Try to set a cookie, but don't fail if it doesn't work
             try:
                 # Make sure secure is only set in production
-                is_secure = os.environ.get('FLASK_ENV') != 'development'
+                is_secure = not is_dev
                 
                 response.set_cookie(
                     'csrf_token', 
@@ -75,7 +89,7 @@ except Exception as e:
             response.headers.add('Access-Control-Allow-Origin', request.headers.get('Origin', '*'))
             response.headers.add('Access-Control-Allow-Credentials', 'true')
             
-            logger.info("CSRF token generated successfully via direct endpoint")
+            logger.info(f"CSRF token generated successfully via direct endpoint: {token[:5]}...")
             return response
         except Exception as e:
             logger.exception(f"Error generating CSRF token in direct endpoint: {str(e)}")
