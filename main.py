@@ -73,6 +73,92 @@ except Exception as e:
         logger = logging.getLogger(__name__)
     logger.error(f"Error setting up email integration routes: {str(e)}")
 
+# Add direct Google Analytics integration connect endpoint
+@app.route('/api/integrations/connect/google_analytics', methods=['POST', 'OPTIONS'])
+def direct_google_analytics_connect():
+    """Direct endpoint for Google Analytics connection."""
+    logger = logging.getLogger(__name__)
+    
+    # Handle CORS preflight requests without authentication
+    if request.method == 'OPTIONS':
+        response = jsonify({"status": "success"})
+        response.headers.add('Access-Control-Allow-Methods', 'POST, OPTIONS')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Credentials', 'true')
+        return response
+        
+    # For actual POST requests, require authentication
+    auth_header = request.headers.get('Authorization', '')
+    if not auth_header:
+        logger.warning("Google Analytics connect: No authorization header provided")
+        return jsonify({'success': False, 'message': 'Authorization required'}), 401
+        
+    # Extract token from Authorization header
+    token = None
+    if auth_header.startswith('Bearer '):
+        token = auth_header.split(' ')[1]
+    else:
+        logger.warning("Google Analytics connect: Invalid authorization format")
+        return jsonify({'success': False, 'message': 'Invalid authorization format'}), 401
+        
+    # Validate the token
+    from utils.auth import validate_token
+    auth_result = validate_token(auth_header)
+    if not auth_result['valid']:
+        logger.warning("Google Analytics connect: Invalid token")
+        return jsonify({
+            'success': False,
+            'message': 'Authentication failed',
+            'error': auth_result.get('message', 'Invalid token')
+        }), 401
+    
+    # Set the user
+    user = auth_result['user']
+        
+    # Get user from database
+    from models_db import User
+    db_user = User.query.filter_by(email=user.get('email')).first()
+    if not db_user:
+        logger.warning(f"Google Analytics connect: User not found: {user.get('email')}")
+        return jsonify({'success': False, 'message': 'User not found'}), 404
+        
+    # Get user UUID (preferably auth_id)
+    user_uuid = None
+    if hasattr(db_user, 'auth_id') and db_user.auth_id:
+        user_uuid = db_user.auth_id
+    elif hasattr(db_user, 'id') and db_user.id:
+        user_uuid = str(db_user.id)
+    
+    # Process the connection request
+    try:
+        # Import the required function
+        from routes.integrations.google_analytics import connect_google_analytics
+        
+        # Get configuration data from request
+        data = request.get_json()
+        if not data or 'config' not in data:
+            return jsonify({
+                'success': False, 
+                'message': 'Configuration data is required'
+            }), 400
+            
+        # Connect to Google Analytics
+        success, message, status_code = connect_google_analytics(user_uuid, data['config'])
+        
+        # Return response
+        return jsonify({
+            'success': success, 
+            'message': message
+        }), status_code
+        
+    except Exception as e:
+        logger.error(f"Error connecting to Google Analytics: {str(e)}")
+        return jsonify({
+            'success': False, 
+            'message': f'Error connecting to Google Analytics: {str(e)}'
+        }), 500
+
 # Import debug endpoint
 
 # Add direct email disconnect endpoint
