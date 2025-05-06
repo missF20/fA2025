@@ -22,11 +22,9 @@ import { MessageSquare, CheckCircle, Clock, Users, AlertTriangle, Activity } fro
 import { motion, AnimatePresence } from 'framer-motion';
 import type { AuthFormData } from './types';
 import { TokenUsageCard } from './components/TokenUsageCard';
-import { useAuth } from './contexts/AuthContext';
 // Used to track the platforms the user is allowed to access based on their subscription
 
 function App() {
-  const { user, token, isAuthenticated, isLoading: authLoading } = useAuth();
   const [session, setSession] = useState<any>(null);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -38,7 +36,7 @@ function App() {
   const [showSetupPrompt, setShowSetupPrompt] = useState(false);
   const [accountSetupComplete, setAccountSetupComplete] = useState(true);
   const [showSubscriptionSelector, setShowSubscriptionSelector] = useState(false);
-  const { metrics, loading, error, allowedPlatforms } = useMetrics(user ? { user } : null);
+  const { metrics, loading, error, allowedPlatforms } = useMetrics(session);
 
   useEffect(() => {
     async function checkSession() {

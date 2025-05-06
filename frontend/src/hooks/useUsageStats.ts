@@ -26,12 +26,8 @@ export function useUsageStats(userId?: string, fetchAllUsers = false): UsageStat
         setLoading(true);
         setError(null);
         
-        console.log('Token available in useUsageStats:', !!token);
-        console.log('User ID provided:', userId);
-        
         // If fetchAllUsers is true, we fetch stats for all users (admin only)
         if (fetchAllUsers && token) {
-          console.log('Fetching all user stats...');
           const response = await fetch('/api/admin/usage/all-users', {
             method: 'GET',
             headers: {
@@ -46,7 +42,6 @@ export function useUsageStats(userId?: string, fetchAllUsers = false): UsageStat
           }
           
           const data = await response.json();
-          console.log('All user stats response:', data);
           if (isMounted) {
             setAllUserStats(data.users || []);
           }
@@ -54,7 +49,6 @@ export function useUsageStats(userId?: string, fetchAllUsers = false): UsageStat
         
         // If userId is provided, fetch individual user stats
         if (userId && token) {
-          console.log(`Fetching usage stats for user: ${userId}`);
           const response = await fetch(`/api/usage/stats?user_id=${userId}`, {
             method: 'GET',
             headers: {
@@ -69,8 +63,6 @@ export function useUsageStats(userId?: string, fetchAllUsers = false): UsageStat
           }
           
           const data = await response.json();
-          console.log('User stats response:', data);
-          
           if (isMounted) {
             setStats({
               totals: {
