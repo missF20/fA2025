@@ -32,7 +32,7 @@ def add_direct_knowledge_endpoints():
             
         # Import other needed modules
         from utils.auth import get_user_from_token, token_required
-        from utils.db_connection import get_db_connection
+        from utils.db_connection import get_direct_connection
         
         # Add direct tags endpoint
         @main.app.route('/api/knowledge/files/tags', methods=['GET'])
