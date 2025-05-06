@@ -302,13 +302,17 @@ export const api = {
         try {
           const csrfToken = await this.getCsrfToken();
           if (csrfToken) {
-            // Add token to both headers and request body (to cover all bases)
+            // Add token to both headers and as a separate parameter in the body
             headers['X-CSRF-Token'] = csrfToken;
-            requestBody = JSON.stringify({
+            
+            // Create email config with CSRF token as a top-level property
+            const emailConfigWithToken = {
               ...config,
               csrf_token: csrfToken
-            });
-            console.log('Added CSRF token to request');
+            };
+            
+            requestBody = JSON.stringify(emailConfigWithToken);
+            console.log('Added CSRF token to request:', csrfToken.substring(0, 5) + '...');
           } else {
             // No CSRF token available, proceed without it
             requestBody = JSON.stringify(config);
@@ -386,7 +390,7 @@ export const api = {
             // Add token to both headers and request body
             headers['X-CSRF-Token'] = csrfToken;
             requestBody = { csrf_token: csrfToken };
-            console.log('Added CSRF token to disconnect request');
+            console.log('Added CSRF token to disconnect request:', csrfToken.substring(0, 5) + '...');
           }
         } catch (error) {
           console.error('Failed to get CSRF token for disconnect:', error);
@@ -469,7 +473,7 @@ export const api = {
             // Add token to both headers and request body
             headers['X-CSRF-Token'] = csrfToken;
             requestBody = { csrf_token: csrfToken };
-            console.log('Added CSRF token to sync request');
+            console.log('Added CSRF token to sync request:', csrfToken.substring(0, 5) + '...');
           }
         } catch (error) {
           console.error('Failed to get CSRF token for sync:', error);
