@@ -1,14 +1,17 @@
 import React from 'react';
 import { useUsageStats } from '../hooks/useUsageStats';
 import { AlertTriangle, Zap, Activity } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 interface TokenUsageCardProps {
-  userId: string;
+  userId?: string;
   compact?: boolean;
 }
 
 export const TokenUsageCard: React.FC<TokenUsageCardProps> = ({ userId, compact = false }) => {
-  const { stats, loading, error } = useUsageStats(userId);
+  const { user } = useAuth();
+  const effectiveUserId = userId || (user ? user.id : undefined);
+  const { stats, loading, error } = useUsageStats(effectiveUserId);
 
   if (loading) {
     return (
