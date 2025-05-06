@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Email Integration Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        pre {
+            background: #f8f8f8;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            overflow: auto;
+            max-height: 300px;
+        }
+        .error {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <h1>Simple Email Integration Test</h1>
+    
+    <div class="card">
+        <h2>Test Endpoint Status</h2>
+        <button id="testEndpointBtn">Test Basic Endpoint</button>
+        <div id="testEndpointResult"></div>
+    </div>
+    
+    <div class="card">
+        <h2>Email Status</h2>
+        <p>Test the email integration status without authentication</p>
+        <button id="testStatusBtn">Get Email Status</button>
+        <div id="statusResult"></div>
+    </div>
+    
+    <div class="card">
+        <h2>Dev-Token Email Status</h2>
+        <p>Test the email integration status with dev-token</p>
+        <button id="devTokenStatusBtn">Get Status with Dev-Token</button>
+        <div id="devTokenResult"></div>
+    </div>
+    
+    <script>
+        // Helper function to display results
+        function displayResult(elementId, data, isError = false) {
+            const element = document.getElementById(elementId);
+            
+            // Create a formatted display
+            let html = `<h3 class="${isError ? 'error' : ''}">Result:</h3>`;
+            html += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+            
+            element.innerHTML = html;
+        }
+        
+        // Test basic endpoint
+        document.getElementById('testEndpointBtn').addEventListener('click', async () => {
+            try {
+                const response = await fetch('/test-email');
+                const data = await response.json();
+                displayResult('testEndpointResult', data);
+            } catch (error) {
+                displayResult('testEndpointResult', {error: error.message}, true);
+            }
+        });
+        
+        // Test email status without auth
+        document.getElementById('testStatusBtn').addEventListener('click', async () => {
+            try {
+                const response = await fetch('/api/integrations/email/status');
+                const data = await response.json();
+                displayResult('statusResult', data);
+            } catch (error) {
+                displayResult('statusResult', {error: error.message}, true);
+            }
+        });
+        
+        // Test email status with dev-token
+        document.getElementById('devTokenStatusBtn').addEventListener('click', async () => {
+            try {
+                const headers = {
+                    'Authorization': 'Bearer dev-token'
+                };
+                
+                const response = await fetch('/api/integrations/email/status', {
+                    headers: headers
+                });
+                
+                const data = await response.json();
+                displayResult('devTokenResult', data);
+            } catch (error) {
+                displayResult('devTokenResult', {error: error.message}, true);
+            }
+        });
+    </script>
+</body>
+</html>

@@ -98,6 +98,23 @@ except Exception as e:
 # Email connection test page route already defined in app.py
 # No need to redefine it here as it would conflict
 
+# Add a direct test endpoint for email that doesn't require authentication
+@app.route('/test-email')
+def test_email_direct_endpoint():
+    """Simple test endpoint for email integration that doesn't require auth"""
+    return jsonify({
+        'success': True,
+        'message': 'Email test endpoint is working',
+        'status': 'active',
+        'version': '1.0.0'
+    })
+
+# Add a simple test page for email integration
+@app.route('/simple-email-test')
+def simple_email_test():
+    """Simple test page for email integration that doesn't require auth"""
+    return render_template('simple_email_test.html')
+
 # Add direct email integration routes with improved error handling
 try:
     # Use V5 version with unique route paths to avoid conflicts
@@ -1725,6 +1742,21 @@ def connect_salesforce_direct():
 @app.route('/api/integrations/email/status', methods=['GET'])
 def get_email_status_direct():
     """Get status of Email integration API - direct endpoint"""
+    # Allow all requests for testing purposes
+    logger = logging.getLogger(__name__)
+    logger.info("Email status endpoint called - direct version")
+    
+    # Handle auth for testing purposes
+    auth_header = request.headers.get('Authorization', '')
+    if auth_header and (auth_header == 'Bearer dev-token' or auth_header == 'dev-token'):
+        logger.info("Using dev-token for testing")
+        return jsonify({
+            'success': True,
+            'status': 'active',
+            'version': '1.0.0',
+            'test_mode': True
+        })
+    
     return jsonify({
         'success': True,
         'status': 'active',
