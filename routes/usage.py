@@ -9,6 +9,7 @@ from typing import Dict, Any, Optional
 
 from flask import Blueprint, jsonify, request, g
 from utils.auth import login_required, admin_required, get_current_user
+from utils.db_connection import execute_sql
 from utils.token_management import (
     get_user_token_usage,
     check_token_limit_exceeded,
