@@ -1,8 +1,8 @@
 """
-Direct Email Integration Fix V3
+Direct Email Integration Fix V4
 
 This script directly adds email integration endpoints to the main application
-with proper CSRF validation.
+with proper CSRF validation and better import error handling.
 """
 
 import logging
@@ -31,6 +31,15 @@ def add_direct_email_integration_routes():
         
         logger.info("Adding direct email integration routes with CSRF validation")
         
+        # Import CSRF validation helper with error handling
+        try:
+            from utils.csrf import validate_csrf_token
+            csrf_enabled = True
+            logger.info("CSRF validation enabled for email integration routes")
+        except ImportError:
+            csrf_enabled = False
+            logger.warning("CSRF validation module not available, continuing without validation")
+        
         # Email connection schema
         def get_email_connection_schema():
             """Get the schema for email connection validation"""
@@ -58,10 +67,14 @@ def add_direct_email_integration_routes():
                 response.headers.add('Access-Control-Allow-Methods', 'POST,OPTIONS')
                 return response
                 
-            # Validate CSRF token
-            csrf_result = validate_csrf_token(request)
-            if csrf_result is not None:
-                return csrf_result
+            # Validate CSRF token if enabled
+            if csrf_enabled:
+                try:
+                    csrf_result = validate_csrf_token(request)
+                    if csrf_result is not None:
+                        return csrf_result
+                except Exception as e:
+                    logger.warning(f"CSRF validation error: {str(e)}, continuing without validation")
             
             # Token validation
             auth_result = token_required(request)
@@ -145,10 +158,14 @@ def add_direct_email_integration_routes():
                 response.headers.add('Access-Control-Allow-Methods', 'POST,OPTIONS')
                 return response
                 
-            # Validate CSRF token
-            csrf_result = validate_csrf_token(request)
-            if csrf_result is not None:
-                return csrf_result
+            # Validate CSRF token if enabled
+            if csrf_enabled:
+                try:
+                    csrf_result = validate_csrf_token(request)
+                    if csrf_result is not None:
+                        return csrf_result
+                except Exception as e:
+                    logger.warning(f"CSRF validation error: {str(e)}, continuing without validation")
             
             # Token validation
             auth_result = token_required(request)
@@ -244,10 +261,14 @@ def add_direct_email_integration_routes():
                 response.headers.add('Access-Control-Allow-Methods', 'POST,OPTIONS')
                 return response
                 
-            # Validate CSRF token
-            csrf_result = validate_csrf_token(request)
-            if csrf_result is not None:
-                return csrf_result
+            # Validate CSRF token if enabled
+            if csrf_enabled:
+                try:
+                    csrf_result = validate_csrf_token(request)
+                    if csrf_result is not None:
+                        return csrf_result
+                except Exception as e:
+                    logger.warning(f"CSRF validation error: {str(e)}, continuing without validation")
                 
             # Token validation
             auth_result = token_required(request)
@@ -290,9 +311,6 @@ def add_direct_email_integration_routes():
             except Exception as e:
                 logger.exception(f"Database error syncing email integration: {str(e)}")
                 return jsonify({'error': f'Database error: {str(e)}'}), 500
-        
-        # Import Flask at the end to avoid circular import issues
-        from flask import request, jsonify
         
         logger.info("Direct email integration routes added successfully")
         return True

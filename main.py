@@ -28,20 +28,24 @@ try:
     # Initialize logging
     logger = logging.getLogger(__name__)
     logger.info("CSRF blueprint registered successfully")
-    
-    # Add direct email integration with CSRF validation
-    try:
-        from direct_email_integration_fix_v3 import add_direct_email_integration_routes
-        if add_direct_email_integration_routes():
-            logger.info("Email integration routes with CSRF validation added successfully")
-        else:
-            logger.error("Failed to add email integration routes with CSRF validation")
-    except Exception as e:
-        logger.error(f"Error setting up email integration with CSRF validation: {str(e)}")
 except Exception as e:
     # Initialize logging
     logger = logging.getLogger(__name__)
-    logger.error(f"Error setting up CSRF: {str(e)}")
+    logger.error(f"Error setting up CSRF blueprint: {str(e)}")
+
+# Add direct email integration routes with improved error handling
+try:
+    # Use V4 version with better import error handling
+    from direct_email_integration_fix_v4 import add_direct_email_integration_routes
+    if add_direct_email_integration_routes():
+        logger.info("Email integration routes added successfully with improved error handling")
+    else:
+        logger.error("Failed to add email integration routes")
+except Exception as e:
+    # Use logger if already initialized above
+    if not 'logger' in locals():
+        logger = logging.getLogger(__name__)
+    logger.error(f"Error setting up email integration routes: {str(e)}")
 
 # Import debug endpoint
 
