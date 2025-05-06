@@ -12,9 +12,19 @@ import uuid
 import hmac
 import hashlib
 import urllib.parse
+import json
+import http.client
+from urllib.parse import urlparse
 from typing import Dict, Any, Optional
-import requests
 from datetime import datetime
+
+# Try to import requests, fall back to http.client if not available
+try:
+    import requests
+    HAVE_REQUESTS = True
+except ImportError:
+    REQUESTS_EXCEPTION = "requests module not available, using http.client fallback"
+    HAVE_REQUESTS = False
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -33,6 +43,72 @@ token_cache = {
     'token': None,
     'expires_at': 0
 }
+
+# Fallback HTTP client functions when requests module is not available
+def _http_request(method: str, url: str, headers: Dict[str, str] = None, 
+                 json_data: Dict[str, Any] = None, params: Dict[str, str] = None) -> Dict[str, Any]:
+    """
+    Make an HTTP request using http.client when requests module is not available
+    
+    Args:
+        method: HTTP method (GET, POST, etc.)
+        url: URL to request
+        headers: Request headers
+        json_data: JSON data to send (for POST requests)
+        params: URL parameters (for GET requests)
+        
+    Returns:
+        dict: Response data as a dictionary
+    
+    Raises:
+        Exception: If request fails
+    """
+    # Parse URL
+    parsed_url = urlparse(url)
+    
+    # Add query parameters if provided
+    if params:
+        query = urllib.parse.urlencode(params)
+        path = f"{parsed_url.path}?{query}"
+    else:
+        path = parsed_url.path
+    
+    # Create connection
+    if parsed_url.scheme == 'https':
+        conn = http.client.HTTPSConnection(parsed_url.netloc)
+    else:
+        conn = http.client.HTTPConnection(parsed_url.netloc)
+    
+    # Set default headers
+    if headers is None:
+        headers = {}
+    
+    if json_data is not None:
+        headers['Content-Type'] = 'application/json'
+        body = json.dumps(json_data).encode('utf-8')
+    else:
+        body = None
+    
+    # Make request
+    conn.request(method, path, body=body, headers=headers)
+    
+    # Get response
+    response = conn.getresponse()
+    
+    # Read response body
+    response_body = response.read().decode('utf-8')
+    
+    # Parse JSON response
+    try:
+        data = json.loads(response_body)
+    except json.JSONDecodeError:
+        data = {'status': str(response.status), 'body': response_body}
+    
+    # Check response status
+    if response.status >= 400:
+        raise Exception(f"HTTP error {response.status}: {response_body}")
+    
+    return data
 
 def get_auth_token() -> Optional[str]:
     """
@@ -60,10 +136,16 @@ def get_auth_token() -> Optional[str]:
             "consumer_secret": PESAPAL_CONSUMER_SECRET
         }
         
-        response = requests.post(url, json=payload)
-        response.raise_for_status()
+        if HAVE_REQUESTS:
+            # Use requests module if available
+            response = requests.post(url, json=payload)
+            response.raise_for_status()
+            data = response.json()
+        else:
+            # Use fallback HTTP client
+            logger.info("Using fallback HTTP client for PesaPal auth token request")
+            data = _http_request('POST', url, json_data=payload)
         
-        data = response.json()
         if data.get('status') == "200" and data.get('token'):
             # Cache token for 45 minutes (PesaPal tokens last 1 hour)
             token_cache['token'] = data['token']
@@ -104,10 +186,16 @@ def register_ipn_url() -> bool:
             "Content-Type": "application/json"
         }
         
-        response = requests.post(url, json=payload, headers=headers)
-        response.raise_for_status()
+        if HAVE_REQUESTS:
+            # Use requests module if available
+            response = requests.post(url, json=payload, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+        else:
+            # Use fallback HTTP client
+            logger.info("Using fallback HTTP client for PesaPal IPN URL registration")
+            data = _http_request('POST', url, headers=headers, json_data=payload)
         
-        data = response.json()
         if data.get('status') == "200":
             logger.info(f"Successfully registered IPN URL: {PESAPAL_IPN_URL}")
             return True
@@ -184,10 +272,16 @@ def submit_order(order_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
             "Content-Type": "application/json"
         }
         
-        response = requests.post(url, json=payload, headers=headers)
-        response.raise_for_status()
+        if HAVE_REQUESTS:
+            # Use requests module if available
+            response = requests.post(url, json=payload, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+        else:
+            # Use fallback HTTP client
+            logger.info("Using fallback HTTP client for PesaPal order submission")
+            data = _http_request('POST', url, headers=headers, json_data=payload)
         
-        data = response.json()
         if data.get('status') == "200" and data.get('order_tracking_id'):
             # Return successful response with payment URL
             return {
@@ -218,17 +312,24 @@ def get_transaction_status(order_tracking_id: str) -> Optional[Dict[str, Any]]:
         return None
     
     try:
-        url = f"{PESAPAL_BASE_URL}/api/Transactions/GetTransactionStatus?orderTrackingId={order_tracking_id}"
+        url = f"{PESAPAL_BASE_URL}/api/Transactions/GetTransactionStatus"
+        params = {"orderTrackingId": order_tracking_id}
         
         headers = {
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json"
         }
         
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()
+        if HAVE_REQUESTS:
+            # Use requests module if available
+            response = requests.get(url, params=params, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+        else:
+            # Use fallback HTTP client
+            logger.info("Using fallback HTTP client for PesaPal transaction status")
+            data = _http_request('GET', url, headers=headers, params=params)
         
-        data = response.json()
         if data.get('status') == "200":
             return {
                 'status': 'success',
@@ -272,10 +373,16 @@ def process_ipn_callback(notification_type: str, order_tracking_id: str, ipn_id:
             "Content-Type": "application/json"
         }
         
-        response = requests.get(url, params=params, headers=headers)
-        response.raise_for_status()
+        if HAVE_REQUESTS:
+            # Use requests module if available
+            response = requests.get(url, params=params, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+        else:
+            # Use fallback HTTP client
+            logger.info("Using fallback HTTP client for PesaPal transaction status by merchant ref")
+            data = _http_request('GET', url, headers=headers, params=params)
         
-        data = response.json()
         if data.get('status') == "200":
             # Acknowledge the IPN to PesaPal
             ack_url = f"{PESAPAL_BASE_URL}/api/Transactions/UpdateIpnNotificationStatus"
@@ -285,8 +392,14 @@ def process_ipn_callback(notification_type: str, order_tracking_id: str, ipn_id:
                 "status_code": "1"  # 1 = Processed successfully
             }
             
-            ack_response = requests.post(ack_url, json=ack_payload, headers=headers)
-            ack_response.raise_for_status()
+            if HAVE_REQUESTS:
+                # Use requests module if available
+                ack_response = requests.post(ack_url, json=ack_payload, headers=headers)
+                ack_response.raise_for_status()
+            else:
+                # Use fallback HTTP client
+                logger.info("Using fallback HTTP client for PesaPal IPN acknowledgement")
+                _http_request('POST', ack_url, headers=headers, json_data=ack_payload)
             
             # Return payment data
             return {
