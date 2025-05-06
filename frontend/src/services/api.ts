@@ -193,7 +193,7 @@ export const api = {
 
       // Handle special case for email integration
       const endpoint = integrationType === 'email' 
-        ? `/api/direct/integrations/email/connect`
+        ? `/api/integrations/email/connect`
         : `/api/integrations/connect/${integrationType}`;
       
       console.log(`Connecting to ${integrationType} using endpoint: ${endpoint}`);
@@ -266,7 +266,7 @@ export const api = {
 
       // Handle special case for email integration
       const endpoint = integrationId === 'email' 
-        ? `/api/direct/integrations/email/disconnect`  // Use our fixed endpoint
+        ? `/api/integrations/email/disconnect`  // Use standard endpoint
         : `/api/integrations/disconnect/${integrationId}`;
       
       console.log(`Disconnecting from ${integrationId} using endpoint: ${endpoint}`);
