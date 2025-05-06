@@ -19,6 +19,30 @@ from flask import jsonify, request
 # Import auth module
 from utils.auth import token_required, get_user_from_token, validate_token
 
+# CSRF setup - add direct CSRF routes for token validation
+try:
+    # Register CSRF blueprint directly
+    from routes.csrf import csrf_bp
+    app.register_blueprint(csrf_bp, url_prefix='/api')
+    
+    # Initialize logging
+    logger = logging.getLogger(__name__)
+    logger.info("CSRF blueprint registered successfully")
+    
+    # Add direct email integration with CSRF validation
+    try:
+        from direct_email_integration_fix_v3 import add_direct_email_integration_routes
+        if add_direct_email_integration_routes():
+            logger.info("Email integration routes with CSRF validation added successfully")
+        else:
+            logger.error("Failed to add email integration routes with CSRF validation")
+    except Exception as e:
+        logger.error(f"Error setting up email integration with CSRF validation: {str(e)}")
+except Exception as e:
+    # Initialize logging
+    logger = logging.getLogger(__name__)
+    logger.error(f"Error setting up CSRF: {str(e)}")
+
 # Import debug endpoint
 
 # Add direct email disconnect endpoint
