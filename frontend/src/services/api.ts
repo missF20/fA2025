@@ -280,7 +280,7 @@ export const api = {
     async _connectWithToken(integrationType: string, config: any, token: string) {
       // Handle special case for email integration
       const endpoint = integrationType === 'email' 
-        ? `/api/integrations/email/connect`
+        ? `/api/v2/integrations/email/connect`
         : `/api/integrations/connect/${integrationType}`;
       
       console.log(`Connecting to ${integrationType} using endpoint: ${endpoint} with provided token`);
@@ -364,7 +364,7 @@ export const api = {
     async _disconnectWithToken(integrationId: string, token: string) {
       // Handle special case for email integration
       const endpoint = integrationId === 'email' 
-        ? `/api/integrations/email/disconnect`  // Use standard endpoint
+        ? `/api/v2/integrations/email/disconnect`  // Use standard endpoint
         : `/api/integrations/disconnect/${integrationId}`;
       
       console.log(`Disconnecting from ${integrationId} using endpoint: ${endpoint} with provided token`);
@@ -447,7 +447,7 @@ export const api = {
     async _syncWithToken(integrationId: string, token: string) {
       // Handle special case for email integration
       const endpoint = integrationId === 'email' 
-        ? `/api/integrations/email/sync`
+        ? `/api/v2/integrations/email/sync`
         : `/api/integrations/sync/${integrationId}`;
       
       console.log(`Syncing ${integrationId} using endpoint: ${endpoint} with provided token`);

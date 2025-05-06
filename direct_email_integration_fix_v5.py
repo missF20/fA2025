@@ -1,26 +1,21 @@
 """
-Direct Email Integration Fix V4
+Direct Email Integration Fix V5
 
 This script directly adds email integration endpoints to the main application
-with proper CSRF validation and better import error handling.
+with unique route paths to avoid conflicts with existing routes.
 """
-
-import logging
 import os
 import json
+import logging
+from flask import jsonify, request
+from pathlib import Path
 
-# Import Flask dependency at the top level
-try:
-    from flask import request, jsonify
-except ImportError:
-    # For testing purposes
-    logging.error("Flask import failed")
-
+# Configure logging
 logger = logging.getLogger(__name__)
 
 def add_direct_email_integration_routes():
     """
-    Register direct email integration routes with CSRF validation
+    Register direct email integration routes with CSRF validation and unique paths.
     This is used as a fallback when the blueprint registration fails
     """
     try:
@@ -57,8 +52,9 @@ def add_direct_email_integration_routes():
                 "required": ["host", "port", "username", "password", "from_email"]
             }
         
-        @app.route('/api/integrations/email/connect', methods=['POST', 'OPTIONS'])
-        def direct_email_connect():
+        # Use unique routes that don't conflict with existing ones
+        @app.route('/api/v2/integrations/email/connect', methods=['POST', 'OPTIONS'])
+        def direct_email_connect_v2():
             """Direct endpoint for connecting to email integration"""
             # Handle CORS preflight request
             if request.method == 'OPTIONS':
@@ -99,7 +95,7 @@ def add_direct_email_integration_routes():
             
             # Insert/update the integration configuration
             try:
-                conn = get_db_connection()
+                conn = get_direct_connection()
                 cursor = conn.cursor()
                 
                 # Check if there's an existing email integration for this user
@@ -148,8 +144,8 @@ def add_direct_email_integration_routes():
                 logger.exception(f"Database error connecting email integration: {str(e)}")
                 return jsonify({'error': f'Database error: {str(e)}'}), 500
         
-        @app.route('/api/integrations/email/disconnect', methods=['POST', 'OPTIONS'])
-        def direct_email_disconnect():
+        @app.route('/api/v2/integrations/email/disconnect', methods=['POST', 'OPTIONS'])
+        def direct_email_disconnect_v2():
             """Direct endpoint for disconnecting from email integration"""
             # Handle CORS preflight request
             if request.method == 'OPTIONS':
@@ -178,7 +174,7 @@ def add_direct_email_integration_routes():
             
             # Delete the integration configuration
             try:
-                conn = get_db_connection()
+                conn = get_direct_connection()
                 cursor = conn.cursor()
                 
                 cursor.execute(
@@ -207,9 +203,9 @@ def add_direct_email_integration_routes():
                 logger.exception(f"Database error disconnecting email integration: {str(e)}")
                 return jsonify({'error': f'Database error: {str(e)}'}), 500
         
-        @app.route('/api/integrations/email/status', methods=['GET'])
+        @app.route('/api/v2/integrations/email/status', methods=['GET'])
         @token_required
-        def direct_email_status():
+        def direct_email_status_v2():
             """Direct endpoint for checking email integration status"""
             user = get_user_from_token(request)
             if not user:
@@ -217,7 +213,7 @@ def add_direct_email_integration_routes():
             
             # Check if there's an existing email integration for this user
             try:
-                conn = get_db_connection()
+                conn = get_direct_connection()
                 cursor = conn.cursor()
                 
                 cursor.execute(
@@ -251,8 +247,8 @@ def add_direct_email_integration_routes():
                 logger.exception(f"Database error checking email integration status: {str(e)}")
                 return jsonify({'error': f'Database error: {str(e)}'}), 500
         
-        @app.route('/api/integrations/email/sync', methods=['POST', 'OPTIONS'])
-        def direct_email_sync():
+        @app.route('/api/v2/integrations/email/sync', methods=['POST', 'OPTIONS'])
+        def direct_email_sync_v2():
             """Direct endpoint for syncing email integration"""
             # Handle CORS preflight request
             if request.method == 'OPTIONS':
@@ -281,7 +277,7 @@ def add_direct_email_integration_routes():
             
             # Check if there's an existing email integration for this user
             try:
-                conn = get_db_connection()
+                conn = get_direct_connection()
                 cursor = conn.cursor()
                 
                 cursor.execute(
@@ -300,30 +296,93 @@ def add_direct_email_integration_routes():
                     return jsonify({
                         'success': True,
                         'message': "Email integration synced successfully",
-                        'integration_id': str(integration_id),
-                        'emails_synced': 0  # Placeholder
+                        'integration_id': str(integration_id)
                     })
                 else:
                     return jsonify({
-                        'error': 'No email integration found'
+                        'error': 'No email integration found for this user',
+                        'status': 'not_connected'
                     }), 404
                 
             except Exception as e:
                 logger.exception(f"Database error syncing email integration: {str(e)}")
                 return jsonify({'error': f'Database error: {str(e)}'}), 500
         
+        # Also add a configure endpoint to get the integration schema
+        @app.route('/api/v2/integrations/email/configure', methods=['GET'])
+        @token_required
+        def direct_email_configure_v2():
+            """Direct endpoint for getting email integration configuration schema"""
+            schema = get_email_connection_schema()
+            return jsonify({
+                'success': True,
+                'schema': schema
+            })
+            
         logger.info("Direct email integration routes added successfully")
+        
+        # Update the frontend API service to use the new v2 endpoints
+        update_frontend_api_service()
         return True
         
     except Exception as e:
         logger.exception(f"Error adding direct email integration routes: {str(e)}")
         return False
 
+def update_frontend_api_service():
+    """
+    Update the frontend API service to use the v2 endpoints
+    """
+    try:
+        api_file_path = Path('frontend/src/services/api.ts')
+        if not api_file_path.exists():
+            logger.warning("Frontend API service file not found")
+            return
+            
+        api_content = api_file_path.read_text()
+        
+        # Update email endpoints to use v2 versions
+        updated_content = api_content.replace(
+            '`/api/integrations/email/connect`',
+            '`/api/v2/integrations/email/connect`'
+        )
+        
+        updated_content = updated_content.replace(
+            '`/api/integrations/email/disconnect`',
+            '`/api/v2/integrations/email/disconnect`'
+        )
+        
+        updated_content = updated_content.replace(
+            '`/api/integrations/email/status`',
+            '`/api/v2/integrations/email/status`'
+        )
+        
+        updated_content = updated_content.replace(
+            '`/api/integrations/email/sync`',
+            '`/api/v2/integrations/email/sync`'
+        )
+        
+        updated_content = updated_content.replace(
+            '`/api/integrations/email/configure`',
+            '`/api/v2/integrations/email/configure`'
+        )
+        
+        # Only write if changes were made
+        if updated_content != api_content:
+            api_file_path.write_text(updated_content)
+            logger.info("Frontend API service updated to use v2 email integration endpoints")
+        else:
+            logger.info("No changes needed in frontend API service")
+            
+    except Exception as e:
+        logger.exception(f"Error updating frontend API service: {str(e)}")
+
 if __name__ == "__main__":
-    # Configure logging
+    # Configure logging for direct execution
     logging.basicConfig(level=logging.INFO)
     
-    # Add the direct routes
-    add_direct_email_integration_routes()
-    
-    logger.info("Email integration fix script executed successfully")
+    success = add_direct_email_integration_routes()
+    if success:
+        print("Email integration routes added successfully")
+    else:
+        print("Failed to add email integration routes")
