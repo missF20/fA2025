@@ -62,7 +62,7 @@ def add_direct_email_routes(app):
                         cursor.execute(
                             """
                             UPDATE integration_configs 
-                            SET status = 'active', config = %s, updated_at = NOW()
+                            SET status = 'active', config = %s, date_updated = NOW()
                             WHERE integration_type = 'email'
                             """,
                             (json.dumps(config),)
@@ -72,7 +72,7 @@ def add_direct_email_routes(app):
                         cursor.execute(
                             """
                             INSERT INTO integration_configs 
-                            (integration_type, status, config, created_at, updated_at)
+                            (integration_type, status, config, date_created, date_updated)
                             VALUES ('email', 'active', %s, NOW(), NOW())
                             """,
                             (json.dumps(config),)
