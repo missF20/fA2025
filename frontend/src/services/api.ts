@@ -278,10 +278,18 @@ export const api = {
     
     // Helper method to connect with a provided token
     async _connectWithToken(integrationType: string, config: any, token: string) {
-      // Handle special case for email integration
-      const endpoint = integrationType === 'email' 
-        ? `/api/v2/integrations/email/connect`
-        : `/api/integrations/connect/${integrationType}`;
+      // Handle special cases for integrations
+      let endpoint;
+      
+      if (integrationType === 'email') {
+        endpoint = `/api/v2/integrations/email/connect`;
+      } else if (integrationType === 'google_analytics') {
+        // Use the direct endpoint for Google Analytics
+        endpoint = `/api/integrations/connect/google_analytics`;
+      } else {
+        // Default endpoint pattern for other integrations
+        endpoint = `/api/integrations/connect/${integrationType}`;
+      }
       
       console.log(`Connecting to ${integrationType} using endpoint: ${endpoint} with provided token`);
       
@@ -366,10 +374,18 @@ export const api = {
 
     // Helper method to disconnect with a provided token
     async _disconnectWithToken(integrationId: string, token: string) {
-      // Handle special case for email integration
-      const endpoint = integrationId === 'email' 
-        ? `/api/v2/integrations/email/disconnect`  // Use standard endpoint
-        : `/api/integrations/disconnect/${integrationId}`;
+      // Handle special cases for integrations
+      let endpoint;
+      
+      if (integrationId === 'email') {
+        endpoint = `/api/v2/integrations/email/disconnect`;
+      } else if (integrationId === 'google_analytics') {
+        // Use the direct endpoint for Google Analytics
+        endpoint = `/api/integrations/disconnect/google_analytics`;
+      } else {
+        // Default endpoint pattern for other integrations
+        endpoint = `/api/integrations/disconnect/${integrationId}`;
+      }
       
       console.log(`Disconnecting from ${integrationId} using endpoint: ${endpoint} with provided token`);
 
@@ -449,10 +465,18 @@ export const api = {
 
     // Helper method to sync with a provided token
     async _syncWithToken(integrationId: string, token: string) {
-      // Handle special case for email integration
-      const endpoint = integrationId === 'email' 
-        ? `/api/v2/integrations/email/sync`
-        : `/api/integrations/sync/${integrationId}`;
+      // Handle special cases for integrations
+      let endpoint;
+      
+      if (integrationId === 'email') {
+        endpoint = `/api/v2/integrations/email/sync`;
+      } else if (integrationId === 'google_analytics') {
+        // Use the direct endpoint for Google Analytics
+        endpoint = `/api/integrations/sync/google_analytics`;
+      } else {
+        // Default endpoint pattern for other integrations
+        endpoint = `/api/integrations/sync/${integrationId}`;
+      }
       
       console.log(`Syncing ${integrationId} using endpoint: ${endpoint} with provided token`);
 
