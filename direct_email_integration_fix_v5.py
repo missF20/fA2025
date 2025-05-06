@@ -111,7 +111,7 @@ def add_direct_email_integration_routes():
                 
                 # Check if there's an existing email integration for this user
                 cursor.execute(
-                    "SELECT id FROM integration_configs WHERE user_id = %s AND type = 'email'",
+                    "SELECT id FROM integration_configs WHERE user_id = %s AND integration_type = 'email'",
                     (user['id'],)
                 )
                 existing = cursor.fetchone()
@@ -122,7 +122,7 @@ def add_direct_email_integration_routes():
                         """
                         UPDATE integration_configs 
                         SET config = %s, updated_at = NOW() 
-                        WHERE user_id = %s AND type = 'email'
+                        WHERE user_id = %s AND integration_type = 'email'
                         """,
                         (json.dumps(data), user['id'])
                     )
@@ -132,7 +132,7 @@ def add_direct_email_integration_routes():
                     # Insert new integration
                     cursor.execute(
                         """
-                        INSERT INTO integration_configs (user_id, type, config, created_at, updated_at)
+                        INSERT INTO integration_configs (user_id, integration_type, config, created_at, updated_at)
                         VALUES (%s, 'email', %s, NOW(), NOW())
                         RETURNING id
                         """,
@@ -189,7 +189,7 @@ def add_direct_email_integration_routes():
                 cursor = conn.cursor()
                 
                 cursor.execute(
-                    "DELETE FROM integration_configs WHERE user_id = %s AND type = 'email' RETURNING id",
+                    "DELETE FROM integration_configs WHERE user_id = %s AND integration_type = 'email' RETURNING id",
                     (user['id'],)
                 )
                 result = cursor.fetchone()
