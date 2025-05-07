@@ -289,10 +289,10 @@ export function InteractionChart({ data }: InteractionChartProps) {
   
   // Render Bar Chart
   const renderBarChart = () => {
-    const maxValue = Math.max(...visibleData.map(item => item.count));
+    const maxValue = Math.max(...visibleData.map(item => item.count)) || 1; // Prevent division by zero
     
     return (
-      <div className="h-[250px] w-full">
+      <div className="h-[250px] w-full mx-auto overflow-hidden" style={{ maxWidth: '250px' }}>
         <div className="flex h-full items-end">
           {visibleData.map((item, index) => {
             const height = (item.count / maxValue) * 100;
@@ -334,21 +334,21 @@ export function InteractionChart({ data }: InteractionChartProps) {
   // Render Line Chart for trends
   const renderLineChart = () => {
     const chartHeight = 200;
-    const chartWidth = 300;
+    const chartWidth = 250;
     const padding = { top: 20, right: 10, bottom: 30, left: 40 };
     
-    const maxCount = Math.max(...visibleData.map(item => item.count));
+    const maxCount = Math.max(...visibleData.map(item => item.count)) || 1; // Prevent division by zero
     
     const getY = (count: number) => {
       return padding.top + ((chartHeight - padding.top - padding.bottom) * (1 - count / maxCount));
     };
     
     return (
-      <div className="w-full flex justify-center">
+      <div className="w-full flex justify-center overflow-hidden mx-auto" style={{ maxWidth: '250px', maxHeight: '250px' }}>
         <svg
           width={chartWidth}
           height={chartHeight}
-          className="overflow-visible"
+          className="overflow-hidden"
         >
           {/* Y-axis */}
           <line
