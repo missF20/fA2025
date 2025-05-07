@@ -426,6 +426,7 @@ function App() {
           {currentSection === 'support' && <Support />}
           {currentSection === 'subscriptions' && <Subscriptions />}
           {currentSection === 'integrations' && <Integrations />}
+          {currentSection === 'social-preview' && <SocialMediaPreview />}
         </motion.div>
       </AnimatePresence>
     );
