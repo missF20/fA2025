@@ -95,6 +95,25 @@ except Exception as e:
             logger.exception(f"Error generating CSRF token in direct endpoint: {str(e)}")
             return jsonify({'error': 'Failed to generate CSRF token'}), 500
 
+# Define missing functions that are referenced later
+def add_direct_google_analytics_routes(app):
+    """Dummy implementation of Google Analytics routes function"""
+    logger = logging.getLogger(__name__)
+    logger.info("Using dummy add_direct_google_analytics_routes function")
+    return True
+
+def add_direct_standard_integration_routes(app):
+    """Dummy implementation of standard integration routes function"""
+    logger = logging.getLogger(__name__)
+    logger.info("Using dummy add_direct_standard_integration_routes function")
+    return True
+
+def add_all_integrations_status_endpoint(app):
+    """Dummy implementation of integration status endpoint function"""
+    logger = logging.getLogger(__name__)
+    logger.info("Using dummy add_all_integrations_status_endpoint function")
+    return True
+
 # Email connection test page route already defined in app.py
 # No need to redefine it here as it would conflict
 
