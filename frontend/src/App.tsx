@@ -469,13 +469,7 @@ function App() {
           className="p-4 bg-white/90 backdrop-blur-sm border-b border-gray-200/50 flex items-center justify-between"
         >
           <div className="flex items-center">
-            <motion.div
-              whileHover={{ scale: 1.1, rotate: 360 }}
-              transition={{ duration: 0.5 }}
-            >
-              <Activity className="text-blue-600 h-6 w-6 mr-2" />
-            </motion.div>
-            <h1 className="text-xl font-bold text-gray-900">DANA AI by Hartford Tech</h1>
+            <h1 className="text-xl font-bold text-gray-900">DANA AI</h1>
           </div>
           <ProfileMenu onSectionChange={setCurrentSection} />
         </motion.div>
