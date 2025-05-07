@@ -7,7 +7,18 @@ It follows the new standard approach for all integrations.
 
 import logging
 import json
+import os
 from flask import Blueprint, request, jsonify, g
+try:
+    from app import csrf  # Try to import the CSRF protection from app
+except ImportError:
+    # Define a dummy decorator for development environments
+    class DummyCSRF:
+        @staticmethod
+        def exempt(f):
+            return f
+    csrf = DummyCSRF()
+
 from utils.csrf import validate_csrf_token
 from utils.auth_utils import get_authenticated_user
 from utils.db_access import IntegrationDAL
@@ -20,6 +31,7 @@ logger = logging.getLogger(__name__)
 standard_email_bp = Blueprint('standard_email', __name__)
 
 @standard_email_bp.route('/api/v2/integrations/email/connect', methods=['POST', 'OPTIONS'])
+@csrf.exempt
 def connect_email():
     """
     Connect email integration
