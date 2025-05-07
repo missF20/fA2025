@@ -169,31 +169,54 @@ export interface SearchResult<T> {
 // Analytics and Dashboard Types
 export interface Interaction {
   id: string;
-  client_name: string;
+  client_name?: string;
+  name?: string; // Alternative property for client_name
+  company?: string; // Alternative for client_company
   platform: Platform;
-  content: string;
+  content?: string;
   timestamp: string;
 }
 
 export interface PendingTask {
   id: string;
-  description: string;
-  client_name: string;
+  description?: string;
+  client_name?: string;
+  task?: string; // Alternative property for description
+  client?: {
+    name: string;
+    company?: string;
+  };
   priority: 'low' | 'medium' | 'high';
-  due_date: string;
+  due_date?: string;
   platform: Platform;
   client_company?: string;
+  timestamp?: string;
 }
 
 export interface EscalatedTask {
   id: string;
-  description: string;
-  client_name: string;
-  reason: string;
+  description?: string;
+  client_name?: string;
+  task?: string; // Alternative property for description
+  client?: {
+    name: string;
+    company?: string;
+  };
+  reason?: string;
   timestamp: string;
   platform: Platform;
   priority: 'low' | 'medium' | 'high';
   client_company?: string;
+}
+
+export interface TopIssue {
+  id?: string;
+  issue?: string;
+  name?: string; // Alternative for issue
+  count: number;
+  trend: number;
+  percentage: number;
+  platform?: string;
 }
 
 // Support and Feedback Types
