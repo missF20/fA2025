@@ -19,6 +19,7 @@ import { SocialMediaPreview } from './components/SocialMediaPreview';
 import { ProfileMenu } from './components/ProfileMenu';
 import { Subscriptions } from './components/Subscriptions';
 import { useMetrics } from './hooks/useMetrics';
+import AnalyticsDashboard from './components/AnalyticsDashboard';
 import { MessageSquare, CheckCircle, Clock, Users, AlertTriangle, Activity } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { AuthFormData } from './types';
