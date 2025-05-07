@@ -6,6 +6,7 @@ import api from '../utils/api';
 import { MetricCard } from './MetricCard';
 import { TopIssuesChart } from './TopIssuesChart';
 import { InteractionChart } from './InteractionChart';
+import { SentimentAnalysis } from './SentimentAnalysis';
 import { 
   Users, 
   Clock, 
@@ -24,7 +25,8 @@ import {
   Zap,
   TrendingUp,
   TrendingDown,
-  HelpCircle
+  HelpCircle,
+  BarChart
 } from 'lucide-react';
 import type { 
   ChatMetrics, 
@@ -655,7 +657,9 @@ export const Dashboard = () => {
               <TopIssuesChart issues={metrics.topIssues?.map(issue => ({
                 issue: issue.name,
                 count: issue.count,
-                percentage: issue.trend
+                trend: issue.trend,
+                percentage: (issue.count / metrics.topIssues.reduce((sum, i) => sum + i.count, 0)) * 100,
+                platform: issue.platform
               })) || []} />
             </div>
           </div>
@@ -679,6 +683,119 @@ export const Dashboard = () => {
                   />
                 </div>
                 <p className="text-xs text-gray-500 mt-2">65% faster than industry average</p>
+              </div>
+            </div>
+          </div>
+          
+          {/* Sentiment Analysis */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <SentimentAnalysis data={sentiment} />
+            
+            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Insights</h3>
+              <div className="space-y-4">
+                {/* Anomaly detection alert */}
+                {anomalyDetected && (
+                  <div className="bg-red-50 border-l-4 border-red-500 p-4">
+                    <div className="flex">
+                      <div className="flex-shrink-0">
+                        <AlertTriangle className="h-5 w-5 text-red-400" />
+                      </div>
+                      <div className="ml-3">
+                        <p className="text-sm text-red-700">
+                          Anomaly detected in your interaction patterns
+                        </p>
+                        <button 
+                          className="mt-1 text-xs text-red-600 hover:text-red-500"
+                          onClick={() => setShowAnomalyDetails(!showAnomalyDetails)}
+                        >
+                          {showAnomalyDetails ? 'Hide details' : 'Show details'}
+                        </button>
+                        
+                        <AnimatePresence>
+                          {showAnomalyDetails && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: 'auto' }}
+                              exit={{ opacity: 0, height: 0 }}
+                              className="mt-2 text-xs text-red-700"
+                            >
+                              <ul className="list-disc list-inside space-y-1">
+                                <li>Unusual spike in negative sentiment detected</li>
+                                <li>High escalation rate of {
+                                  metrics.escalatedTasks && metrics.pendingTasks ? 
+                                  Math.round((metrics.escalatedTasks.length / 
+                                    (metrics.pendingTasks.length + metrics.escalatedTasks.length)) * 100) : 0
+                                }%</li>
+                                <li>Consider reviewing recent conversations</li>
+                              </ul>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Smart insights based on data */}
+                <div className="bg-blue-50 border-l-4 border-blue-500 p-4">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <Zap className="h-5 w-5 text-blue-400" />
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm text-blue-700">
+                        Most active platform: <span className="font-medium capitalize">
+                          {Object.entries(metrics.chatsBreakdown || {})
+                            .sort(([, a], [, b]) => (b as number) - (a as number))
+                            .map(([key]) => key)[0] || 'None'}
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-green-50 border-l-4 border-green-500 p-4">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <TrendingUp className="h-5 w-5 text-green-400" />
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm text-green-700">
+                        Positive sentiment has {
+                          sentiment.find(s => s.type === 'positive')?.trend && 
+                          sentiment.find(s => s.type === 'positive')?.trend! > 0 ? 
+                          'increased' : 'decreased'
+                        } by {Math.abs(sentiment.find(s => s.type === 'positive')?.trend || 0)}% 
+                        compared to previous period
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="mt-4">
+                  <h4 className="text-sm font-medium text-gray-900 mb-2">Recommendations</h4>
+                  <ul className="space-y-2 text-sm">
+                    <li className="flex items-start">
+                      <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 mr-2" />
+                      <span className="text-gray-600">
+                        Address top issue: "{metrics.topIssues?.[0]?.name || 'N/A'}"
+                      </span>
+                    </li>
+                    <li className="flex items-start">
+                      <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 mr-2" />
+                      <span className="text-gray-600">
+                        Review {metrics.escalatedTasks?.length || 0} escalated tasks
+                      </span>
+                    </li>
+                    <li className="flex items-start">
+                      <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 mr-2" />
+                      <span className="text-gray-600">
+                        Update knowledge base with top issues information
+                      </span>
+                    </li>
+                  </ul>
+                </div>
               </div>
             </div>
           </div>
