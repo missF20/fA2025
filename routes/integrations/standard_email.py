@@ -21,10 +21,6 @@ standard_email_bp = Blueprint('standard_email', __name__)
 
 @standard_email_bp.route('/api/v2/integrations/email/connect', methods=['POST', 'OPTIONS'])
 def connect_email():
-    # Validate CSRF token
-    csrf_result = validate_csrf_token(request)
-    if csrf_result:
-        return csrf_result
     """
     Connect email integration
 
@@ -38,6 +34,11 @@ def connect_email():
         response.headers.add('Access-Control-Allow-Origin', '*')
         response.headers.add('Access-Control-Allow-Credentials', 'true')
         return response
+        
+    # Validate CSRF token (only for non-OPTIONS requests)
+    csrf_result = validate_csrf_token(request)
+    if csrf_result:
+        return csrf_result
 
     try:
         # Standard authentication with development token support
@@ -100,6 +101,11 @@ def disconnect_email():
         response.headers.add('Access-Control-Allow-Origin', '*')
         response.headers.add('Access-Control-Allow-Credentials', 'true')
         return response
+        
+    # Validate CSRF token (only for non-OPTIONS requests)
+    csrf_result = validate_csrf_token(request)
+    if csrf_result:
+        return csrf_result
 
     try:
         # Standard authentication with development token support

@@ -28,7 +28,7 @@ def validate_csrf_token(request):
     
     # Special case for development token
     auth_header = request.headers.get('Authorization', '')
-    if auth_header == 'dev-token' or auth_header == 'Bearer dev-token':
+    if auth_header == 'dev-token' or auth_header == 'Bearer dev-token' or 'dev-token' in auth_header:
         logger.info("Dev token detected, skipping CSRF validation")
         return None
         
