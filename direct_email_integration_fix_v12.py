@@ -10,8 +10,9 @@ This version fixes:
 
 import json
 import logging
+import os
 from pathlib import Path
-from flask import jsonify, request
+from flask import jsonify, request, session
 from datetime import datetime
 
 # Configure logger
@@ -71,7 +72,6 @@ def add_direct_email_integration_routes():
                         return jsonify({'error': 'CSRF token is required', 'code': 'csrf_missing'}), 400
                     
                     # Validate CSRF token against session
-                    from flask import session
                     if '_csrf_token' not in session or session.get('_csrf_token') != csrf_token:
                         logger.warning(f"CSRF token validation failed: {csrf_token} vs {session.get('_csrf_token', 'None')}")
                         return jsonify({'error': 'Invalid CSRF token', 'code': 'csrf_invalid'}), 400
@@ -510,10 +510,14 @@ def add_direct_email_integration_routes():
                 first_row = results[0]
                 logger.debug(f"First row type: {type(first_row)}, value: {first_row}")
                 
-                if isinstance(first_row, dict):
-                    # Dictionary cursor
+                if isinstance(first_row, dict) or hasattr(first_row, 'get'):
+                    # Dictionary cursor or RealDictRow
                     for row in results:
-                        columns.append(row['column_name'])
+                        # Handle both dict and RealDictRow types
+                        if hasattr(row, 'get'):
+                            columns.append(row.get('column_name'))
+                        else:
+                            columns.append(row['column_name'])
                 elif isinstance(first_row, tuple) or isinstance(first_row, list):
                     # Tuple cursor
                     for row in results:

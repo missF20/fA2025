@@ -5,7 +5,7 @@
  * All frontend components should use these methods for integration operations.
  */
 
-import { getCSRFToken } from './csrf';
+import { getCsrfToken } from './csrf';
 import { getAuthToken } from './auth';
 
 /**
