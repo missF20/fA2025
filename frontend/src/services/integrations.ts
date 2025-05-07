@@ -6,7 +6,7 @@
  */
 
 import { getCsrfToken } from './csrf';
-import { getAuthToken } from './auth';
+import { getAuthToken } from './auth-helpers';
 
 /**
  * Base URL for API endpoints
@@ -57,7 +57,7 @@ export const connectIntegration = async (
 ): Promise<any> => {
   try {
     // Get CSRF token for non-GET requests
-    const csrfToken = await getCSRFToken();
+    const csrfToken = await getCsrfToken();
     
     // Get authentication token
     const authToken = await getAuthToken();
@@ -102,7 +102,7 @@ export const connectIntegration = async (
 export const disconnectIntegration = async (integrationType: string): Promise<any> => {
   try {
     // Get CSRF token for non-GET requests
-    const csrfToken = await getCSRFToken();
+    const csrfToken = await getCsrfToken();
     
     // Get authentication token
     const authToken = await getAuthToken();
@@ -210,6 +210,7 @@ export const getAllIntegrationsStatus = async (): Promise<Record<string, Integra
  */
 export const createIntegrationHandler = (
   integrationType: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   defaultConfig: IntegrationConfig = {}
 ) => {
   return {
