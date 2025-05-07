@@ -4,6 +4,13 @@ import api from '../utils/api';
 import { useAuth } from '../hooks/useAuth';
 import { AdvancedAnalytics } from './AdvancedAnalytics';
 
+// Define User type to include company property
+interface User {
+  id: string;
+  email: string;
+  company?: string;
+}
+
 export const Dashboard = () => {
   const { user } = useAuth();
   const [conversations, setConversations] = useState([]);
