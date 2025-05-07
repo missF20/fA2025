@@ -117,6 +117,9 @@ const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 export default function AnalyticsDashboard() {
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d'>('30d');
   const [expandedSection, setExpandedSection] = useState<string | null>('sentiment');
+  
+  // Cast the sentimentData to the proper type to fix white screen issue
+  const typedSentimentData = sentimentData as unknown as SentimentData[];
 
   // Function to toggle section expansion
   const toggleSection = (section: string) => {
