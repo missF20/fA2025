@@ -167,6 +167,16 @@ try:
 except Exception as ga_error:
     logger.error(f"Error adding Google Analytics direct routes: {str(ga_error)}")
 
+# Add direct routes for all standardized integrations
+try:
+    from direct_standard_integrations_fix import add_direct_standard_integration_routes
+    if add_direct_standard_integration_routes(app):
+        logger.info("Direct routes for standardized integrations added successfully")
+    else:
+        logger.error("Failed to add direct routes for standardized integrations")
+except Exception as si_error:
+    logger.error(f"Error adding direct routes for standardized integrations: {str(si_error)}")
+
 # Add direct Google Analytics integration connect endpoint
 @app.route('/api/integrations/connect/google_analytics', methods=['POST', 'OPTIONS'])
 def direct_google_analytics_connect():
