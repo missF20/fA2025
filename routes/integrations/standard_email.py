@@ -45,8 +45,13 @@ standard_email_bp = Blueprint('standard_email', __name__)
 def connect_email():
     """
     Connect email integration
-
-    This endpoint follows the standard approach for all integrations.
+    
+    Standard endpoint for connecting email integration that follows the
+    unified integration pattern. This endpoint:
+    1. Validates the CSRF token with dev mode bypass
+    2. Authenticates the user
+    3. Validates the request data
+    4. Saves the integration configuration
     """
     # Standard CORS handling for OPTIONS requests
     if request.method == 'OPTIONS':
@@ -90,21 +95,21 @@ def connect_email():
 def disconnect_email():
     """
     Disconnect email integration
-
-    This endpoint follows the standard approach for all integrations.
+    
+    Standard endpoint for disconnecting email integration that follows the
+    unified integration pattern. This endpoint:
+    1. Validates the CSRF token with dev mode bypass
+    2. Authenticates the user
+    3. Disconnects the integration using the standard handler
     """
     # Standard CORS handling for OPTIONS requests
     if request.method == 'OPTIONS':
         return create_cors_preflight_response("POST, OPTIONS")
         
-    # Validate CSRF token
-    token_result = validate_csrf_token(request)
-    if token_result:
-        # If in development mode, bypass CSRF
-        if is_development_mode():
-            logger.info("Development mode: bypassing CSRF protection for email disconnect")
-        else:
-            return token_result
+    # Validate CSRF token with development mode bypass
+    csrf_result = csrf_validate_with_dev_bypass(request, "email_disconnect")
+    if csrf_result:
+        return csrf_result
 
     try:
         # Standard authentication with development token support
@@ -133,8 +138,12 @@ def disconnect_email():
 def email_status():
     """
     Get email integration status
-
-    This endpoint follows the standard approach for all integrations.
+    
+    Standard endpoint for retrieving email integration status that follows the
+    unified integration pattern. This endpoint:
+    1. Authenticates the user
+    2. Retrieves integration status using the standard utility
+    3. Adds email-specific configuration details if available
     """
     # Standard CORS handling for OPTIONS requests
     if request.method == 'OPTIONS':
