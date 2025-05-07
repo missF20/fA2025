@@ -96,7 +96,18 @@ def add_direct_email_integration_routes():
                     # Properly access the result id
                     result_row = cursor.fetchone()
                     if result_row:
-                        integration_id = result_row[0]
+                        # Debug the actual result structure
+                        logger.debug(f"DB result type: {type(result_row)}, value: {result_row}")
+                        
+                        # Handle different cursor result types
+                        if isinstance(result_row, dict):
+                            integration_id = result_row.get('id', None)
+                        elif isinstance(result_row, tuple) or isinstance(result_row, list):
+                            integration_id = result_row[0] if len(result_row) > 0 else None
+                        else:
+                            # Unknown format, try to convert to string
+                            logger.warning(f"Unknown result format: {type(result_row)}")
+                            integration_id = str(result_row)
                     else:
                         logger.error("Failed to get ID from insert operation")
                         integration_id = "unknown"
@@ -156,8 +167,19 @@ def add_direct_email_integration_routes():
                 conn.close()
                 
                 if result_row:
-                    # Properly access the result id using index 0
-                    integration_id = result_row[0]
+                    # Debug the actual result structure
+                    logger.debug(f"DB disconnect result type: {type(result_row)}, value: {result_row}")
+                    
+                    # Handle different cursor result types
+                    if isinstance(result_row, dict):
+                        integration_id = result_row.get('id', None)
+                    elif isinstance(result_row, tuple) or isinstance(result_row, list):
+                        integration_id = result_row[0] if len(result_row) > 0 else None
+                    else:
+                        # Unknown format, try to convert to string
+                        logger.warning(f"Unknown disconnect result format: {type(result_row)}")
+                        integration_id = str(result_row)
+                        
                     return jsonify({
                         'success': True,
                         'message': "Email integration disconnected successfully",
@@ -197,9 +219,21 @@ def add_direct_email_integration_routes():
                 conn.close()
                 
                 if result_row:
-                    # Properly access the result values using indexing
-                    integration_id = result_row[0]
-                    config = result_row[1]
+                    # Debug the actual result structure
+                    logger.debug(f"DB status result type: {type(result_row)}, value: {result_row}")
+                    
+                    # Handle different cursor result types
+                    if isinstance(result_row, dict):
+                        integration_id = result_row.get('id', None)
+                        config = result_row.get('config', None)
+                    elif isinstance(result_row, tuple) or isinstance(result_row, list):
+                        integration_id = result_row[0] if len(result_row) > 0 else None
+                        config = result_row[1] if len(result_row) > 1 else None
+                    else:
+                        # Unknown format, try to convert to string
+                        logger.warning(f"Unknown status result format: {type(result_row)}")
+                        integration_id = str(result_row)
+                        config = None
                     
                     # Handle NULL or invalid JSON in config
                     config_dict = {}
@@ -263,8 +297,19 @@ def add_direct_email_integration_routes():
                 conn.close()
                 
                 if result_row:
-                    # Properly access the result id using index 0
-                    integration_id = result_row[0]
+                    # Debug the actual result structure
+                    logger.debug(f"DB sync result type: {type(result_row)}, value: {result_row}")
+                    
+                    # Handle different cursor result types
+                    if isinstance(result_row, dict):
+                        integration_id = result_row.get('id', None)
+                    elif isinstance(result_row, tuple) or isinstance(result_row, list):
+                        integration_id = result_row[0] if len(result_row) > 0 else None
+                    else:
+                        # Unknown format, try to convert to string
+                        logger.warning(f"Unknown sync result format: {type(result_row)}")
+                        integration_id = str(result_row)
+                    
                     # In a real implementation, we would sync emails here
                     # For now, we'll just return a success message
                     return jsonify({
@@ -357,9 +402,21 @@ def add_direct_email_integration_routes():
                 conn.close()
                 
                 if result_row:
-                    # Properly access the result values using indexing
-                    integration_id = result_row[0]
-                    config = result_row[1]
+                    # Debug the actual result structure
+                    logger.debug(f"DB email status v1 result type: {type(result_row)}, value: {result_row}")
+                    
+                    # Handle different cursor result types
+                    if isinstance(result_row, dict):
+                        integration_id = result_row.get('id', None)
+                        config = result_row.get('config', None)
+                    elif isinstance(result_row, tuple) or isinstance(result_row, list):
+                        integration_id = result_row[0] if len(result_row) > 0 else None
+                        config = result_row[1] if len(result_row) > 1 else None
+                    else:
+                        # Unknown format, try to convert to string
+                        logger.warning(f"Unknown status v1 result format: {type(result_row)}")
+                        integration_id = str(result_row)
+                        config = None
                     
                     # Handle NULL or invalid JSON in config
                     config_dict = {}
@@ -417,12 +474,32 @@ def add_direct_email_integration_routes():
                 WHERE table_name = 'integration_configs'
             """)
             
-            # Properly handle cursor.fetchall() results as a list of tuples
+            # Properly handle cursor.fetchall() results as a list of dictionaries
             columns = []
-            for row in cursor.fetchall():
-                columns.append(row[0])
+            results = cursor.fetchall()
+            
+            # Debug the actual result structure
+            logger.debug(f"Raw schema query results: {results}")
+            
+            if results:
+                # Check if we have results and what format they're in
+                first_row = results[0]
+                logger.debug(f"First row type: {type(first_row)}, value: {first_row}")
                 
-            logger.info(f"Integration_configs table columns: {', '.join(columns)}")
+                if isinstance(first_row, dict):
+                    # Dictionary cursor
+                    for row in results:
+                        columns.append(row['column_name'])
+                elif isinstance(first_row, tuple) or isinstance(first_row, list):
+                    # Tuple cursor
+                    for row in results:
+                        columns.append(row[0])
+                else:
+                    # Unknown format, try to convert to string
+                    logger.warning(f"Unknown result format: {type(first_row)}")
+                    columns = [str(row) for row in results]
+            
+            logger.info(f"Integration_configs table columns: {', '.join(columns) if columns else 'None found'}")
             
             cursor.close()
             conn.close()

@@ -170,9 +170,96 @@ To migrate existing integrations to the new standard:
 ### Migration Steps for Each Integration
 
 1. Email: Implemented in `routes/integrations/standard_email.py`
-2. Slack: TODO
-3. Google Analytics: TODO
-4. HubSpot: TODO
-5. Salesforce: TODO
-6. Zendesk: TODO
-7. Shopify: TODO
+2. Google Analytics: Implemented in `routes/integrations/standard_google_analytics.py`
+3. Slack: Implemented in `routes/integrations/standard_slack.py`
+4. HubSpot: Implemented in `routes/integrations/standard_hubspot.py`
+5. Salesforce: Implemented in `routes/integrations/standard_salesforce.py`
+6. Zendesk: Implemented in `routes/integrations/standard_zendesk.py`
+7. Shopify: Implemented in `routes/integrations/standard_shopify.py`
+
+All integrations have been standardized with consistent patterns for:
+- Authentication handling
+- Error management
+- Database access
+- Response formatting
+- URL structure
+- CORS handling
+
+Direct route fallbacks have been added for all integrations in `direct_standard_integrations_fix.py` to ensure reliability.
+
+## Testing Standardized Integrations
+
+To test the standardized integration endpoints, use the following cURL commands:
+
+### Test Endpoints (No Authentication Required)
+
+These endpoints are designed for basic connectivity testing and don't require authentication:
+
+```bash
+# Test Hubspot integration
+curl -s http://localhost:5000/api/v2/integrations/hubspot/test
+
+# Test Salesforce integration
+curl -s http://localhost:5000/api/v2/integrations/salesforce/test
+
+# Test Shopify integration
+curl -s http://localhost:5000/api/v2/integrations/shopify/test
+
+# Test Slack integration
+curl -s http://localhost:5000/api/v2/integrations/slack/test
+
+# Test Zendesk integration
+curl -s http://localhost:5000/api/v2/integrations/zendesk/test
+
+# Test Email integration
+curl -s http://localhost:5000/api/v2/integrations/email/test
+
+# Test Google Analytics integration
+curl -s http://localhost:5000/api/v2/integrations/google_analytics/test
+```
+
+### Authenticated Endpoints
+
+For endpoints that require authentication, include a JWT token in the Authorization header. In development mode, you can use the special `dev-token` value:
+
+```bash
+# Get Slack integration status
+curl -s -H "Authorization: Bearer dev-token" http://localhost:5000/api/v2/integrations/slack/status
+
+# Connect to Slack integration
+curl -s -X POST -H "Authorization: Bearer dev-token" -H "Content-Type: application/json" \
+  --data '{"bot_token": "xoxb-example", "channel_id": "C12345"}' \
+  http://localhost:5000/api/v2/integrations/slack/connect
+```
+
+Remember that the standard direct route fallbacks also provide test endpoints that can be used to verify basic connectivity.
+
+## Direct Route Fallbacks
+
+The platform includes a direct route fallback mechanism for all integrations to ensure reliability even if blueprint registration fails. These fallbacks are registered directly in the main application and do not rely on the blueprint registration system.
+
+### Implementation
+
+Direct route fallbacks are implemented in two ways:
+
+1. **Standard Integration Fallbacks**: Implemented in `direct_standard_integrations_fix.py` to provide basic test endpoints for all standardized integrations.
+
+2. **Specific Integration Fallbacks**: Some integrations have dedicated fallback files (e.g., `direct_google_analytics_fix.py`) that provide more comprehensive fallback endpoints.
+
+### Registering Fallbacks
+
+Fallbacks are registered in `main.py` with code like:
+
+```python
+# Add direct routes for all standardized integrations
+try:
+    from direct_standard_integrations_fix import add_direct_standard_integration_routes
+    if add_direct_standard_integration_routes(app):
+        logger.info("Direct routes for standardized integrations added successfully")
+    else:
+        logger.error("Failed to add direct routes for standardized integrations")
+except Exception as si_error:
+    logger.error(f"Error adding direct routes for standardized integrations: {str(si_error)}")
+```
+
+This approach ensures that essential integration functionality remains available even if there are issues with the standard blueprint registration process.
