@@ -142,17 +142,27 @@ try:
     app.register_blueprint(standard_email_bp)
     logger.info("Standard email blueprint registered successfully")
     
-    # Also add direct standardized email routes for more reliability
+    # Apply our direct fix that doesn't depend on complex imports
     try:
-        from direct_standard_email_fix import register_direct_standard_email_routes
-        if register_direct_standard_email_routes():
-            logger.info("Direct standardized email routes added successfully")
+        from direct_fix_integration_routes import register_direct_fixes
+        if register_direct_fixes(app):
+            logger.info("Direct integration routes added successfully using simplified implementation")
         else:
-            logger.warning("Failed to add direct standardized email routes")
-    except Exception as e:
-        logger.warning(f"Error adding direct standardized email routes: {str(e)}")
+            logger.warning("Failed to add direct integration routes using simplified implementation")
+    except Exception as direct_fix_error:
+        logger.error(f"Error adding direct fix integration routes: {str(direct_fix_error)}")
+        
+        # Fall back to our standard approach if the direct fix doesn't work
+        try:
+            from direct_standard_email_fix import register_direct_standard_email_routes
+            if register_direct_standard_email_routes():
+                logger.info("Direct standardized email routes added successfully")
+            else:
+                logger.warning("Failed to add direct standardized email routes")
+        except Exception as e:
+            logger.warning(f"Error adding direct standardized email routes: {str(e)}")
     
-    # Define dummy functions to replace the missing ones
+    # Keep the original dummy function for compatibility
     def add_direct_email_integration_routes():
         """Add direct email integration routes to the application."""
         try:
@@ -166,29 +176,37 @@ try:
             logger.info("Using dummy add_direct_email_integration_routes function")
             return True
         
-    logger.info("Email integration using standard_email_bp")
+    logger.info("Email integration routes configuration complete")
 except Exception as e:
     logger.error(f"Error setting up email integration: {str(e)}")
     
-    # Try direct standardized email routes first
+    # Try our new direct fix as the first fallback
     try:
-        from direct_standard_email_fix import register_direct_standard_email_routes
-        if register_direct_standard_email_routes():
-            logger.info("Direct standardized email routes added successfully (fallback)")
+        from direct_fix_integration_routes import register_direct_fixes
+        if register_direct_fixes(app):
+            logger.info("Direct integration routes added successfully (first fallback)")
         else:
-            logger.warning("Failed to add direct standardized email routes (fallback)")
-    except Exception as std_error:
-        logger.warning(f"Error adding direct standardized email routes: {str(std_error)}")
-    
-    # Fall back to direct import if standard_email_bp fails
-    try:
-        # Removed import of test file or direct fix (by migration 005_update_main_imports)
+            logger.warning("Failed to add direct integration routes (first fallback)")
+    except Exception as direct_fix_fallback_error:
+        logger.error(f"Error adding direct fix integration routes (fallback): {str(direct_fix_fallback_error)}")
         
-        if add_direct_email_integration_routes():
-            logger.info("Email integration routes added successfully with fixed result handling")
-        else:
-            logger.error("Failed to add email integration routes")
-    except Exception as e:
+        # Try direct standardized email routes next
+        try:
+            from direct_standard_email_fix import register_direct_standard_email_routes
+            if register_direct_standard_email_routes():
+                logger.info("Direct standardized email routes added successfully (secondary fallback)")
+            else:
+                logger.warning("Failed to add direct standardized email routes (secondary fallback)")
+        except Exception as std_error:
+            logger.warning(f"Error adding direct standardized email routes: {str(std_error)}")
+    
+    # Define the dummy function if it's not already defined
+    if 'add_direct_email_integration_routes' not in locals():
+        def add_direct_email_integration_routes():
+            return True
+            
+    # Try falling back to V11 if nothing else works
+    try:
         # Try falling back to V11 if V12 fails
         try:
             logger.warning(f"Error with V12 email integration fix: {str(e)}, trying V11 as fallback")

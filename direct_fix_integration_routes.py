@@ -1,13 +1,13 @@
 """
-Direct Email Integration Routes
+Direct Fix for Integration Routes
 
-This module provides direct functions to integrate email functionality into the main application.
-These direct routes ensure that email integration works regardless of blueprint registration issues.
+This is a simplified script that directly registers the email integration routes
+to bypass the complex chain of imports and function calls in main.py.
 """
 
 import logging
-from flask import request, jsonify
 from functools import wraps
+from flask import request, jsonify
 
 logger = logging.getLogger(__name__)
 
@@ -20,18 +20,14 @@ def simple_api_access(f):
         return f(user={"id": "demo-user-id", "email": "demo@example.com"}, *args, **kwargs)
     return decorated
 
-def add_direct_email_integration_routes(app):
-    """
-    Add direct email integration routes to the main application
+def register_direct_fixes(app):
+    """Register direct fixes for integration routes"""
+    logger.info("Registering direct fixes for integration routes")
     
-    Args:
-        app: Flask application instance
-    """
-    logger.info("Adding direct email integration routes to main application")
-    
+    # Direct email routes
     @app.route('/api/integrations/email/status', methods=['GET'])
     @simple_api_access
-    def direct_email_status(user=None):
+    def fixed_email_status(user=None):
         """
         Get email integration status for the authenticated user
         """
@@ -52,7 +48,7 @@ def add_direct_email_integration_routes(app):
     
     @app.route('/api/integrations/email/configure', methods=['POST'])
     @simple_api_access
-    def direct_email_configure(user=None):
+    def fixed_email_configure(user=None):
         """
         Configure email integration for the authenticated user
         """
@@ -74,7 +70,7 @@ def add_direct_email_integration_routes(app):
     
     @app.route('/api/integrations/email/test', methods=['POST'])
     @simple_api_access
-    def direct_email_test(user=None):
+    def fixed_email_test(user=None):
         """
         Test email integration for the authenticated user
         """
@@ -95,7 +91,7 @@ def add_direct_email_integration_routes(app):
     
     @app.route('/api/integrations/email/toggle', methods=['POST'])
     @simple_api_access
-    def direct_email_toggle(user=None):
+    def fixed_email_toggle(user=None):
         """
         Toggle email integration status for the authenticated user
         """
@@ -116,4 +112,5 @@ def add_direct_email_integration_routes(app):
                 "message": f"Failed to toggle email status: {str(e)}"
             }), 500
     
-    logger.info("Direct email integration routes added successfully")
+    logger.info("Direct email integration routes added successfully via direct_fix_integration_routes.py")
+    return True
