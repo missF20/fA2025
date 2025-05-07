@@ -24,9 +24,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import type { AuthFormData } from './types';
 import { TokenUsageCard } from './components/TokenUsageCard';
 import { Dashboard } from './components/Dashboard';
+import DiagnoseApp from './components/DiagnoseApp';
 // Used to track the platforms the user is allowed to access based on their subscription
 
 function App() {
+  // TEMPORARY: For diagnostic purposes only - display the diagnostic component
+  const [debugMode, setDebugMode] = useState(true);
+  
   const [session, setSession] = useState<any>(null);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -310,6 +314,11 @@ function App() {
       exit: { opacity: 0, x: -20 }
     };
 
+    // First show our diagnostic component when in debug mode
+    if (debugMode) {
+      return <DiagnoseApp />;
+    }
+    
     return (
       <AnimatePresence mode="wait">
         <motion.div
