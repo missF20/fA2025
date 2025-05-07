@@ -1,13 +1,17 @@
 """
-CSRF Protection Utilities
+Dana AI Platform - CSRF Protection Utilities
 
 This module provides utilities for CSRF token validation and management.
-This is a simple version that does not rely on flask_wtf or external dependencies.
+This is a standardized version that does not rely on flask_wtf or external dependencies.
+It includes utilities for CSRF protection with consistent error handling.
 """
 
 import logging
 import os
-from flask import jsonify, request, session, current_app
+import secrets
+import json
+from flask import jsonify, request, session, current_app, make_response
+from utils.exceptions import CSRFError
 
 logger = logging.getLogger(__name__)
 
@@ -135,3 +139,79 @@ def validate_csrf_token(request):
         logger.warning(f"CSRF validation error: {str(e)}")
         # For now, accept despite errors to help with debugging
         return None
+
+def generate_csrf_token():
+    """
+    Generate a new CSRF token
+    
+    Returns:
+        str: New CSRF token
+    """
+    # Generate a secure random token
+    token = secrets.token_urlsafe(32)
+    
+    try:
+        # Store in app config and session for redundancy
+        current_app.config['CSRF_TOKEN'] = token
+        session['csrf_token'] = token
+        
+        logger.info("CSRF token stored in app config and session")
+    except Exception as e:
+        logger.warning(f"Error storing CSRF token: {str(e)}")
+    
+    return token
+
+def get_csrf_token():
+    """
+    Get the current CSRF token or generate a new one
+    
+    Returns:
+        str: Current or new CSRF token
+    """
+    # Try to get token from app config first
+    token = None
+    try:
+        token = current_app.config.get('CSRF_TOKEN')
+        if token:
+            logger.debug(f"Found CSRF token in app.config: {token[:5]}...")
+    except Exception as e:
+        logger.warning(f"Error accessing app.config for CSRF token: {str(e)}")
+    
+    # Then try session
+    if not token:
+        try:
+            token = session.get('csrf_token')
+            if token:
+                logger.debug(f"Found CSRF token in session: {token[:5]}...")
+        except Exception as e:
+            logger.warning(f"Error accessing session for CSRF token: {str(e)}")
+    
+    # Generate new token if none found
+    if not token:
+        token = generate_csrf_token()
+        logger.info("Generated new CSRF token")
+    
+    return token
+
+def get_csrf_token_response():
+    """
+    Get a JSON response containing a CSRF token
+    
+    Returns:
+        Response: JSON response with CSRF token
+    """
+    token = get_csrf_token()
+    return jsonify({'csrf_token': token}), 200
+
+def create_cors_preflight_response():
+    """
+    Create a CORS preflight response for OPTIONS requests
+    
+    Returns:
+        Response: Empty response with CORS headers
+    """
+    response = make_response()
+    response.headers.add("Access-Control-Allow-Origin", "*")
+    response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization,X-CSRF-Token")
+    response.headers.add("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS")
+    return response, 200
