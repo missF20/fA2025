@@ -424,6 +424,7 @@ function App() {
           )}
 
           {currentSection === 'knowledge' && <KnowledgeBase />}
+          {currentSection === 'analytics' && <AnalyticsDashboard />}
           {currentSection === 'rate' && <RateUs />}
           {currentSection === 'support' && <Support />}
           {currentSection === 'subscriptions' && <Subscriptions />}

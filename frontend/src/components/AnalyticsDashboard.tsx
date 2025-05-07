@@ -35,19 +35,22 @@ import { InteractionChart } from './InteractionChart';
 // Mock data for the analytics components
 const sentimentData = [
   { 
-    type: 'positive', 
+    id: 'pos-1',
+    type: 'positive' as 'positive', 
     count: 425, 
     percentage: 56, 
     trend: 12 
   },
   { 
-    type: 'neutral', 
+    id: 'neu-1',
+    type: 'neutral' as 'neutral', 
     count: 210, 
     percentage: 28, 
     trend: -3 
   },
   { 
-    type: 'negative', 
+    id: 'neg-1',
+    type: 'negative' as 'negative', 
     count: 120, 
     percentage: 16, 
     trend: -9 
@@ -56,24 +59,28 @@ const sentimentData = [
 
 const topIssuesData = [
   { 
+    id: 'issue-1',
     issue: "Content clarity", 
     percentage: 38, 
     count: 152, 
     trend: 5 
   },
   { 
+    id: 'issue-2',
     issue: "Response time", 
     percentage: 24, 
     count: 96, 
     trend: -8 
   },
   { 
+    id: 'issue-3',
     issue: "Information accuracy", 
     percentage: 21, 
     count: 84, 
     trend: 2 
   },
   { 
+    id: 'issue-4',
     issue: "Documentation gaps", 
     percentage: 17, 
     count: 68, 
@@ -81,47 +88,13 @@ const topIssuesData = [
   },
 ];
 
+// Creating interaction data in the expected format
 const interactionData = [
-  { 
-    name: 'Jan', 
-    conversations: 240, 
-    messages: 1200, 
-    positive: 140, 
-    negative: 30, 
-    neutral: 70 
-  },
-  { 
-    name: 'Feb', 
-    conversations: 300, 
-    messages: 1800, 
-    positive: 180, 
-    negative: 40, 
-    neutral: 80 
-  },
-  { 
-    name: 'Mar', 
-    conversations: 280, 
-    messages: 1600, 
-    positive: 160, 
-    negative: 30, 
-    neutral: 90 
-  },
-  { 
-    name: 'Apr', 
-    conversations: 320, 
-    messages: 2000, 
-    positive: 190, 
-    negative: 35, 
-    neutral: 95 
-  },
-  { 
-    name: 'May', 
-    conversations: 400, 
-    messages: 2200, 
-    positive: 220, 
-    negative: 40, 
-    neutral: 140 
-  }
+  { type: 'Conversations', count: 1540 },
+  { type: 'Messages', count: 8800 },
+  { type: 'Positive', count: 890 },
+  { type: 'Negative', count: 175 },
+  { type: 'Neutral', count: 475 }
 ];
 
 const usageData = [
