@@ -45,8 +45,22 @@ export function SentimentAnalysis({ data }: SentimentAnalysisProps) {
     );
   }
 
+  // Define types for sentiment colors
+  type SentimentType = 'positive' | 'neutral' | 'negative';
+  
+  type SentimentColorScheme = {
+    main: string;
+    light: string;
+    dark: string;
+    text: string;
+    bg: string;
+    bgLight: string;
+    hover: string;
+    border: string;
+  };
+
   // Colors for sentiment types with expanded palette
-  const sentimentColors = {
+  const sentimentColors: Record<SentimentType, SentimentColorScheme> = {
     positive: {
       main: '#22c55e', // green-500
       light: '#dcfce7', // green-100
@@ -80,7 +94,7 @@ export function SentimentAnalysis({ data }: SentimentAnalysisProps) {
   };
 
   // Sentiment icons with enhanced design
-  const sentimentIcons = {
+  const sentimentIcons: Record<SentimentType, React.ReactNode> = {
     positive: <Smile size={18} className="text-green-500" />,
     neutral: <Meh size={18} className="text-slate-400" />,
     negative: <Frown size={18} className="text-red-500" />,
@@ -114,7 +128,7 @@ export function SentimentAnalysis({ data }: SentimentAnalysisProps) {
   const negativePercentage = negativeData?.percentage || 0;
   
   // Determine overall sentiment with more nuanced thresholds
-  let overallSentiment = 'neutral';
+  let overallSentiment: SentimentType = 'neutral';
   let sentimentMessage = 'Neutral customer sentiment';
   let sentimentDescription = 'Customer feedback is balanced between positive and negative experiences.';
   
@@ -129,7 +143,7 @@ export function SentimentAnalysis({ data }: SentimentAnalysisProps) {
   } else if (positivePercentage > negativePercentage + 5) {
     overallSentiment = 'positive';
     sentimentMessage = 'Slightly positive sentiment';
-    sentimentDescription = 'Customer feedback is trending positive, but there's room for improvement.';
+    sentimentDescription = 'Customer feedback is trending positive, but there is room for improvement.';
   } else if (negativePercentage > positivePercentage + 5) {
     overallSentiment = 'negative';
     sentimentMessage = 'Slightly negative sentiment';
@@ -157,7 +171,7 @@ export function SentimentAnalysis({ data }: SentimentAnalysisProps) {
     if (overallSentiment === 'positive') {
       return [
         'Highlight positive customer testimonials in marketing materials',
-        'Analyze what's working well to replicate across other areas'
+        'Analyze what is working well to replicate in other areas'
       ];
     } else if (overallSentiment === 'negative') {
       return [

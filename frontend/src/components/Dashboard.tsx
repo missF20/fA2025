@@ -691,7 +691,20 @@ export const Dashboard = () => {
           
           {/* Sentiment Analysis */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <SentimentAnalysis data={sentiment || []} />
+            {console.log("Sentiment Data:", sentiment)}
+            {sentiment && sentiment.length > 0 ? (
+              <SentimentAnalysis data={sentiment} />
+            ) : (
+              <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 h-full">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Sentiment Analysis</h3>
+                <div className="flex flex-col items-center justify-center h-48">
+                  <div className="bg-gray-100 p-4 rounded-full mb-4">
+                    <Meh size={32} className="text-gray-400" />
+                  </div>
+                  <p className="text-gray-500 text-center">Loading sentiment data...</p>
+                </div>
+              </div>
+            )}
             
             <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Insights</h3>
