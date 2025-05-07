@@ -16,8 +16,8 @@ export function SentimentAnalysis({ data }: SentimentAnalysisProps) {
   const [tooltipVisible, setTooltipVisible] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [timeRange, setTimeRange] = useState<'day' | 'week' | 'month'>('week');
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [hoverSegment, setHoverSegment] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<SentimentType | null>(null);
+  const [hoverSegment, setHoverSegment] = useState<SentimentType | null>(null);
 
   // Simulate data loading when time range changes
   useEffect(() => {
@@ -101,17 +101,16 @@ export function SentimentAnalysis({ data }: SentimentAnalysisProps) {
   };
 
   // Get trend icon based on sentiment trend value with enhanced visuals
-  const getTrendIcon = (trend: number, type: string) => {
-    const sentimentType = type as keyof typeof sentimentColors;
+  const getTrendIcon = (trend: number, type: SentimentType) => {
     if (trend > 10) {
       return (
-        <div className={`flex items-center ${sentimentColors[sentimentType].text} font-medium`}>
+        <div className={`flex items-center ${sentimentColors[type].text} font-medium`}>
           <TrendingUp size={12} className="mr-0.5" />
           <span>+{trend}%</span>
         </div>
       );
     } else if (trend > 0) {
-      return <span className={`${sentimentColors[sentimentType].text}`}>+{trend}%</span>;
+      return <span className={`${sentimentColors[type].text}`}>+{trend}%</span>;
     } else if (trend < 0) {
       return <span className="text-red-500">{trend}%</span>;
     }
