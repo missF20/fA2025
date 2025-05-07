@@ -19,25 +19,19 @@ logger = logging.getLogger(__name__)
 # Create blueprint with standard naming convention
 standard_email_bp = Blueprint('standard_email', __name__)
 
-# Mark all routes as CSRF exempt for API endpoints
-# Note: This is safe because we use token authentication
-standard_email_bp.decorators = [csrf_exempt]
-
-
-@standard_email_bp.route('/api/v2/integrations/email/connect',
-                         methods=['POST', 'OPTIONS'])
+@standard_email_bp.route('/api/v2/integrations/email/connect', methods=['POST', 'OPTIONS'])
+@csrf_exempt
 def connect_email():
     """
     Connect email integration
-    
+
     This endpoint follows the standard approach for all integrations.
     """
     # Standard CORS handling for OPTIONS requests
     if request.method == 'OPTIONS':
         response = jsonify({"status": "success"})
         response.headers.add('Access-Control-Allow-Methods', 'POST, OPTIONS')
-        response.headers.add('Access-Control-Allow-Headers',
-                             'Content-Type, Authorization')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
         response.headers.add('Access-Control-Allow-Origin', '*')
         response.headers.add('Access-Control-Allow-Credentials', 'true')
         return response
@@ -65,7 +59,10 @@ def connect_email():
 
         # Standard use of DAL to save integration
         result = IntegrationDAL.save_integration_config(
-            user_id=user_id, integration_type='email', config=data)
+            user_id=user_id,
+            integration_type='email',
+            config=data
+        )
 
         # Return standard success response
         return success_response(
@@ -85,21 +82,18 @@ def connect_email():
         logger.exception(f"Unexpected error in email connect: {str(e)}")
         return error_response(f"Error connecting email integration: {str(e)}")
 
-
-@standard_email_bp.route('/api/v2/integrations/email/disconnect',
-                         methods=['POST', 'OPTIONS'])
+@standard_email_bp.route('/api/v2/integrations/email/disconnect', methods=['POST', 'OPTIONS'])
 def disconnect_email():
     """
     Disconnect email integration
-    
+
     This endpoint follows the standard approach for all integrations.
     """
     # Standard CORS handling for OPTIONS requests
     if request.method == 'OPTIONS':
         response = jsonify({"status": "success"})
         response.headers.add('Access-Control-Allow-Methods', 'POST, OPTIONS')
-        response.headers.add('Access-Control-Allow-Headers',
-                             'Content-Type, Authorization')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
         response.headers.add('Access-Control-Allow-Origin', '*')
         response.headers.add('Access-Control-Allow-Credentials', 'true')
         return response
@@ -132,20 +126,18 @@ def disconnect_email():
             f"Error disconnecting email integration: {str(e)}")
 
 
-@standard_email_bp.route('/api/v2/integrations/email/status',
-                         methods=['GET', 'OPTIONS'])
+@standard_email_bp.route('/api/v2/integrations/email/status', methods=['GET', 'OPTIONS'])
 def email_status():
     """
     Get email integration status
-    
+
     This endpoint follows the standard approach for all integrations.
     """
     # Standard CORS handling for OPTIONS requests
     if request.method == 'OPTIONS':
         response = jsonify({"status": "success"})
         response.headers.add('Access-Control-Allow-Methods', 'GET, OPTIONS')
-        response.headers.add('Access-Control-Allow-Headers',
-                             'Content-Type, Authorization')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
         response.headers.add('Access-Control-Allow-Origin', '*')
         response.headers.add('Access-Control-Allow-Credentials', 'true')
         return response
@@ -186,12 +178,11 @@ def email_status():
             f"Error getting email integration status: {str(e)}")
 
 
-@standard_email_bp.route('/api/v2/integrations/email/test',
-                         methods=['GET', 'OPTIONS'])
+@standard_email_bp.route('/api/v2/integrations/email/test', methods=['GET', 'OPTIONS'])
 def test_email():
     """
     Test email integration API
-    
+
     This endpoint is used to test if the email integration API is working.
     It does not require authentication.
     """
@@ -199,8 +190,7 @@ def test_email():
     if request.method == 'OPTIONS':
         response = jsonify({"status": "success"})
         response.headers.add('Access-Control-Allow-Methods', 'GET, OPTIONS')
-        response.headers.add('Access-Control-Allow-Headers',
-                             'Content-Type, Authorization')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
         response.headers.add('Access-Control-Allow-Origin', '*')
         response.headers.add('Access-Control-Allow-Credentials', 'true')
         return response
