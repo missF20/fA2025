@@ -8,7 +8,7 @@ It follows the new standard approach for all integrations.
 import logging
 import json
 from flask import Blueprint, request, jsonify, g
-from flask_wtf.csrf import csrf_exempt
+from utils.csrf import validate_csrf_token
 from utils.auth_utils import get_authenticated_user
 from utils.db_access import IntegrationDAL
 from utils.response import success_response, error_response
@@ -20,8 +20,11 @@ logger = logging.getLogger(__name__)
 standard_email_bp = Blueprint('standard_email', __name__)
 
 @standard_email_bp.route('/api/v2/integrations/email/connect', methods=['POST', 'OPTIONS'])
-@csrf_exempt
 def connect_email():
+    # Validate CSRF token
+    csrf_result = validate_csrf_token(request)
+    if csrf_result:
+        return csrf_result
     """
     Connect email integration
 
