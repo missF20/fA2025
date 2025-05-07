@@ -99,6 +99,7 @@ def connect_email():
         return error_response(f"Error connecting email integration: {str(e)}")
 
 @standard_email_bp.route('/api/v2/integrations/email/disconnect', methods=['POST', 'OPTIONS'])
+@csrf.exempt
 def disconnect_email():
     """
     Disconnect email integration
@@ -148,6 +149,7 @@ def disconnect_email():
 
 
 @standard_email_bp.route('/api/v2/integrations/email/status', methods=['GET', 'OPTIONS'])
+@csrf.exempt
 def email_status():
     """
     Get email integration status
@@ -200,6 +202,7 @@ def email_status():
 
 
 @standard_email_bp.route('/api/v2/integrations/email/test', methods=['GET', 'OPTIONS'])
+@csrf.exempt
 def test_email():
     """
     Test email integration API
