@@ -19,10 +19,6 @@ export function SocialMediaPreview() {
       <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-lg p-6">
         <h1 className="text-2xl font-bold mb-6">Social Media Connection Preview</h1>
         
-        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md text-blue-700">
-          <strong>Note:</strong> This is a preview mode. No actual connections will be made to social media platforms.
-        </div>
-        
         {!showDemo ? (
           <div className="flex flex-col items-center">
             <p className="mb-4 text-center">

@@ -27,22 +27,38 @@ export function SocialMediaConnect({
   // Function to handle initiating OAuth flow
   const handleConnect = (platform: string) => {
     setIsConnecting(platform);
+
+    // Get the appropriate OAuth URL based on platform
+    const oauthUrl = getOAuthUrl(platform);
     
-    // For preview purposes, show a message instead of actually connecting
-    // In the real app, this would open an OAuth window
-    setTimeout(() => {
-      setIsConnecting(null);
-      showToast(`This is a preview. In the real app, you would be connected to ${platform}.`, 'info');
-      
-      if (onConnected) {
-        onConnected(platform);
+    // Open OAuth window
+    const width = 600;
+    const height = 700;
+    const left = window.innerWidth / 2 - width / 2;
+    const top = window.innerHeight / 2 - height / 2;
+    
+    const authWindow = window.open(
+      oauthUrl,
+      `Connect ${platform}`,
+      `width=${width},height=${height},top=${top},left=${left}`
+    );
+    
+    // Listen for messages from the popup
+    window.addEventListener('message', (event) => {
+      if (event.data && event.data.type === 'OAUTH_COMPLETE' && event.data.platform === platform) {
+        authWindow?.close();
+        setIsConnecting(null);
+        showToast(`Successfully connected to ${platform}!`, 'success');
+        if (onConnected) {
+          onConnected(platform);
+        }
+        
+        // Call the onComplete callback if provided (used by SocialMediaPreview)
+        if (onComplete) {
+          onComplete();
+        }
       }
-      
-      // Call the onComplete callback if provided (used by SocialMediaPreview)
-      if (onComplete) {
-        onComplete();
-      }
-    }, 1500);
+    }, { once: true });
   };
 
   // Generate OAuth URLs for each platform
