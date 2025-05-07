@@ -1,15 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Smile, Meh, Frown, Info, HelpCircle, BarChart, PieChart } from 'lucide-react';
-// Import recharts with explicit types
-import { 
-  Cell, 
-  Pie, 
-  PieChart as RechartsPieChart, 
-  ResponsiveContainer, 
-  Sector, 
-  PieLabelRenderProps 
-} from 'recharts';
 
 interface SentimentData {
   id: string;
@@ -57,69 +48,7 @@ export function SentimentAnalysis({ data }: SentimentAnalysisProps) {
     negative: <Frown size={20} className="text-red-500" />,
   };
 
-  // Format data for pie/donut chart
-  const chartData = data.map(item => ({
-    name: item.type,
-    value: item.count,
-    color: sentimentColors[item.type],
-    percentage: item.percentage,
-    trend: item.trend,
-  }));
-
-  // TypeScript interface for active shape props from recharts
-  interface ActiveShapeProps {
-    cx: number;
-    cy: number;
-    innerRadius: number;
-    outerRadius: number;
-    startAngle: number;
-    endAngle: number;
-    fill: string;
-    payload: {
-      name: string;
-      value: number;
-      color: string;
-      percentage: number;
-      trend: number;
-    };
-    percent: number;
-    value: number;
-  }
-
-  // Custom active shape for donut/pie chart with proper typing
-  const renderActiveShape = (props: ActiveShapeProps) => {
-    const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill, payload, percent } = props;
-    
-    // Use recharts components directly as function calls to avoid JSX typing issues
-    return (
-      <g>
-        <text x={cx} y={cy} dy={0} textAnchor="middle" fill="#374151" fontSize={12} fontWeight="medium">
-          {payload.name}
-        </text>
-        <text x={cx} y={cy + 16} dy={0} textAnchor="middle" fill="#6B7280" fontSize={10}>
-          {`${(percent * 100).toFixed(1)}%`}
-        </text>
-        {Sector({
-          cx,
-          cy,
-          innerRadius,
-          outerRadius: outerRadius + 5,
-          startAngle,
-          endAngle,
-          fill
-        })}
-        {Sector({
-          cx,
-          cy,
-          startAngle,
-          endAngle,
-          innerRadius: outerRadius + 6,
-          outerRadius: outerRadius + 8,
-          fill
-        })}
-      </g>
-    );
-  };
+  // We're using a pure SVG implementation instead of recharts due to TypeScript compatibility issues
 
   // Get trend icon based on sentiment trend value
   const getTrendIcon = (trend: number) => {
@@ -198,34 +127,89 @@ export function SentimentAnalysis({ data }: SentimentAnalysisProps) {
       </div>
 
       <div className="flex flex-col lg:flex-row">
-        {/* Chart visualization */}
-        <div className="lg:w-1/2 h-48">
-          <ResponsiveContainer width="100%" height="100%">
-            <RechartsPieChart>
-              <Pie
-                activeIndex={activeIndex !== null ? activeIndex : undefined}
-                activeShape={renderActiveShape}
-                data={chartData}
-                cx="50%"
-                cy="50%"
-                innerRadius={chartType === 'donut' ? 50 : 0}
-                outerRadius={70}
-                fill="#8884d8"
-                dataKey="value"
-                onMouseEnter={(_, index) => setActiveIndex(index)}
-                onMouseLeave={() => setActiveIndex(null)}
-              >
-                {chartData.map((entry, index) => (
-                  <Cell 
-                    key={`cell-${index}`} 
-                    fill={entry.color}
-                    stroke="#fff"
-                    strokeWidth={1}
+        {/* Chart visualization - fallback manual chart when recharts has TS issues */}
+        <div className="lg:w-1/2 h-48 flex items-center justify-center">
+          {/* Manual SVG donut/pie chart as fallback */}
+          <svg width="150" height="150" viewBox="0 0 150 150">
+            <g transform="translate(75, 75)">
+              {/* Draw pie segments manually */}
+              {data.map((item, index) => {
+                // Simplified pie/donut chart logic
+                const total = data.reduce((sum, d) => sum + d.count, 0);
+                const percentage = item.count / total;
+                
+                // Calculate start and end angles for each segment
+                const startAngle = index === 0 ? 0 : 
+                  data.slice(0, index).reduce((sum, d) => sum + (d.count / total) * Math.PI * 2, 0);
+                const endAngle = startAngle + percentage * Math.PI * 2;
+                
+                // Calculate pie segment coordinates
+                const startX = Math.cos(startAngle) * (chartType === 'pie' ? 0 : 40);
+                const startY = Math.sin(startAngle) * (chartType === 'pie' ? 0 : 40);
+                const endX = Math.cos(endAngle) * (chartType === 'pie' ? 0 : 40);
+                const endY = Math.sin(endAngle) * (chartType === 'pie' ? 0 : 40);
+                
+                const outerStartX = Math.cos(startAngle) * 70;
+                const outerStartY = Math.sin(startAngle) * 70;
+                const outerEndX = Math.cos(endAngle) * 70;
+                const outerEndY = Math.sin(endAngle) * 70;
+                
+                // Calculate arc flags
+                const largeArcFlag = percentage > 0.5 ? 1 : 0;
+                
+                // Create pie segment path
+                const path = [
+                  `M ${startX} ${startY}`,
+                  `L ${outerStartX} ${outerStartY}`,
+                  `A 70 70 0 ${largeArcFlag} 1 ${outerEndX} ${outerEndY}`,
+                  `L ${endX} ${endY}`,
+                  chartType === 'pie' ? 'Z' : `A 40 40 0 ${largeArcFlag} 0 ${startX} ${startY}`
+                ].join(' ');
+                
+                // Handle active state
+                const isActive = activeIndex === index;
+                const stroke = isActive ? "#fff" : "none";
+                const strokeWidth = isActive ? 2 : 0;
+                
+                return (
+                  <path 
+                    key={`pie-segment-${index}`} 
+                    d={path} 
+                    fill={sentimentColors[item.type]} 
+                    stroke={stroke}
+                    strokeWidth={strokeWidth}
+                    onMouseEnter={() => setActiveIndex(index)}
+                    onMouseLeave={() => setActiveIndex(null)}
                   />
-                ))}
-              </Pie>
-            </RechartsPieChart>
-          </ResponsiveContainer>
+                );
+              })}
+              
+              {/* Display active segment text */}
+              {activeIndex !== null && (
+                <>
+                  <text 
+                    x="0" 
+                    y="0" 
+                    textAnchor="middle" 
+                    fill="#374151" 
+                    fontSize="12"
+                    fontWeight="500"
+                  >
+                    {data[activeIndex].type}
+                  </text>
+                  <text 
+                    x="0" 
+                    y="16" 
+                    textAnchor="middle" 
+                    fill="#6B7280" 
+                    fontSize="10"
+                  >
+                    {data[activeIndex].percentage.toFixed(1)}%
+                  </text>
+                </>
+              )}
+            </g>
+          </svg>
         </div>
 
         {/* Details and insights */}
