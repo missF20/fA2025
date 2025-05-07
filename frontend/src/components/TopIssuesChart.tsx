@@ -200,11 +200,10 @@ export function TopIssuesChart({ issues }: TopIssuesChartProps) {
                       <span className="text-blue-600">View related conversations →</span>
                     </div>
                   </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.div>
-          );
-        })}
+              )}
+            </AnimatePresence>
+          </motion.div>
+        ))}
       </div>
     </div>
   );
