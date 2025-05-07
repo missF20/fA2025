@@ -23,14 +23,9 @@ import { MessageSquare, CheckCircle, Clock, Users, AlertTriangle, Activity } fro
 import { motion, AnimatePresence } from 'framer-motion';
 import type { AuthFormData } from './types';
 import { TokenUsageCard } from './components/TokenUsageCard';
-import { Dashboard } from './components/Dashboard';
-import DiagnoseApp from './components/DiagnoseApp';
 // Used to track the platforms the user is allowed to access based on their subscription
 
 function App() {
-  // TEMPORARY: For diagnostic purposes only - display the diagnostic component
-  const [debugMode, setDebugMode] = useState(true);
-  
   const [session, setSession] = useState<any>(null);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -281,7 +276,7 @@ function App() {
     );
   };
 
-  const renderPageContent = () => {
+  const renderDashboard = () => {
     if (loading) {
       return (
         <div className="flex items-center justify-center h-screen">
@@ -302,7 +297,21 @@ function App() {
             animate={{ opacity: 1, y: 0 }}
             className="bg-red-50 text-red-600 p-4 rounded-lg"
           >
-            Error loading data: {error}
+            Error loading dashboard data: {error}
+          </motion.div>
+        </div>
+      );
+    }
+
+    if (!metrics) {
+      return (
+        <div className="p-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-yellow-50 text-yellow-600 p-4 rounded-lg"
+          >
+            No metrics data available. Please check your database connection.
           </motion.div>
         </div>
       );
@@ -314,11 +323,6 @@ function App() {
       exit: { opacity: 0, x: -20 }
     };
 
-    // First show our diagnostic component when in debug mode
-    if (debugMode) {
-      return <DiagnoseApp />;
-    }
-    
     return (
       <AnimatePresence mode="wait">
         <motion.div
@@ -330,7 +334,74 @@ function App() {
           transition={{ duration: 0.3 }}
         >
           {currentSection === 'home' && (
-            <Dashboard />
+            <div className="p-8">
+              <motion.h1 
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-2xl font-bold text-gray-900 mb-6"
+              >
+                Dashboard Overview
+              </motion.h1>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <MetricCard
+                  title="Total Responses"
+                  value={metrics.totalResponses}
+                  icon={<MessageSquare size={24} />}
+                  description="AI responses across all platforms"
+                  trend={{ value: 12, isPositive: true }}
+                  breakdown={metrics.responsesBreakdown}
+                  allowedPlatforms={metrics.allowedPlatforms || allowedPlatforms}
+                />
+
+                <MetricCard
+                  title="Completed Tasks"
+                  value={metrics.completedTasks}
+                  icon={<CheckCircle size={24} />}
+                  description="Tasks successfully completed by AI"
+                  trend={{ value: 8, isPositive: true }}
+                  breakdown={metrics.completedTasksBreakdown}
+                  allowedPlatforms={metrics.allowedPlatforms || allowedPlatforms}
+                />
+
+                <MetricCard
+                  title="Pending Tasks"
+                  value={metrics.pendingTasks.length}
+                  icon={<Clock size={24} />}
+                  description="Tasks waiting for completion"
+                  trend={{ value: 3, isPositive: false }}
+                  pendingTasks={metrics.pendingTasks.map(task => ({...task, allowedPlatforms: metrics.allowedPlatforms || allowedPlatforms}))}
+                />
+
+                <MetricCard
+                  title="Escalated Tasks"
+                  value={metrics.escalatedTasks.length}
+                  icon={<AlertTriangle size={24} />}
+                  description="Tasks requiring human attention"
+                  trend={{ value: 5, isPositive: false }}
+                  escalatedTasks={metrics.escalatedTasks.map(task => ({...task, allowedPlatforms: metrics.allowedPlatforms || allowedPlatforms}))}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                <MetricCard
+                  title="People Interacted"
+                  value={metrics.totalChats}
+                  icon={<Users size={24} />}
+                  description="Unique users across all platforms"
+                  trend={{ value: 15, isPositive: true }}
+                  breakdown={metrics.chatsBreakdown}
+                  interactions={metrics.peopleInteracted.slice(0, 3).map(interaction => ({...interaction, allowedPlatforms: metrics.allowedPlatforms || allowedPlatforms}))}
+                  allowedPlatforms={metrics.allowedPlatforms || allowedPlatforms}
+                />
+
+                <TopIssuesCard issues={metrics.topIssues} />
+
+                <InteractionChart data={metrics.interactionsByType} />
+              </div>
+
+              <ConversationsList conversations={metrics.conversations} />
+            </div>
           )}
 
           {currentSection === 'conversations' && (
@@ -342,9 +413,7 @@ function App() {
               >
                 Conversations
               </motion.h1>
-              {metrics?.conversations && (
-                <ConversationsList conversations={metrics.conversations} />
-              )}
+              <ConversationsList conversations={metrics.conversations} />
               
               {/* Token Usage Card below conversations */}
               <div className="mt-8">
@@ -410,7 +479,7 @@ function App() {
           </div>
           <ProfileMenu onSectionChange={setCurrentSection} />
         </motion.div>
-        {renderPageContent()}
+        {renderDashboard()}
         {!accountSetupComplete && <NewUserSetupPrompt onDismiss={() => setShowSetupPrompt(false)} />}
         {showSubscriptionSelector && (
           <SubscriptionTierSelector 

@@ -546,14 +546,6 @@ def register_blueprints():
             logger.info("API endpoints blueprint registered successfully")
         except ImportError as e:
             logger.warning(f"Could not register API endpoints blueprint: {e}")
-
-        # Register analytics blueprint
-        try:
-            from routes.analytics import analytics_bp
-            app.register_blueprint(analytics_bp)
-            logger.info("Analytics blueprint registered successfully")
-        except ImportError as e:
-            logger.warning(f"Could not register analytics blueprint: {e}")
             
         try:
             from routes.integrations.slack_demo_api import slack_demo_bp
@@ -699,18 +691,6 @@ def init_app():
         logger.info("Direct token usage endpoint added successfully")
     except Exception as e:
         logger.error(f"Failed to add direct token usage endpoint: {str(e)}")
-        
-    # Add direct analytics endpoints - bypassing blueprint registration system
-    try:
-        from add_analytics_endpoints import add_analytics_endpoints
-        
-        logger.info("Adding direct analytics endpoints")
-        if add_analytics_endpoints():
-            logger.info("Direct analytics endpoints added successfully")
-        else:
-            logger.error("Failed to add direct analytics endpoints")
-    except Exception as e:
-        logger.error(f"Failed to add direct analytics endpoints: {str(e)}")
     
     # Initialize Row Level Security
     init_rls()
