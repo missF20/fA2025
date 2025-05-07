@@ -24,26 +24,9 @@ from utils.auth_utils import get_authenticated_user
 from utils.db_access import IntegrationDAL
 from utils.response import success_response, error_response
 from utils.exceptions import AuthenticationError, DatabaseAccessError, ValidationError
+from utils.integration_utils import csrf_validate_with_dev_bypass, create_cors_preflight_response, is_development_mode
 
 logger = logging.getLogger(__name__)
-
-def is_development_mode():
-    """Check if the application is running in development mode"""
-    return (os.environ.get('FLASK_ENV') == 'development' or 
-            os.environ.get('DEVELOPMENT_MODE') == 'true' or
-            os.environ.get('APP_ENV') == 'development')
-            
-def csrf_validate_with_dev_bypass(request, endpoint_name="standard_email"):
-    """
-    Validate CSRF token with development mode bypass
-    Returns response object on validation failure, None on success or dev mode
-    """
-    if is_development_mode():
-        logger.debug(f"Development mode detected, skipping CSRF validation for {endpoint_name}")
-        return None
-    else:
-        # Validate CSRF token in production
-        return validate_csrf_token(request)
 
 # Create blueprint with standard naming convention
 standard_email_bp = Blueprint('standard_email', __name__)
@@ -65,8 +48,8 @@ def connect_email():
         response.headers.add('Access-Control-Allow-Credentials', 'true')
         return response
         
-    # Validate CSRF token (only for non-OPTIONS requests)
-    csrf_result = validate_csrf_token(request)
+    # Validate CSRF token with development mode bypass
+    csrf_result = csrf_validate_with_dev_bypass(request, "email_connect")
     if csrf_result:
         return csrf_result
 
@@ -133,8 +116,8 @@ def disconnect_email():
         response.headers.add('Access-Control-Allow-Credentials', 'true')
         return response
         
-    # Validate CSRF token (only for non-OPTIONS requests)
-    csrf_result = validate_csrf_token(request)
+    # Validate CSRF token with development mode bypass
+    csrf_result = csrf_validate_with_dev_bypass(request, "email_disconnect")
     if csrf_result:
         return csrf_result
 
