@@ -177,12 +177,12 @@ export function AuthForm({ mode, onSubmit, error, onToggleMode, onForgotPassword
           </div>
           
           <h2 className="text-2xl font-bold text-center text-gray-900 mb-2">
-            {mode === 'signin' ? 'Welcome back to Dana' : 'Get started with Dana'}
+            {mode === 'signin' ? 'Sign In' : 'Create Account'}
           </h2>
           <p className="text-center text-gray-500 text-sm mb-8">
             {mode === 'signin' 
-              ? 'Sign in to access your Dana dashboard'
-              : 'Create an account to start using Dana AI'
+              ? 'Access your dashboard'
+              : 'Get started with your new account'
             }
           </p>
 
