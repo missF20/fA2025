@@ -287,45 +287,66 @@ export function InteractionChart({ data }: InteractionChartProps) {
     );
   };
   
-  // Render Bar Chart
+  // Render Bar Chart - Completely rewritten for stability
   const renderBarChart = () => {
     const maxValue = Math.max(...visibleData.map(item => item.count)) || 1; // Prevent division by zero
     
     return (
-      <div className="h-[250px] w-full mx-auto overflow-hidden" style={{ maxWidth: '250px' }}>
-        <div className="flex h-full items-end">
-          {visibleData.map((item, index) => {
-            const height = (item.count / maxValue) * 100;
-            const platformKey = item.type as keyof typeof platformColors;
-            const bgClass = platformColors[platformKey]?.bg || 'bg-gray-300';
-            
-            return (
-              <div 
-                key={item.type}
-                className="flex flex-col items-center flex-1 mx-1 relative group"
-                onMouseEnter={() => setHighlightedPlatform(item.type)}
-                onMouseLeave={() => setHighlightedPlatform(null)}
-              >
-                <div className="text-xs text-gray-500 mb-1 whitespace-nowrap overflow-hidden text-ellipsis w-full text-center">
-                  {item.count}
-                </div>
-                <motion.div
-                  initial={{ height: 0 }}
-                  animate={{ 
-                    height: `${height}%`,
-                    opacity: highlightedPlatform === item.type || !highlightedPlatform ? 1 : 0.4
-                  }}
-                  transition={{ duration: 0.5, delay: index * 0.1 }}
-                  className={`w-full ${bgClass} rounded-t relative cursor-pointer`}
+      <div className="flex justify-center w-full h-[250px]">
+        <div className="w-full max-w-sm">
+          {/* Chart title and header */}
+          <div className="text-sm font-medium text-gray-700 mb-3 text-center">
+            Platform Interaction Distribution
+          </div>
+          
+          {/* Bar chart container */}
+          <div className="relative h-[200px] flex items-end justify-center space-x-4">
+            {visibleData.map((item, index) => {
+              const height = Math.max(10, (item.count / maxValue) * 180); // Ensure at least 10px height
+              const platformKey = item.type as keyof typeof platformColors;
+              const bgClass = platformColors[platformKey]?.bg || 'bg-gray-300';
+              
+              return (
+                <div 
+                  key={item.type}
+                  className="flex flex-col items-center relative group"
+                  style={{ width: `${Math.min(100, 90/visibleData.length)}px` }}
+                  onMouseEnter={() => setHighlightedPlatform(item.type)}
+                  onMouseLeave={() => setHighlightedPlatform(null)}
                 >
-                  <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-10 transition-opacity rounded-t"></div>
-                </motion.div>
-                <div className="text-[10px] mt-1 capitalize whitespace-nowrap overflow-hidden text-ellipsis w-full text-center">
-                  {item.type}
+                  {/* Data value on top */}
+                  <div className="absolute -top-6 w-full text-center">
+                    <span className="text-xs font-medium">
+                      {item.count}
+                    </span>
+                  </div>
+                  
+                  {/* Bar */}
+                  <motion.div
+                    initial={{ height: 0 }}
+                    animate={{ 
+                      height,
+                      opacity: highlightedPlatform === item.type || !highlightedPlatform ? 1 : 0.4
+                    }}
+                    transition={{ duration: 0.5, delay: index * 0.05 }}
+                    className={`w-full ${bgClass} rounded-t-sm cursor-pointer`}
+                    style={{ 
+                      minWidth: '20px', 
+                      maxWidth: '40px',
+                      width: '100%'
+                    }}
+                  >
+                    <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-10 transition-opacity rounded-t"></div>
+                  </motion.div>
+                  
+                  {/* Label */}
+                  <div className="text-[10px] mt-2 capitalize overflow-hidden text-ellipsis w-full text-center">
+                    {item.type}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </div>
     );
