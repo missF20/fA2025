@@ -23,6 +23,7 @@ import { MessageSquare, CheckCircle, Clock, Users, AlertTriangle, Activity } fro
 import { motion, AnimatePresence } from 'framer-motion';
 import type { AuthFormData } from './types';
 import { TokenUsageCard } from './components/TokenUsageCard';
+import { Dashboard } from './components/Dashboard';
 // Used to track the platforms the user is allowed to access based on their subscription
 
 function App() {
