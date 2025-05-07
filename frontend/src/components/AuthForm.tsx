@@ -80,24 +80,41 @@ const FloatingFeature = () => (
   </motion.div>
 );
 
-const TestimonialCard = ({ testimonial, position }: { testimonial: typeof testimonials[0], position: 'left' | 'right' }) => (
-  <motion.div
-    initial={{ opacity: 0, x: position === 'left' ? -100 : 100 }}
-    animate={{ opacity: 1, x: 0 }}
-    transition={{ duration: 0.8, delay: 0.5 }}
-    className={`absolute bottom-8 ${position === 'left' ? 'left-8' : 'right-8'} max-w-sm bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-lg hidden md:block`}
-  >
-    <Quote className="text-blue-500 mb-2" size={24} />
-    <p className="text-gray-700 text-sm mb-4">{testimonial.content}</p>
-    <div className="flex items-center">
-      <img src={testimonial.image} alt={testimonial.name} className="w-10 h-10 rounded-full mr-3" />
-      <div>
-        <p className="font-medium text-gray-900">{testimonial.name}</p>
-        <p className="text-sm text-gray-500">{testimonial.role} at {testimonial.company}</p>
+const TestimonialCard = ({ testimonial, position }: { testimonial: typeof testimonials[0], position: 'left' | 'right' }) => {
+  const [isVisible, setIsVisible] = useState(true);
+  
+  useEffect(() => {
+    // Set a timer to hide the testimonial card after 5 seconds
+    const timer = setTimeout(() => {
+      setIsVisible(false);
+    }, 5000); // 5000ms = 5 seconds
+    
+    // Clean up the timer when component unmounts
+    return () => clearTimeout(timer);
+  }, []);
+  
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: position === 'left' ? -100 : 100 }}
+      animate={{ opacity: isVisible ? 1 : 0, x: isVisible ? 0 : position === 'left' ? -100 : 100 }}
+      transition={{ 
+        duration: 0.8, 
+        delay: isVisible ? 0.5 : 0, // Delay only on initial show, not on hide
+      }}
+      className={`absolute bottom-8 ${position === 'left' ? 'left-8' : 'right-8'} max-w-sm bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-lg hidden md:block`}
+    >
+      <Quote className="text-blue-500 mb-2" size={24} />
+      <p className="text-gray-700 text-sm mb-4">{testimonial.content}</p>
+      <div className="flex items-center">
+        <img src={testimonial.image} alt={testimonial.name} className="w-10 h-10 rounded-full mr-3" />
+        <div>
+          <p className="font-medium text-gray-900">{testimonial.name}</p>
+          <p className="text-sm text-gray-500">{testimonial.role} at {testimonial.company}</p>
+        </div>
       </div>
-    </div>
-  </motion.div>
-);
+    </motion.div>
+  );
+};
 
 export function AuthForm({ mode, onSubmit, error, onToggleMode, onForgotPassword }: AuthFormProps) {
   const [loading, setLoading] = useState(false);
