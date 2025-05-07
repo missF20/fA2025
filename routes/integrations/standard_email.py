@@ -27,6 +27,24 @@ from utils.exceptions import AuthenticationError, DatabaseAccessError, Validatio
 
 logger = logging.getLogger(__name__)
 
+def is_development_mode():
+    """Check if the application is running in development mode"""
+    return (os.environ.get('FLASK_ENV') == 'development' or 
+            os.environ.get('DEVELOPMENT_MODE') == 'true' or
+            os.environ.get('APP_ENV') == 'development')
+            
+def csrf_validate_with_dev_bypass(request, endpoint_name="standard_email"):
+    """
+    Validate CSRF token with development mode bypass
+    Returns response object on validation failure, None on success or dev mode
+    """
+    if is_development_mode():
+        logger.debug(f"Development mode detected, skipping CSRF validation for {endpoint_name}")
+        return None
+    else:
+        # Validate CSRF token in production
+        return validate_csrf_token(request)
+
 # Create blueprint with standard naming convention
 standard_email_bp = Blueprint('standard_email', __name__)
 
