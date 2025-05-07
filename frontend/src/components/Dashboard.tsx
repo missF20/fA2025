@@ -33,7 +33,8 @@ import type {
   TopIssue, 
   PendingTask, 
   EscalatedTask,
-  Interaction
+  Interaction,
+  SentimentData
 } from '../types';
 
 // Define time range options
@@ -45,15 +46,6 @@ const timeRanges = [
   { id: 'ytd', label: 'Year to Date' },
   { id: 'custom', label: 'Custom Range' }
 ];
-
-// Define sentiment types for sentiment analysis
-interface SentimentData {
-  id: string;
-  type: 'positive' | 'neutral' | 'negative';
-  count: number;
-  trend: number;
-  percentage: number;
-}
 
 export const Dashboard = () => {
   const { user } = useAuth();
@@ -655,7 +647,9 @@ export const Dashboard = () => {
             
             <div className="md:col-span-2">
               <TopIssuesChart issues={metrics.topIssues?.map(issue => ({
-                issue: issue.name,
+                id: issue.id,
+                name: issue.name,
+                issue: issue.name, // Add issue property for component compatibility
                 count: issue.count,
                 trend: issue.trend,
                 percentage: (issue.count / metrics.topIssues.reduce((sum, i) => sum + i.count, 0)) * 100,

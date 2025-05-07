@@ -1,14 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Smile, Meh, Frown, Info, HelpCircle, BarChart, PieChart } from 'lucide-react';
-
-interface SentimentData {
-  id: string;
-  type: 'positive' | 'neutral' | 'negative';
-  count: number;
-  trend: number;
-  percentage: number;
-}
+import { SentimentData } from '../types';
 
 interface SentimentAnalysisProps {
   data: SentimentData[];

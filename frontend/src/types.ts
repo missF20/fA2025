@@ -270,6 +270,15 @@ export interface AuthFormData {
 }
 
 // Dashboard metrics types
+// Sentiment Analysis Types
+export interface SentimentData {
+  id: string;
+  type: 'positive' | 'neutral' | 'negative';
+  count: number;
+  trend: number;
+  percentage: number;
+}
+
 export interface ChatMetrics {
   totalResponses: number;
   responsesBreakdown: {
@@ -341,4 +350,6 @@ export interface ChatMetrics {
   integrations: Array<Integration>;
   // Platforms allowed in the user's subscription
   allowedPlatforms?: string[];
+  // Sentiment analysis data
+  sentimentData?: SentimentData[];
 }
