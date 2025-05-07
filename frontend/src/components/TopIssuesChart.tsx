@@ -1,10 +1,20 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TrendingUp, TrendingDown, HelpCircle, ChevronRight, BarChart3 } from 'lucide-react';
-import type { TopIssue } from '../types';
+
+// Create a combined interface for chart issues
+interface ChartIssue {
+  id?: string;
+  name?: string; // From standard TopIssue
+  issue?: string; // From previous implementation
+  count: number;
+  trend: number;
+  percentage: number;
+  platform?: string;
+}
 
 interface TopIssuesChartProps {
-  issues: Array<TopIssue & { percentage: number }>;
+  issues: ChartIssue[];
 }
 
 export function TopIssuesChart({ issues }: TopIssuesChartProps) {
@@ -94,22 +104,26 @@ export function TopIssuesChart({ issues }: TopIssuesChartProps) {
       </div>
 
       <div className="space-y-4">
-        {issues.map((issue) => (
-          <motion.div 
-            key={issue.issue}
-            whileHover={{ scale: 1.01 }}
-            onClick={() => setSelectedIssue(selectedIssue === issue.issue ? null : issue.issue)}
-            className="cursor-pointer"
-          >
+        {issues.map((issue) => {
+          // Use whichever is available, issue or name, or fallback to a default string
+          const issueLabel = issue.issue || issue.name || `Issue #${issue.id || ''}`;
+          
+          return (
+            <motion.div 
+              key={issueLabel}
+              whileHover={{ scale: 1.01 }}
+              onClick={() => setSelectedIssue(selectedIssue === issueLabel ? null : issueLabel || null)}
+              className="cursor-pointer"
+            >
             <div className="flex justify-between text-sm mb-1">
               <div className="flex items-center">
                 <ChevronRight 
                   size={14} 
                   className={`mr-1 transform transition-transform ${
-                    selectedIssue === issue.issue ? 'rotate-90' : ''
+                    selectedIssue === issueLabel ? 'rotate-90' : ''
                   }`} 
                 />
-                <span className="text-gray-600">{issue.issue}</span>
+                <span className="text-gray-600">{issueLabel}</span>
               </div>
               <div className="flex items-center space-x-2">
                 {getTrendComponent(issue.trend)}
@@ -151,7 +165,7 @@ export function TopIssuesChart({ issues }: TopIssuesChartProps) {
 
             {/* Expanded details for selected issue */}
             <AnimatePresence>
-              {selectedIssue === issue.issue && (
+              {selectedIssue === issueLabel && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
