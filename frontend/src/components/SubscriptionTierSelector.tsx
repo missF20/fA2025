@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Facebook, Instagram, MessageCircle, Loader2, ArrowRight, CheckCircle } from 'lucide-react';
+import { Facebook, Instagram, MessageCircle, Loader2 } from 'lucide-react';
 import type { SubscriptionTier } from '../types';
 import { PaymentProcessor } from './PaymentProcessor';
 import SocialMediaConnect from './SocialMediaConnect';
@@ -98,71 +98,9 @@ export function SubscriptionTierSelector({ onComplete, onSkip }: SubscriptionTie
     }
   };
 
-  const renderPlatformConnection = () => {
-    if (!selectedTier) return null;
-
-    const availablePlatforms = selectedTier.platforms;
-    const unavailablePlatforms = ['facebook', 'instagram', 'whatsapp'].filter(
-      p => !availablePlatforms.includes(p)
-    );
-
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-xl p-8 max-w-3xl w-full mx-4">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Connect Your Platforms</h2>
-          <p className="text-gray-600 mb-6">
-            Connect your social media accounts to start using Dana AI
-          </p>
-
-          <div className="space-y-4">
-            {availablePlatforms.map(platform => (
-              <div key={platform} className="border rounded-lg p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    {getPlatformIcon(platform)}
-                    <div>
-                      <h3 className="font-semibold text-gray-900 capitalize">{platform}</h3>
-                      <p className="text-sm text-gray-500">Connect your {platform} account</p>
-                    </div>
-                  </div>
-                  <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
-                    Connect
-                    <ArrowRight size={16} />
-                  </button>
-                </div>
-              </div>
-            ))}
-
-            {unavailablePlatforms.map(platform => (
-              <div key={platform} className="border rounded-lg p-4 bg-gray-50">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    {getPlatformIcon(platform)}
-                    <div>
-                      <h3 className="font-semibold text-gray-900 capitalize">{platform}</h3>
-                      <p className="text-sm text-gray-500">Not available in current plan</p>
-                    </div>
-                  </div>
-                  <button className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 flex items-center gap-2">
-                    Upgrade to Connect
-                    <ArrowRight size={16} />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-6 flex justify-end">
-            <button
-              onClick={onSkip}
-              className="px-4 py-2 text-gray-600 hover:text-gray-800"
-            >
-              I'll connect later
-            </button>
-          </div>
-        </div>
-      </div>
-    );
+  // Helper function to get the correct capitalization for platform names when needed
+  const getPlatformDisplayName = (platform: string): string => {
+    return platform.charAt(0).toUpperCase() + platform.slice(1);
   };
 
   if (loading) {
@@ -188,7 +126,29 @@ export function SubscriptionTierSelector({ onComplete, onSkip }: SubscriptionTie
   }
   
   if (showPlatformConnect) {
-    return renderPlatformConnection();
+    if (!selectedTier) return null;
+    
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-xl p-8 max-w-3xl w-full mx-4">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Connect Your Social Media</h2>
+          <p className="text-gray-600 mb-6">
+            Take a minute to connect your accounts and get started with Dana AI
+          </p>
+          
+          <SocialMediaConnect onConnected={handlePlatformConnected} />
+          
+          <div className="mt-6 flex justify-end">
+            <button
+              onClick={onSkip}
+              className="px-4 py-2 text-gray-600 hover:text-gray-800"
+            >
+              I'll connect later
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
