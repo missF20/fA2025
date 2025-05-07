@@ -9,8 +9,7 @@ import {
   FileText,
   BrainCircuit,
   CreditCard,
-  Globe,
-  BarChart2
+  Globe
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { supabase } from '../lib/supabase';
@@ -25,7 +24,6 @@ export function Sidebar({ currentSection, onSectionChange }: SidebarProps) {
     { id: 'home', icon: <Home size={20} />, label: 'Home' },
     { id: 'conversations', icon: <MessageSquare size={20} />, label: 'Conversations' },
     { id: 'knowledge', icon: <FileText size={20} />, label: 'Knowledge Base' },
-    { id: 'analytics', icon: <BarChart2 size={20} />, label: 'Analytics' },
   ];
 
   const bottomMenuItems = [
