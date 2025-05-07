@@ -480,7 +480,7 @@ function App() {
           <ProfileMenu onSectionChange={setCurrentSection} />
         </motion.div>
         {renderDashboard()}
-        {!accountSetupComplete && <NewUserSetupPrompt onDismiss={() => setShowSetupPrompt(false)} />}
+        {/* Welcome message removed as requested */}
         {showSubscriptionSelector && (
           <SubscriptionTierSelector 
             onComplete={handleSubscriptionSelect} 
