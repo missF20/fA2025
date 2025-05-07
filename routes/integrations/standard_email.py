@@ -19,12 +19,21 @@ except ImportError:
             return f
     csrf = DummyCSRF()
 
-from utils.csrf import validate_csrf_token
+from utils.csrf import validate_csrf_token, create_cors_preflight_response, get_csrf_token
 from utils.auth_utils import get_authenticated_user
 from utils.db_access import IntegrationDAL
 from utils.response import success_response, error_response
-from utils.exceptions import AuthenticationError, DatabaseAccessError, ValidationError
-from utils.integration_utils import csrf_validate_with_dev_bypass, create_cors_preflight_response, is_development_mode
+from utils.exceptions import AuthenticationError, DatabaseAccessError, ValidationError, IntegrationError
+from utils.integration_utils import (
+    is_development_mode, 
+    get_integration_config,
+    save_integration_config,
+    get_integration_status,
+    validate_json_request,
+    handle_integration_connection,
+    handle_integration_disconnect,
+    csrf_validate_with_dev_bypass
+)
 
 logger = logging.getLogger(__name__)
 
@@ -51,44 +60,26 @@ def connect_email():
     try:
         # Standard authentication with development token support
         user = get_authenticated_user(request, allow_dev_tokens=True)
-
-        # Extract user ID using standard approach
         user_id = user['id']
-
-        # Log the request with appropriate level
+        
         logger.debug(f"Email connect request for user {user_id}")
-
-        # Get configuration data from request using standard approach
-        data = request.get_json()
-        if not data:
-            return error_response("No configuration data provided", 400)
-
-        # Validate required fields for email
-        required_fields = ['email', 'password', 'smtp_server', 'smtp_port']
-        for field in required_fields:
-            if field not in data:
-                return error_response(f"Missing required field: {field}", 400)
-
-        # Standard use of DAL to save integration
-        result = IntegrationDAL.save_integration_config(
-            user_id=user_id,
-            integration_type='email',
-            config=data
-        )
-
-        # Return standard success response
-        return success_response(
-            message="Email integration connected successfully",
-            data={'integration_id': result['integration_id']})
-
+        
+        try:
+            # Validate request data using standard utility
+            data = validate_json_request(['email', 'password', 'smtp_server', 'smtp_port'])
+            
+            # Use standardized integration connection handler
+            return handle_integration_connection('email', user_id, data)
+            
+        except ValidationError as e:
+            logger.warning(f"Validation error in email connect: {str(e)}")
+            return error_response(e)
+        except IntegrationError as e:
+            logger.error(f"Integration error in email connect: {str(e)}")
+            return error_response(e)
+            
     except AuthenticationError as e:
         logger.warning(f"Authentication error in email connect: {str(e)}")
-        return error_response(e)
-    except ValidationError as e:
-        logger.warning(f"Validation error in email connect: {str(e)}")
-        return error_response(e)
-    except DatabaseAccessError as e:
-        logger.error(f"Database error in email connect: {str(e)}")
         return error_response(e)
     except Exception as e:
         logger.exception(f"Unexpected error in email connect: {str(e)}")
@@ -106,37 +97,35 @@ def disconnect_email():
     if request.method == 'OPTIONS':
         return create_cors_preflight_response("POST, OPTIONS")
         
-    # Validate CSRF token with development mode bypass
-    csrf_result = csrf_validate_with_dev_bypass(request, "email_disconnect")
-    if csrf_result:
-        return csrf_result
+    # Validate CSRF token
+    token_result = validate_csrf_token(request)
+    if token_result:
+        # If in development mode, bypass CSRF
+        if is_development_mode():
+            logger.info("Development mode: bypassing CSRF protection for email disconnect")
+        else:
+            return token_result
 
     try:
         # Standard authentication with development token support
         user = get_authenticated_user(request, allow_dev_tokens=True)
-
-        # Extract user ID using standard approach
         user_id = user['id']
-
-        # Standard use of DAL to update integration status
-        IntegrationDAL.update_integration_status(user_id=user_id,
-                                                 integration_type='email',
-                                                 status='inactive')
-
-        # Return standard success response
-        return success_response(
-            message="Email integration disconnected successfully")
-
+        
+        # Use standardized integration disconnection handler
+        return handle_integration_disconnect('email', user_id)
+        
     except AuthenticationError as e:
+        logger.warning(f"Authentication error in email disconnect: {str(e)}")
         return error_response(e)
     except ValidationError as e:
+        logger.warning(f"Validation error in email disconnect: {str(e)}")
         return error_response(e)
-    except DatabaseAccessError as e:
+    except IntegrationError as e:
+        logger.error(f"Integration error in email disconnect: {str(e)}")
         return error_response(e)
     except Exception as e:
-        logger.exception(f"Error disconnecting email integration: {str(e)}")
-        return error_response(
-            f"Error disconnecting email integration: {str(e)}")
+        logger.exception(f"Unexpected error in email disconnect: {str(e)}")
+        return error_response(f"Error disconnecting email integration: {str(e)}")
 
 
 @standard_email_bp.route('/api/v2/integrations/email/status', methods=['GET', 'OPTIONS'])
@@ -154,37 +143,29 @@ def email_status():
     try:
         # Standard authentication with development token support
         user = get_authenticated_user(request, allow_dev_tokens=True)
-
-        # Extract user ID using standard approach
         user_id = user['id']
 
-        # Standard use of DAL to get integration
-        integration = IntegrationDAL.get_integration_config(
-            user_id=user_id, integration_type='email')
-
-        if not integration:
-            return success_response(data={
-                'status': 'inactive',
-                'configured': False
-            })
-
-        # Standard response structure
-        return success_response(
-            data={
-                'status': integration['status'],
-                'configured': True,
-                'email': integration['config'].get('email', 'Not configured'),
-                'last_updated': integration['date_updated']
-            })
+        # Get integration status using standard utility
+        status_data = get_integration_status('email', user_id)
+        
+        # Add email-specific information if configured
+        if status_data.get('configured', False):
+            # Get the integration config using utility
+            integration = get_integration_config('email', user_id)
+            if integration and integration.get('config'):
+                status_data['email'] = integration['config'].get('email', 'Not configured')
+                
+        return success_response(data=status_data)
 
     except AuthenticationError as e:
+        logger.warning(f"Authentication error in email status: {str(e)}")
         return error_response(e)
-    except DatabaseAccessError as e:
+    except IntegrationError as e:
+        logger.error(f"Integration error in email status: {str(e)}")
         return error_response(e)
     except Exception as e:
-        logger.exception(f"Error getting email integration status: {str(e)}")
-        return error_response(
-            f"Error getting email integration status: {str(e)}")
+        logger.exception(f"Unexpected error in email status: {str(e)}")
+        return error_response(f"Error getting email integration status: {str(e)}")
 
 
 @standard_email_bp.route('/api/v2/integrations/email/test', methods=['GET', 'OPTIONS'])

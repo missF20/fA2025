@@ -13,7 +13,7 @@ from flask import jsonify, make_response, request, Response
 
 from utils.exceptions import IntegrationError, ValidationError
 from utils.response import success_response, error_response
-from utils.csrf import create_cors_preflight_response
+from utils.csrf import validate_csrf_token, create_cors_preflight_response
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -177,6 +177,27 @@ def handle_integration_connection(integration_type: str, user_id: str,
     except Exception as e:
         logger.error(f"Error connecting to {integration_type}: {str(e)}")
         return error_response(f"Failed to connect {integration_type} integration: {str(e)}", 500)
+
+def csrf_validate_with_dev_bypass(request, operation_name: str = "unknown") -> Optional[Response]:
+    """
+    Validate CSRF token with development mode bypass
+    
+    Args:
+        request: Flask request object
+        operation_name: Name of the operation for logging
+        
+    Returns:
+        Response: Error response if validation fails and not in dev mode, None otherwise
+    """
+    # Validate CSRF token
+    token_result = validate_csrf_token(request)
+    if token_result:
+        # If in development mode, bypass CSRF
+        if is_development_mode():
+            logger.info(f"Development mode: bypassing CSRF protection for {operation_name}")
+            return None
+        return token_result
+    return None
 
 def handle_integration_disconnect(integration_type: str, user_id: str) -> Tuple[Dict[str, Any], int]:
     """
