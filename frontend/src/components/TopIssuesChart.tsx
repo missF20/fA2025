@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TrendingUp, TrendingDown, HelpCircle, ChevronRight, BarChart3 } from 'lucide-react';
 
@@ -115,91 +115,91 @@ export function TopIssuesChart({ issues }: TopIssuesChartProps) {
               onClick={() => setSelectedIssue(selectedIssue === issueLabel ? null : issueLabel || null)}
               className="cursor-pointer"
             >
-            <div className="flex justify-between text-sm mb-1">
-              <div className="flex items-center">
-                <ChevronRight 
-                  size={14} 
-                  className={`mr-1 transform transition-transform ${
-                    selectedIssue === issueLabel ? 'rotate-90' : ''
-                  }`} 
-                />
-                <span className="text-gray-600">{issueLabel}</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                {getTrendComponent(issue.trend)}
-                <span className="text-gray-900 font-medium">{issue.count}</span>
-              </div>
-            </div>
-
-            {/* Progress bar or bar chart based on selected chart type */}
-            {chartType === 'progress' ? (
-              <div className="w-full bg-gray-100 rounded-full h-3">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${issue.percentage}%` }}
-                  transition={{ duration: 0.5 }}
-                  className={`${getIssueColor(issue.percentage)} h-3 rounded-full relative`}
-                >
-                  {/* Show percentage on hover */}
-                  <div 
-                    className="absolute right-0 -top-6 bg-gray-800 text-white text-xs px-1 py-0.5 rounded opacity-0 hover:opacity-100"
-                  >
-                    {Math.round(issue.percentage)}%
-                  </div>
-                </motion.div>
-              </div>
-            ) : (
-              <div className="h-20 w-full flex items-end space-x-1">
-                {/* Generate a simple bar chart visualization */}
-                {Array.from({ length: Math.min(10, Math.ceil(issue.percentage / 10)) }).map((_, i) => (
-                  <motion.div
-                    key={i}
-                    initial={{ height: 0 }}
-                    animate={{ height: `${Math.min(100, (i + 1) * 10)}%` }}
-                    transition={{ duration: 0.5, delay: i * 0.05 }}
-                    className={`flex-1 ${getIssueColor(issue.percentage)} rounded-t`}
+              <div className="flex justify-between text-sm mb-1">
+                <div className="flex items-center">
+                  <ChevronRight 
+                    size={14} 
+                    className={`mr-1 transform transition-transform ${
+                      selectedIssue === issueLabel ? 'rotate-90' : ''
+                    }`} 
                   />
-                ))}
+                  <span className="text-gray-600">{issueLabel}</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  {getTrendComponent(issue.trend)}
+                  <span className="text-gray-900 font-medium">{issue.count}</span>
+                </div>
               </div>
-            )}
 
-            {/* Expanded details for selected issue */}
-            <AnimatePresence>
-              {selectedIssue === issueLabel && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="mt-2 text-xs bg-gray-50 p-3 rounded"
-                >
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <div className="text-gray-500">Frequency</div>
-                      <div className="text-gray-900 font-medium">{issue.count} instances</div>
+              {/* Progress bar or bar chart based on selected chart type */}
+              {chartType === 'progress' ? (
+                <div className="w-full bg-gray-100 rounded-full h-3">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${issue.percentage}%` }}
+                    transition={{ duration: 0.5 }}
+                    className={`${getIssueColor(issue.percentage)} h-3 rounded-full relative`}
+                  >
+                    {/* Show percentage on hover */}
+                    <div 
+                      className="absolute right-0 -top-6 bg-gray-800 text-white text-xs px-1 py-0.5 rounded opacity-0 hover:opacity-100"
+                    >
+                      {Math.round(issue.percentage)}%
                     </div>
-                    <div>
-                      <div className="text-gray-500">Trend</div>
-                      <div className="text-gray-900 font-medium flex items-center">
-                        {getTrendComponent(issue.trend)}
-                        <span className="ml-1">from last period</span>
-                      </div>
-                    </div>
-                    {issue.platform && (
+                  </motion.div>
+                </div>
+              ) : (
+                <div className="h-20 w-full flex items-end space-x-1">
+                  {/* Generate a simple bar chart visualization */}
+                  {Array.from({ length: Math.min(10, Math.ceil(issue.percentage / 10)) }).map((_, i) => (
+                    <motion.div
+                      key={i}
+                      initial={{ height: 0 }}
+                      animate={{ height: `${Math.min(100, (i + 1) * 10)}%` }}
+                      transition={{ duration: 0.5, delay: i * 0.05 }}
+                      className={`flex-1 ${getIssueColor(issue.percentage)} rounded-t`}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {/* Expanded details for selected issue */}
+              <AnimatePresence>
+                {selectedIssue === issueLabel && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="mt-2 text-xs bg-gray-50 p-3 rounded"
+                  >
+                    <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <div className="text-gray-500">Platform</div>
-                        <div className="text-gray-900 font-medium capitalize">{issue.platform}</div>
+                        <div className="text-gray-500">Frequency</div>
+                        <div className="text-gray-900 font-medium">{issue.count} instances</div>
                       </div>
-                    )}
-                    <div>
-                      <div className="text-gray-500">Percentage</div>
-                      <div className="text-gray-900 font-medium">{Math.round(issue.percentage)}% of all issues</div>
+                      <div>
+                        <div className="text-gray-500">Trend</div>
+                        <div className="text-gray-900 font-medium flex items-center">
+                          {getTrendComponent(issue.trend)}
+                          <span className="ml-1">from last period</span>
+                        </div>
+                      </div>
+                      {issue.platform && (
+                        <div>
+                          <div className="text-gray-500">Platform</div>
+                          <div className="text-gray-900 font-medium capitalize">{issue.platform}</div>
+                        </div>
+                      )}
+                      <div>
+                        <div className="text-gray-500">Percentage</div>
+                        <div className="text-gray-900 font-medium">{Math.round(issue.percentage)}% of all issues</div>
+                      </div>
                     </div>
-                  </div>
-                  
-                  <div className="mt-2 pt-2 border-t border-gray-200">
-                    <span className="text-blue-600">View related conversations →</span>
-                  </div>
-                </motion.div>
+                    
+                    <div className="mt-2 pt-2 border-t border-gray-200">
+                      <span className="text-blue-600">View related conversations →</span>
+                    </div>
+                  </motion.div>
               )}
             </AnimatePresence>
           </motion.div>
