@@ -508,6 +508,16 @@ def register_blueprints():
         except ImportError as e:
             logger.warning(f"Could not register email integration blueprint: {e}")
             
+        # Register standardized integration blueprints
+        try:
+            from routes.integrations.standard_email import standard_email_bp
+            from routes.integrations.standard_google_analytics import standard_ga_bp
+            app.register_blueprint(standard_email_bp)
+            app.register_blueprint(standard_ga_bp)
+            logger.info("Standardized integration blueprints registered successfully")
+        except ImportError as e:
+            logger.warning(f"Could not register standardized integration blueprints: {e}")
+            
         try:
             from routes.api_endpoints import api_endpoints_bp
             app.register_blueprint(api_endpoints_bp)
