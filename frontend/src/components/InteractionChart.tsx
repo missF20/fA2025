@@ -150,10 +150,10 @@ export function InteractionChart({ data }: InteractionChartProps) {
     let currentAngle = 0;
     
     return (
-      <div className="relative w-full flex justify-center">
+      <div className="relative w-full flex justify-center overflow-hidden mx-auto" style={{ maxWidth: '250px', maxHeight: '250px' }}>
         <svg 
           viewBox="0 0 100 100" 
-          className="transform -rotate-90 max-w-[250px]"
+          className="transform -rotate-90 w-full h-full"
           onMouseLeave={() => setShowTooltip(null)}
         >
           <circle
@@ -220,6 +220,7 @@ export function InteractionChart({ data }: InteractionChartProps) {
                     textAnchor="middle"
                     dominantBaseline="middle"
                     transform={`rotate(${midAngle + 90}, ${labelX}, ${labelY})`}
+                    style={{ pointerEvents: 'none' }}
                   >
                     {Math.round(percentage)}%
                   </text>
@@ -265,10 +266,14 @@ export function InteractionChart({ data }: InteractionChartProps) {
               exit={{ opacity: 0 }}
               className="absolute z-10 bg-black bg-opacity-80 text-white rounded px-2 py-1 text-xs"
               style={{ 
-                left: `${tooltipPosition.x}px`, 
+                left: `min(max(${tooltipPosition.x}px, 50px), calc(100% - 50px))`, 
                 top: `${tooltipPosition.y - 40}px`,
                 transform: 'translate(-50%, -100%)',
-                pointerEvents: 'none'
+                pointerEvents: 'none',
+                maxWidth: '150px',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
               }}
             >
               {enhancedData.find(d => d.type === showTooltip)?.type}: {' '}
@@ -504,14 +509,14 @@ export function InteractionChart({ data }: InteractionChartProps) {
         </div>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 overflow-hidden">
         <div className="md:col-span-3">
           {chartType === 'pie' && renderPieChart()}
           {chartType === 'bar' && renderBarChart()}
           {chartType === 'line' && renderLineChart()}
         </div>
         
-        <div className="md:col-span-2">
+        <div className="md:col-span-2 overflow-hidden">
           <div className="space-y-2">
             <h4 className="text-sm font-medium text-gray-700">Platforms</h4>
             
