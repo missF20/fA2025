@@ -252,7 +252,7 @@ export default function AnalyticsDashboard() {
           </div>
           {expandedSection === 'sentiment' && (
             <div className="p-4 bg-white">
-              <SentimentAnalysis data={sentimentData} />
+              <SentimentAnalysis data={typedSentimentData} />
             </div>
           )}
         </div>

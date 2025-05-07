@@ -154,9 +154,17 @@ try:
     
     # Define dummy functions to replace the missing ones
     def add_direct_email_integration_routes():
-        """Dummy function that returns success to prevent errors."""
-        logger.info("Using dummy add_direct_email_integration_routes function")
-        return True
+        """Add direct email integration routes to the application."""
+        try:
+            # Import function from direct email integration routes
+            from direct_email_integration_routes import add_direct_email_integration_routes as add_routes
+            add_routes(app)
+            logger.info("Email integration routes added from direct_email_integration_routes.py")
+            return True
+        except Exception as e:
+            logger.error(f"Error importing direct_email_integration_routes: {str(e)}")
+            logger.info("Using dummy add_direct_email_integration_routes function")
+            return True
         
     logger.info("Email integration using standard_email_bp")
 except Exception as e:
