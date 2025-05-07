@@ -271,7 +271,7 @@ export default function AnalyticsDashboard() {
           </div>
           {expandedSection === 'issues' && (
             <div className="p-4 bg-white">
-              <TopIssuesChart data={topIssuesData} />
+              <TopIssuesChart issues={topIssuesData} />
             </div>
           )}
         </div>
