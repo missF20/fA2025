@@ -17,6 +17,15 @@ from flask_wtf.csrf import CSRFProtect
 # from flask_limiter.util import get_remote_address
 from sqlalchemy.orm import DeclarativeBase
 
+# Import standardized utilities
+try:
+    from utils.error_handlers import register_error_handlers
+except ImportError:
+    # Fallback if the module is not available
+    def register_error_handlers(app):
+        """Fallback for missing error handlers module"""
+        pass
+
 # Import API protection utilities
 try:
     from utils.api_protection import register_security_middleware
