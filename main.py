@@ -133,6 +133,7 @@ except Exception as e:
         else:
             logger.error("Failed to add email integration routes with V11 fallback")
     except Exception as fallback_error:
+        logger.error(f"Error with email integration fallback: {str(fallback_error)}")
         # Try falling back to V10 if both V12 and V11 fail
         try:
             logger.warning(f"Error with V11 email integration fix: {str(fallback_error)}, trying V10 as fallback")
@@ -155,6 +156,16 @@ except Exception as e:
                 if not 'logger' in locals():
                     logger = logging.getLogger(__name__)
                 logger.error(f"Error setting up email integration routes: {str(final_error)}")
+
+# Add direct Google Analytics routes
+try:
+    from direct_google_analytics_fix import add_direct_google_analytics_routes
+    if add_direct_google_analytics_routes(app):
+        logger.info("Google Analytics direct routes added successfully")
+    else:
+        logger.error("Failed to add Google Analytics direct routes")
+except Exception as ga_error:
+    logger.error(f"Error adding Google Analytics direct routes: {str(ga_error)}")
 
 # Add direct Google Analytics integration connect endpoint
 @app.route('/api/integrations/connect/google_analytics', methods=['POST', 'OPTIONS'])
