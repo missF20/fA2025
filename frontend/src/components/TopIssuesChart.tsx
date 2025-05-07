@@ -3,6 +3,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { TrendingUp, TrendingDown, HelpCircle, ChevronRight, BarChart3 } from 'lucide-react';
 import type { TopIssue } from '../types';
 
+// Extend TopIssue to include issue property for component compatibility
+interface ChartIssue extends Omit<TopIssue, 'issue'> {
+  issue: string;
+}
+
 interface TopIssuesChartProps {
   issues: TopIssue[];
 }

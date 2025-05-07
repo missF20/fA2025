@@ -211,12 +211,12 @@ export interface EscalatedTask {
 
 export interface TopIssue {
   id?: string;
-  issue?: string;
-  name?: string; // Alternative for issue
-  count: number;
-  trend: number;
-  percentage: number;
-  platform?: string;
+  issue: string; // The main issue label
+  name?: string; // Alternative for issue (for API compatibility)
+  count: number; // Number of occurrences
+  trend: number; // Percentage change from previous period
+  percentage: number; // Percentage of total issues
+  platform?: string; // Source platform of the issue
 }
 
 // Support and Feedback Types

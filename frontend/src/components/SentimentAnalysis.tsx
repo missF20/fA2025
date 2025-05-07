@@ -1,7 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Smile, Meh, Frown, Info, HelpCircle, BarChart, PieChart } from 'lucide-react';
-import { Cell, Pie, PieChart as RechartsPieChart, ResponsiveContainer, Sector } from 'recharts';
+// Import recharts with explicit types
+import { 
+  Cell, 
+  Pie, 
+  PieChart as RechartsPieChart, 
+  ResponsiveContainer, 
+  Sector, 
+  PieLabelRenderProps 
+} from 'recharts';
 
 interface SentimentData {
   id: string;
@@ -58,10 +66,31 @@ export function SentimentAnalysis({ data }: SentimentAnalysisProps) {
     trend: item.trend,
   }));
 
-  // Custom active shape for donut/pie chart
-  const renderActiveShape = (props: any) => {
+  // TypeScript interface for active shape props from recharts
+  interface ActiveShapeProps {
+    cx: number;
+    cy: number;
+    innerRadius: number;
+    outerRadius: number;
+    startAngle: number;
+    endAngle: number;
+    fill: string;
+    payload: {
+      name: string;
+      value: number;
+      color: string;
+      percentage: number;
+      trend: number;
+    };
+    percent: number;
+    value: number;
+  }
+
+  // Custom active shape for donut/pie chart with proper typing
+  const renderActiveShape = (props: ActiveShapeProps) => {
     const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill, payload, percent } = props;
     
+    // Use recharts components directly as function calls to avoid JSX typing issues
     return (
       <g>
         <text x={cx} y={cy} dy={0} textAnchor="middle" fill="#374151" fontSize={12} fontWeight="medium">
@@ -70,24 +99,24 @@ export function SentimentAnalysis({ data }: SentimentAnalysisProps) {
         <text x={cx} y={cy + 16} dy={0} textAnchor="middle" fill="#6B7280" fontSize={10}>
           {`${(percent * 100).toFixed(1)}%`}
         </text>
-        <Sector
-          cx={cx}
-          cy={cy}
-          innerRadius={innerRadius}
-          outerRadius={outerRadius + 5}
-          startAngle={startAngle}
-          endAngle={endAngle}
-          fill={fill}
-        />
-        <Sector
-          cx={cx}
-          cy={cy}
-          startAngle={startAngle}
-          endAngle={endAngle}
-          innerRadius={outerRadius + 6}
-          outerRadius={outerRadius + 8}
-          fill={fill}
-        />
+        {Sector({
+          cx,
+          cy,
+          innerRadius,
+          outerRadius: outerRadius + 5,
+          startAngle,
+          endAngle,
+          fill
+        })}
+        {Sector({
+          cx,
+          cy,
+          startAngle,
+          endAngle,
+          innerRadius: outerRadius + 6,
+          outerRadius: outerRadius + 8,
+          fill
+        })}
       </g>
     );
   };
