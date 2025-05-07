@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Facebook, Instagram, MessageCircle, Loader2, ArrowRight } from 'lucide-react';
+import { Facebook, Instagram, MessageCircle, Loader2, ArrowRight, CheckCircle } from 'lucide-react';
 import type { SubscriptionTier } from '../types';
 import { PaymentProcessor } from './PaymentProcessor';
+import SocialMediaConnect from './SocialMediaConnect';
 
 interface SubscriptionTierSelectorProps {
   onComplete: (tierId: string) => Promise<void>;
@@ -18,6 +19,7 @@ export function SubscriptionTierSelector({ onComplete, onSkip }: SubscriptionTie
   const [showPlatformConnect, setShowPlatformConnect] = useState(false);
   const [showPaymentProcessor, setShowPaymentProcessor] = useState(false);
   const [selectedTier, setSelectedTier] = useState<SubscriptionTier | null>(null);
+  const [connectedPlatforms, setConnectedPlatforms] = useState<string[]>([]);
 
   useEffect(() => {
     async function fetchSubscriptionTiers() {
@@ -76,6 +78,11 @@ export function SubscriptionTierSelector({ onComplete, onSkip }: SubscriptionTie
   const handlePaymentCancel = () => {
     // Go back to plan selection
     setShowPaymentProcessor(false);
+  };
+  
+  const handlePlatformConnected = (platform: string) => {
+    // Add the platform to the list of connected platforms
+    setConnectedPlatforms(prev => [...prev, platform]);
   };
 
   const getPlatformIcon = (platform: string) => {
