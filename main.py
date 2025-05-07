@@ -123,6 +123,16 @@ try:
     app.register_blueprint(standard_email_bp)
     logger.info("Standard email blueprint registered successfully")
     
+    # Also add direct standardized email routes for more reliability
+    try:
+        from direct_standard_email_fix import register_direct_standard_email_routes
+        if register_direct_standard_email_routes():
+            logger.info("Direct standardized email routes added successfully")
+        else:
+            logger.warning("Failed to add direct standardized email routes")
+    except Exception as e:
+        logger.warning(f"Error adding direct standardized email routes: {str(e)}")
+    
     # Define a dummy function to replace the original
     def add_direct_email_integration_routes():
         """Disabled function to prevent direct email routes."""
@@ -132,6 +142,16 @@ try:
     logger.info("Email integration using standard_email_bp")
 except Exception as e:
     logger.error(f"Error setting up email integration: {str(e)}")
+    
+    # Try direct standardized email routes first
+    try:
+        from direct_standard_email_fix import register_direct_standard_email_routes
+        if register_direct_standard_email_routes():
+            logger.info("Direct standardized email routes added successfully (fallback)")
+        else:
+            logger.warning("Failed to add direct standardized email routes (fallback)")
+    except Exception as std_error:
+        logger.warning(f"Error adding direct standardized email routes: {str(std_error)}")
     
     # Fall back to direct import if standard_email_bp fails
     try:
