@@ -84,7 +84,7 @@ export function InteractionChart({ data }: InteractionChartProps) {
   if (!data || data.length === 0) {
     return (
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Interactions by Platform</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Interactions</h3>
         <div className="flex flex-col items-center justify-center h-48">
           <PieChart size={48} className="text-gray-300 mb-4" />
           <p className="text-gray-500 text-center">No interaction data available</p>
@@ -453,7 +453,7 @@ export function InteractionChart({ data }: InteractionChartProps) {
   return (
     <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
       <div className="flex justify-between items-center mb-6">
-        <h3 className="text-lg font-semibold text-gray-900">Interactions by Platform</h3>
+        <h3 className="text-lg font-semibold text-gray-900">Interactions</h3>
         
         <div className="flex space-x-2">
           {/* Chart Type Toggle */}
