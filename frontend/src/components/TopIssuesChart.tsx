@@ -203,7 +203,7 @@ export function TopIssuesChart({ issues }: TopIssuesChartProps) {
               )}
             </AnimatePresence>
           </motion.div>
-            )}
+        ))}
       </div>
     </div>
   );
