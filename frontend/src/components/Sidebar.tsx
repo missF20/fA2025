@@ -46,12 +46,6 @@ export function Sidebar({ currentSection, onSectionChange }: SidebarProps) {
         className="p-4 border-b border-gray-200/50"
       >
         <div className="flex items-center gap-3">
-          <motion.div
-            whileHover={{ scale: 1.1, rotate: 360 }}
-            transition={{ duration: 0.5 }}
-          >
-            <BrainCircuit className="text-blue-600" size={32} />
-          </motion.div>
           <div>
             <h2 className="font-semibold text-gray-900">DANA AI</h2>
             <p className="text-sm text-gray-500">Dashboard</p>
