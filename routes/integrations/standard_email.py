@@ -41,12 +41,7 @@ def connect_email():
     """
     # Standard CORS handling for OPTIONS requests
     if request.method == 'OPTIONS':
-        response = jsonify({"status": "success"})
-        response.headers.add('Access-Control-Allow-Methods', 'POST, OPTIONS')
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-        response.headers.add('Access-Control-Allow-Origin', '*')
-        response.headers.add('Access-Control-Allow-Credentials', 'true')
-        return response
+        return create_cors_preflight_response("POST, OPTIONS")
         
     # Validate CSRF token with development mode bypass
     csrf_result = csrf_validate_with_dev_bypass(request, "email_connect")
@@ -109,12 +104,7 @@ def disconnect_email():
     """
     # Standard CORS handling for OPTIONS requests
     if request.method == 'OPTIONS':
-        response = jsonify({"status": "success"})
-        response.headers.add('Access-Control-Allow-Methods', 'POST, OPTIONS')
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-        response.headers.add('Access-Control-Allow-Origin', '*')
-        response.headers.add('Access-Control-Allow-Credentials', 'true')
-        return response
+        return create_cors_preflight_response("POST, OPTIONS")
         
     # Validate CSRF token with development mode bypass
     csrf_result = csrf_validate_with_dev_bypass(request, "email_disconnect")
@@ -159,12 +149,7 @@ def email_status():
     """
     # Standard CORS handling for OPTIONS requests
     if request.method == 'OPTIONS':
-        response = jsonify({"status": "success"})
-        response.headers.add('Access-Control-Allow-Methods', 'GET, OPTIONS')
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-        response.headers.add('Access-Control-Allow-Origin', '*')
-        response.headers.add('Access-Control-Allow-Credentials', 'true')
-        return response
+        return create_cors_preflight_response("GET, OPTIONS")
 
     try:
         # Standard authentication with development token support
@@ -213,12 +198,7 @@ def test_email():
     """
     # Standard CORS handling for OPTIONS requests
     if request.method == 'OPTIONS':
-        response = jsonify({"status": "success"})
-        response.headers.add('Access-Control-Allow-Methods', 'GET, OPTIONS')
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-        response.headers.add('Access-Control-Allow-Origin', '*')
-        response.headers.add('Access-Control-Allow-Credentials', 'true')
-        return response
+        return create_cors_preflight_response("GET, OPTIONS")
 
     # Simple test endpoint that doesn't require authentication
     return success_response(

@@ -10,6 +10,7 @@ import logging
 import os
 from pathlib import Path
 from flask import jsonify, request, session
+from utils.integration_utils import create_cors_preflight_response, is_development_mode
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -37,12 +38,7 @@ def register_direct_standard_email_routes():
             """Direct standardized endpoint for testing email integration"""
             # Standard CORS handling for OPTIONS requests
             if request.method == 'OPTIONS':
-                response = jsonify({"status": "success"})
-                response.headers.add('Access-Control-Allow-Methods', 'GET, OPTIONS')
-                response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-                response.headers.add('Access-Control-Allow-Origin', '*')
-                response.headers.add('Access-Control-Allow-Credentials', 'true')
-                return response
+                return create_cors_preflight_response('GET, OPTIONS')
             
             # Simple test endpoint that doesn't require authentication
             return success_response(
@@ -55,12 +51,7 @@ def register_direct_standard_email_routes():
             """Direct standardized endpoint for checking email integration status"""
             # Standard CORS handling for OPTIONS requests
             if request.method == 'OPTIONS':
-                response = jsonify({"status": "success"})
-                response.headers.add('Access-Control-Allow-Methods', 'GET, OPTIONS')
-                response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-                response.headers.add('Access-Control-Allow-Origin', '*')
-                response.headers.add('Access-Control-Allow-Credentials', 'true')
-                return response
+                return create_cors_preflight_response('GET, OPTIONS')
 
             try:
                 # Standard authentication with development token support
