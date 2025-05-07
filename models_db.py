@@ -468,3 +468,150 @@ class UserActivity(db.Model):
     
     def __repr__(self):
         return f'<UserActivity {self.id}: {self.user_id} - {self.activity_type}>'
+
+class LearningPath(db.Model):
+    """Learning path model for personalized learning journeys"""
+    __tablename__ = 'learning_paths'
+    
+    id = db.Column(db.String(36), primary_key=True)
+    user_id = db.Column(db.String(36), nullable=False, index=True)
+    title = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.String(1000))
+    category = db.Column(db.String(100))
+    difficulty = db.Column(db.String(20))  # beginner, intermediate, advanced
+    estimated_hours = db.Column(db.Float)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    is_active = db.Column(db.Boolean, default=True)
+    meta_data = db.Column(db.JSON)
+    
+    # Relationships
+    modules = db.relationship("LearningModule", backref="learning_path", cascade="all, delete-orphan")
+    
+    def __repr__(self):
+        return f"<LearningPath {self.id}: {self.title}>"
+    
+    def to_dict(self):
+        """Convert to dictionary for API responses"""
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "title": self.title,
+            "description": self.description,
+            "category": self.category,
+            "difficulty": self.difficulty,
+            "estimated_hours": self.estimated_hours,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            "is_active": self.is_active,
+            "meta_data": self.meta_data,
+            "modules": [module.to_dict() for module in self.modules] if self.modules else []
+        }
+
+class LearningModule(db.Model):
+    """Learning module model for components of a learning path"""
+    __tablename__ = 'learning_modules'
+    
+    id = db.Column(db.String(36), primary_key=True)
+    learning_path_id = db.Column(db.String(36), db.ForeignKey('learning_paths.id'), nullable=False)
+    title = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.String(1000))
+    order_index = db.Column(db.Integer, nullable=False)
+    content_type = db.Column(db.String(50))  # video, text, quiz, interactive
+    duration_minutes = db.Column(db.Integer)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    meta_data = db.Column(db.JSON)
+    
+    # Relationships
+    activities = db.relationship("LearningActivity", backref="module", cascade="all, delete-orphan")
+    
+    def __repr__(self):
+        return f"<LearningModule {self.id}: {self.title}>"
+    
+    def to_dict(self):
+        """Convert to dictionary for API responses"""
+        return {
+            "id": self.id,
+            "learning_path_id": self.learning_path_id,
+            "title": self.title,
+            "description": self.description,
+            "order_index": self.order_index,
+            "content_type": self.content_type,
+            "duration_minutes": self.duration_minutes,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "meta_data": self.meta_data,
+            "activities": [activity.to_dict() for activity in self.activities] if self.activities else []
+        }
+
+class LearningActivity(db.Model):
+    """Learning activity model for individual learning tasks"""
+    __tablename__ = 'learning_activities'
+    
+    id = db.Column(db.String(36), primary_key=True)
+    module_id = db.Column(db.String(36), db.ForeignKey('learning_modules.id'), nullable=False)
+    title = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.String(1000))
+    order_index = db.Column(db.Integer, nullable=False)
+    activity_type = db.Column(db.String(50))  # reading, exercise, reflection, quiz
+    content = db.Column(db.Text)
+    estimated_minutes = db.Column(db.Integer)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    meta_data = db.Column(db.JSON)
+    
+    # Relationships
+    user_progress = db.relationship("UserLearningProgress", backref="activity", cascade="all, delete-orphan")
+    
+    def __repr__(self):
+        return f"<LearningActivity {self.id}: {self.title}>"
+    
+    def to_dict(self):
+        """Convert to dictionary for API responses"""
+        return {
+            "id": self.id,
+            "module_id": self.module_id,
+            "title": self.title,
+            "description": self.description,
+            "order_index": self.order_index,
+            "activity_type": self.activity_type,
+            "content": self.content,
+            "estimated_minutes": self.estimated_minutes,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "meta_data": self.meta_data
+        }
+
+class UserLearningProgress(db.Model):
+    """User learning progress model for tracking completion"""
+    __tablename__ = 'user_learning_progress'
+    
+    id = db.Column(db.String(36), primary_key=True)
+    user_id = db.Column(db.String(36), nullable=False, index=True)
+    activity_id = db.Column(db.String(36), db.ForeignKey('learning_activities.id'), nullable=False)
+    status = db.Column(db.String(20), default='not_started')  # not_started, in_progress, completed
+    progress_percentage = db.Column(db.Float, default=0.0)
+    start_date = db.Column(db.DateTime)
+    completion_date = db.Column(db.DateTime)
+    time_spent_minutes = db.Column(db.Integer, default=0)
+    notes = db.Column(db.String(1000))
+    quiz_score = db.Column(db.Float)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def __repr__(self):
+        return f"<UserLearningProgress {self.id}: {self.user_id} - {self.activity_id}>"
+    
+    def to_dict(self):
+        """Convert to dictionary for API responses"""
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "activity_id": self.activity_id,
+            "status": self.status,
+            "progress_percentage": self.progress_percentage,
+            "start_date": self.start_date.isoformat() if self.start_date else None,
+            "completion_date": self.completion_date.isoformat() if self.completion_date else None,
+            "time_spent_minutes": self.time_spent_minutes,
+            "notes": self.notes,
+            "quiz_score": self.quiz_score,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None
+        }
