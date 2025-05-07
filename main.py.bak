@@ -155,7 +155,7 @@ except Exception as e:
     
     # Fall back to direct import if standard_email_bp fails
     try:
-        # Removed import of test file or direct fix (by migration 005_update_main_imports)
+        from direct_email_integration_fix_v12 import add_direct_email_integration_routes
         
         if add_direct_email_integration_routes():
             logger.info("Email integration routes added successfully with fixed result handling")
@@ -165,7 +165,7 @@ except Exception as e:
         # Try falling back to V11 if V12 fails
         try:
             logger.warning(f"Error with V12 email integration fix: {str(e)}, trying V11 as fallback")
-            # Removed import of test file or direct fix (by migration 005_update_main_imports)
+            from direct_email_integration_fix_v11 import add_direct_email_integration_routes
             
             if add_direct_email_integration_routes():
                 logger.info("Email integration routes added successfully with V11 fallback")
@@ -176,7 +176,7 @@ except Exception as e:
             # Try falling back to V10 if both V12 and V11 fail
             try:
                 logger.warning(f"Error with V11 email integration fix: {str(fallback_error)}, trying V10 as fallback")
-                # Removed import of test file or direct fix (by migration 005_update_main_imports)
+                from direct_email_integration_fix_v10 import add_direct_email_integration_routes
                 if add_direct_email_integration_routes():
                     logger.info("Email integration routes added successfully with V10 fallback")
                 else:
@@ -185,7 +185,7 @@ except Exception as e:
                 # Try falling back to V9 if all other versions fail
                 try:
                     logger.warning(f"Error with V10 email integration fix: {str(second_fallback_error)}, trying V9 as fallback")
-                    # Removed import of test file or direct fix (by migration 005_update_main_imports)
+                    from direct_email_integration_fix_v9 import add_direct_email_integration_routes
                     if add_direct_email_integration_routes():
                         logger.info("Email integration routes added successfully with V9 fallback")
                     else:
@@ -198,7 +198,7 @@ except Exception as e:
 
 # Add direct Google Analytics routes
 try:
-    # Removed import of test file or direct fix (by migration 005_update_main_imports)
+    from direct_google_analytics_fix import add_direct_google_analytics_routes
     if add_direct_google_analytics_routes(app):
         logger.info("Google Analytics direct routes added successfully")
     else:
@@ -208,12 +208,12 @@ except Exception as ga_error:
 
 # Add direct routes for all standardized integrations
 try:
-    # Removed import of test file or direct fix (by migration 005_update_main_imports)
+    from direct_standard_integrations_fix import add_direct_standard_integration_routes
     if add_direct_standard_integration_routes(app):
         logger.info("Direct routes for standardized integrations added successfully")
         
     # Add the endpoint that returns all integrations statuses
-    # Removed import of test file or direct fix (by migration 005_update_main_imports)
+    from direct_integrations_status_fix import add_all_integrations_status_endpoint
     if add_all_integrations_status_endpoint(app):
         logger.info("All integrations status endpoint added successfully")
     else:
@@ -3034,8 +3034,8 @@ def direct_integrations_status():
     integrations = []
     
     # Add Slack integration (use the same function from routes)
-    # Removed import from routes.integrations.routes (by migration 005_update_main_imports)
-    slack_status = None # Removed call to test file or direct fix (by migration 005_update_main_imports)
+    from routes.integrations.routes import check_slack_status
+    slack_status = check_slack_status()
     integrations.append({
         'id': 'slack',
         'type': IntegrationType.SLACK.value,
@@ -3410,23 +3410,6 @@ def toggle_email_connect():
             'message': f'Error connecting email: {str(e)}'
         }), 500
 
-
-# Use the centralized integration registration system (added by migration 005_update_main_imports)
-try:
-    # Import the migration manager to register integrations
-    from utils.migration_manager import MigrationManager
-    
-    # Create a migration manager instance
-    migration_manager = MigrationManager(app)
-    
-    # Register standard integration blueprints
-    migration_manager.run_migration_by_name(
-        'integration_standardization', 
-        '001_create_centralized_registration'
-    )
-    logger.info("Registered standard integration blueprints via migration manager")
-except Exception as e:
-    logger.error(f"Error registering standard integration blueprints: {str(e)}")
 # Updated email disconnect endpoint
 @app.route('/api/toggle/integrations/email/disconnect', methods=['POST', 'OPTIONS'])
 def toggle_email_disconnect():
