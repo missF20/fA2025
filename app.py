@@ -345,6 +345,15 @@ def status():
     
     return jsonify(status_info)
 
+@app.route('/api/visualization/dashboard', methods=['GET'])
+def dashboard_data():
+    """
+    Temporary API endpoint for dashboard visualization data
+    This is a temporary endpoint until the proper API endpoints are fully implemented
+    """
+    from utils.mock_dashboard_data import get_mock_dashboard_data
+    return jsonify(get_mock_dashboard_data())
+
 # Load user for Flask-Login
 @login_manager.user_loader
 def load_user(user_id):
