@@ -4,9 +4,23 @@ import { useToast } from '../hooks/useToast';
 
 interface SocialMediaConnectProps {
   onConnected?: (platform: string) => void;
+  onComplete?: () => void;
+  availablePlatforms?: string[];
+  subscription?: {
+    id: string;
+    name: string;
+    price: number;
+    tokenLimit: number;
+    description: string;
+  };
 }
 
-export function SocialMediaConnect({ onConnected }: SocialMediaConnectProps) {
+export function SocialMediaConnect({ 
+  onConnected, 
+  onComplete,
+  availablePlatforms = ['facebook', 'instagram', 'whatsapp'],
+  subscription
+}: SocialMediaConnectProps) {
   const [isConnecting, setIsConnecting] = useState<string | null>(null);
   const { showToast } = useToast();
 
@@ -37,6 +51,11 @@ export function SocialMediaConnect({ onConnected }: SocialMediaConnectProps) {
         showToast(`Successfully connected to ${platform}!`, 'success');
         if (onConnected) {
           onConnected(platform);
+        }
+        
+        // Call the onComplete callback if provided (used by SocialMediaPreview)
+        if (onComplete) {
+          onComplete();
         }
       }
     }, { once: true });

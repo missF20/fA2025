@@ -15,6 +15,7 @@ import { NewUserSetupPrompt } from './components/NewUserSetupPrompt';
 import { KnowledgeBase } from './components/KnowledgeBase';
 // SlackDashboard is now accessed through the Integrations component
 import { SubscriptionTierSelector } from './components/SubscriptionTierSelector';
+import { SocialMediaPreview } from './components/SocialMediaPreview';
 import { ProfileMenu } from './components/ProfileMenu';
 import { Subscriptions } from './components/Subscriptions';
 import { useMetrics } from './hooks/useMetrics';
@@ -426,7 +427,14 @@ function App() {
           {currentSection === 'support' && <Support />}
           {currentSection === 'subscriptions' && <Subscriptions />}
           {currentSection === 'integrations' && <Integrations />}
-          {currentSection === 'social-preview' && <SocialMediaPreview />}
+          {currentSection === 'social-preview' && (
+            <div className="p-8">
+              <h1 className="text-2xl font-bold text-gray-900 mb-6">Social Media Connection Preview</h1>
+              <div className="bg-white p-6 rounded-lg shadow-md">
+                <SocialMediaPreview />
+              </div>
+            </div>
+          )}
         </motion.div>
       </AnimatePresence>
     );

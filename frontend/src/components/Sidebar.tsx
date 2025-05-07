@@ -8,7 +8,8 @@ import {
   LogOut,
   FileText,
   BrainCircuit,
-  CreditCard
+  CreditCard,
+  Facebook
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { supabase } from '../lib/supabase';
@@ -30,6 +31,7 @@ export function Sidebar({ currentSection, onSectionChange }: SidebarProps) {
     { id: 'support', icon: <HelpCircle size={20} />, label: 'Support' },
     { id: 'subscriptions', icon: <CreditCard size={20} />, label: 'Subscriptions' },
     { id: 'integrations', icon: <Share2 size={20} />, label: 'Integrations' },
+    { id: 'social-preview', icon: <Facebook size={20} />, label: 'Social Media Preview' },
   ];
 
   return (
