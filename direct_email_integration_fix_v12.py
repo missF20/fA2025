@@ -58,6 +58,30 @@ def add_direct_email_integration_routes():
             
             # Save the integration configuration
             try:
+                # Special development case - bypass CSRF validation in development mode
+                is_dev = (os.environ.get('FLASK_ENV') == 'development' or 
+                         os.environ.get('DEVELOPMENT_MODE') == 'true' or
+                         os.environ.get('APP_ENV') == 'development')
+                
+                if not is_dev:
+                    # Check for CSRF token in production
+                    csrf_token = data.get('csrf_token')
+                    if not csrf_token:
+                        logger.warning("CSRF token missing in request data")
+                        return jsonify({'error': 'CSRF token is required', 'code': 'csrf_missing'}), 400
+                    
+                    # Validate CSRF token against session
+                    from flask import session
+                    if '_csrf_token' not in session or session.get('_csrf_token') != csrf_token:
+                        logger.warning(f"CSRF token validation failed: {csrf_token} vs {session.get('_csrf_token', 'None')}")
+                        return jsonify({'error': 'Invalid CSRF token', 'code': 'csrf_invalid'}), 400
+                else:
+                    logger.info("Development mode detected, skipping CSRF validation")
+                
+                # Remove CSRF token from data before storing
+                if 'csrf_token' in data:
+                    del data['csrf_token']
+                    
                 conn = get_direct_connection()
                 cursor = conn.cursor()
                 

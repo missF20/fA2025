@@ -377,7 +377,7 @@ def direct_email_connect():
     # Import database models and auth utilities 
     from models_db import User
     from app import db
-    from flask import g
+    from flask import g, session
     
     # Validate the token
     auth_result = validate_token(auth_header)
@@ -390,6 +390,42 @@ def direct_email_connect():
         
     # Set the user for the request context (mimicking @token_required decorator)
     g.user = auth_result['user']
+    
+    # Special development case - bypass CSRF validation in development mode
+    is_dev = (os.environ.get('FLASK_ENV') == 'development' or 
+             os.environ.get('DEVELOPMENT_MODE') == 'true' or
+             os.environ.get('APP_ENV') == 'development')
+    
+    # Get JSON data from the request
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+    
+    if not is_dev:
+        # Check for CSRF token in production
+        csrf_token = data.get('csrf_token')
+        if not csrf_token:
+            logger.warning("CSRF token missing in request data")
+            return jsonify({
+                'success': False,
+                'message': 'CSRF token is required',
+                'code': 'csrf_missing'
+            }), 400
+        
+        # Validate CSRF token against session
+        if '_csrf_token' not in session or session.get('_csrf_token') != csrf_token:
+            logger.warning(f"CSRF token validation failed: {csrf_token} vs {session.get('_csrf_token', 'None')}")
+            return jsonify({
+                'success': False,
+                'message': 'Invalid CSRF token',
+                'code': 'csrf_invalid'
+            }), 400
+    else:
+        logger.info("Development mode detected, skipping CSRF validation")
+    
+    # Remove CSRF token from data before storing
+    if data and 'csrf_token' in data:
+        del data['csrf_token']
             
     try:
         logger.info("Email connect endpoint called directly")
