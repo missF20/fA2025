@@ -512,9 +512,22 @@ def register_blueprints():
         try:
             from routes.integrations.standard_email import standard_email_bp
             from routes.integrations.standard_google_analytics import standard_ga_bp
+            from routes.integrations.standard_hubspot import hubspot_standard_bp
+            from routes.integrations.standard_salesforce import salesforce_standard_bp
+            from routes.integrations.standard_shopify import shopify_standard_bp
+            from routes.integrations.standard_slack import slack_standard_bp
+            from routes.integrations.standard_zendesk import zendesk_standard_bp
+            
+            # Register all standard blueprints
             app.register_blueprint(standard_email_bp)
             app.register_blueprint(standard_ga_bp)
-            logger.info("Standardized integration blueprints registered successfully")
+            app.register_blueprint(hubspot_standard_bp)
+            app.register_blueprint(salesforce_standard_bp)
+            app.register_blueprint(shopify_standard_bp)
+            app.register_blueprint(slack_standard_bp)
+            app.register_blueprint(zendesk_standard_bp)
+            
+            logger.info("All standardized integration blueprints registered successfully")
         except ImportError as e:
             logger.warning(f"Could not register standardized integration blueprints: {e}")
             
