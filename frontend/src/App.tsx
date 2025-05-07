@@ -429,7 +429,7 @@ function App() {
           {currentSection === 'integrations' && <Integrations />}
           {currentSection === 'social-preview' && (
             <div className="p-8">
-              <h1 className="text-2xl font-bold text-gray-900 mb-6">Social Media Connection Preview</h1>
+              <h1 className="text-2xl font-bold text-gray-900 mb-6">Socials</h1>
               <div className="bg-white p-6 rounded-lg shadow-md">
                 <SocialMediaPreview />
               </div>
