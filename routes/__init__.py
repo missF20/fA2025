@@ -20,6 +20,7 @@ from .integrations.salesforce import salesforce_bp
 
 # Import standardized integration modules
 from .integrations.standard_email import standard_email_bp
+from .integrations.standard_google_analytics import standard_ga_bp
 
 # Import core modules that will be needed in the application 
 from .slack import slack_bp as slack_main_bp  # Renaming to avoid conflicts
@@ -37,7 +38,8 @@ blueprints = [
     knowledge_binary_bp,
     integrations_bp,
     email_integration_bp,
-    standard_email_bp,  # Add standardized email blueprint
+    standard_email_bp,      # Standardized email blueprint
+    standard_ga_bp,         # Standardized Google Analytics blueprint
     hubspot_bp,
     salesforce_bp,
     slack_main_bp
