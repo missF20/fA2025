@@ -59,16 +59,7 @@ export function SentimentAnalysis({ data }: SentimentAnalysisProps) {
     border: string;
   };
   
-  // Define a type for the sentiment data items
-  type SentimentDataItem = {
-    label: string;
-    type: SentimentType;
-    data: {
-      count: number;
-      percentage: number;
-      trend: number;
-    };
-  };
+  // This type definition helps with type checking in the component
 
   // Colors for sentiment types with expanded palette
   const sentimentColors: Record<SentimentType, SentimentColorScheme> = {
@@ -572,11 +563,11 @@ export function SentimentAnalysis({ data }: SentimentAnalysisProps) {
         <div className="lg:col-span-7 flex flex-col">
           {/* Detailed sentiment metrics */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-            {[
+            {([
               { label: 'Positive', type: 'positive' as SentimentType, data: positiveData },
               { label: 'Neutral', type: 'neutral' as SentimentType, data: neutralData },
               { label: 'Negative', type: 'negative' as SentimentType, data: negativeData }
-            ] as SentimentDataItem[].map(category => (
+            ] as const).map((category) => (
               <motion.div
                 key={category.type}
                 className={`rounded-lg border px-3 py-2 ${
