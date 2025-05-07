@@ -58,6 +58,17 @@ export function SentimentAnalysis({ data }: SentimentAnalysisProps) {
     hover: string;
     border: string;
   };
+  
+  // Define a type for the sentiment data items
+  type SentimentDataItem = {
+    label: string;
+    type: SentimentType;
+    data: {
+      count: number;
+      percentage: number;
+      trend: number;
+    };
+  };
 
   // Colors for sentiment types with expanded palette
   const sentimentColors: Record<SentimentType, SentimentColorScheme> = {
@@ -149,21 +160,7 @@ export function SentimentAnalysis({ data }: SentimentAnalysisProps) {
     sentimentDescription = 'Customer feedback shows some concerning patterns that should be addressed.';
   }
 
-  // Build category-specific insights
-  const categoryInsights = {
-    product: [
-      { sentiment: 'positive', text: 'Product durability is frequently praised' },
-      { sentiment: 'negative', text: 'Some users report issues with product packaging' }
-    ],
-    service: [
-      { sentiment: 'positive', text: 'Customer service response time is well-received' },
-      { sentiment: 'negative', text: 'Weekend support availability is a common complaint' }
-    ],
-    pricing: [
-      { sentiment: 'neutral', text: 'Price point is considered fair for the value provided' },
-      { sentiment: 'negative', text: 'Subscription pricing model causes some confusion' }
-    ]
-  };
+  // Category insights can be added here later if needed
 
   // Generate actionable recommendations based on sentiment
   const getRecommendations = () => {
@@ -576,10 +573,10 @@ export function SentimentAnalysis({ data }: SentimentAnalysisProps) {
           {/* Detailed sentiment metrics */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
             {[
-              { label: 'Positive', type: 'positive', data: positiveData },
-              { label: 'Neutral', type: 'neutral', data: neutralData },
-              { label: 'Negative', type: 'negative', data: negativeData }
-            ].map(category => (
+              { label: 'Positive', type: 'positive' as SentimentType, data: positiveData },
+              { label: 'Neutral', type: 'neutral' as SentimentType, data: neutralData },
+              { label: 'Negative', type: 'negative' as SentimentType, data: negativeData }
+            ] as SentimentDataItem[].map(category => (
               <motion.div
                 key={category.type}
                 className={`rounded-lg border px-3 py-2 ${
