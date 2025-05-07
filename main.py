@@ -118,44 +118,63 @@ def simple_email_test():
 # Add direct email integration routes with improved error handling
 try:
     # Use V12 version with fixed column names and proper result handling
-    from direct_email_integration_fix_v12 import add_direct_email_integration_routes
-    if add_direct_email_integration_routes():
-        logger.info("Email integration routes added successfully with fixed result handling")
-    else:
-        logger.error("Failed to add email integration routes")
+    # Import standard_email_bp instead of direct routes
+    from routes.integrations.standard_email import standard_email_bp
+    app.register_blueprint(standard_email_bp)
+    logger.info("Standard email blueprint registered successfully")
+    
+    # Define a dummy function to replace the original
+    def add_direct_email_integration_routes():
+        """Disabled function to prevent direct email routes."""
+        logger.info("Direct email routes disabled in favor of standard_email_bp")
+        return False
+        
+    logger.info("Email integration using standard_email_bp")
 except Exception as e:
-    # Try falling back to V11 if V12 fails
+    logger.error(f"Error setting up email integration: {str(e)}")
+    
+    # Fall back to direct import if standard_email_bp fails
     try:
-        logger.warning(f"Error with V12 email integration fix: {str(e)}, trying V11 as fallback")
-        from direct_email_integration_fix_v11 import add_direct_email_integration_routes
+        from direct_email_integration_fix_v12 import add_direct_email_integration_routes
+        
         if add_direct_email_integration_routes():
-            logger.info("Email integration routes added successfully with V11 fallback")
+            logger.info("Email integration routes added successfully with fixed result handling")
         else:
-            logger.error("Failed to add email integration routes with V11 fallback")
-    except Exception as fallback_error:
-        logger.error(f"Error with email integration fallback: {str(fallback_error)}")
-        # Try falling back to V10 if both V12 and V11 fail
+            logger.error("Failed to add email integration routes")
+    except Exception as e:
+        # Try falling back to V11 if V12 fails
         try:
-            logger.warning(f"Error with V11 email integration fix: {str(fallback_error)}, trying V10 as fallback")
-            from direct_email_integration_fix_v10 import add_direct_email_integration_routes
+            logger.warning(f"Error with V12 email integration fix: {str(e)}, trying V11 as fallback")
+            from direct_email_integration_fix_v11 import add_direct_email_integration_routes
+            
             if add_direct_email_integration_routes():
-                logger.info("Email integration routes added successfully with V10 fallback")
+                logger.info("Email integration routes added successfully with V11 fallback")
             else:
-                logger.error("Failed to add email integration routes with V10 fallback")
-        except Exception as second_fallback_error:
-            # Try falling back to V9 if all other versions fail
+                logger.error("Failed to add email integration routes with V11 fallback")
+        except Exception as fallback_error:
+            logger.error(f"Error with email integration fallback: {str(fallback_error)}")
+            # Try falling back to V10 if both V12 and V11 fail
             try:
-                logger.warning(f"Error with V10 email integration fix: {str(second_fallback_error)}, trying V9 as fallback")
-                from direct_email_integration_fix_v9 import add_direct_email_integration_routes
+                logger.warning(f"Error with V11 email integration fix: {str(fallback_error)}, trying V10 as fallback")
+                from direct_email_integration_fix_v10 import add_direct_email_integration_routes
                 if add_direct_email_integration_routes():
-                    logger.info("Email integration routes added successfully with V9 fallback")
+                    logger.info("Email integration routes added successfully with V10 fallback")
                 else:
-                    logger.error("Failed to add email integration routes with V9 fallback")
-            except Exception as final_error:
-                # Use logger if already initialized above
-                if not 'logger' in locals():
-                    logger = logging.getLogger(__name__)
-                logger.error(f"Error setting up email integration routes: {str(final_error)}")
+                    logger.error("Failed to add email integration routes with V10 fallback")
+            except Exception as second_fallback_error:
+                # Try falling back to V9 if all other versions fail
+                try:
+                    logger.warning(f"Error with V10 email integration fix: {str(second_fallback_error)}, trying V9 as fallback")
+                    from direct_email_integration_fix_v9 import add_direct_email_integration_routes
+                    if add_direct_email_integration_routes():
+                        logger.info("Email integration routes added successfully with V9 fallback")
+                    else:
+                        logger.error("Failed to add email integration routes with V9 fallback")
+                except Exception as final_error:
+                    # Use logger if already initialized above
+                    if not 'logger' in locals():
+                        logger = logging.getLogger(__name__)
+                    logger.error(f"Error setting up email integration routes: {str(final_error)}")
 
 # Add direct Google Analytics routes
 try:
