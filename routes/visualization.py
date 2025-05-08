@@ -365,6 +365,11 @@ def get_dashboard_metrics():
     - platforms: Comma-separated list of platforms to include (default: all)
     """
     try:
+        # Get user ID from token
+        user_id = g.user.get('user_id')
+        if not user_id:
+            return jsonify({"error": "User not authorized"}), 401
+            
         # Get query parameters
         time_range = request.args.get('timeRange', '7d', type=str)
         platforms_param = request.args.get('platforms', None, type=str)
