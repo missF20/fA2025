@@ -137,9 +137,31 @@ export const Dashboard = () => {
       }
       
       console.log("Fetching dashboard data from:", url);
-      const response = await api.get(url);
       
-      if (response.status === 200 && response.data) {
+      // Add debugging info to track request progress
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
+      try {
+        // Display current token for debugging
+        console.log("Auth token available:", !!api.defaults.headers.common['Authorization']);
+        
+        const response = await api.get(url, {
+          signal: controller.signal,
+          validateStatus: () => true // Accept all status codes for debugging
+        });
+        
+        // Log response for debugging
+        console.log("Dashboard API response:", {
+          status: response.status,
+          statusText: response.statusText,
+          headers: response.headers,
+          data: response.data ? 'Has data' : 'No data'
+        });
+        
+        clearTimeout(timeoutId); // Clear timeout since request completed
+        
+        if (response.status === 200 && response.data) {
         setMetrics(response.data);
         
         // Process sentiment data
