@@ -11,9 +11,6 @@ from psycopg2.extras import RealDictCursor
 
 logger = logging.getLogger(__name__)
 
-# Connection pool
-_pool = None
-
 def get_direct_connection():
     """
     Get a direct PostgreSQL connection using environment variables
@@ -44,18 +41,6 @@ def get_direct_connection():
     except Exception as e:
         logger.error(f"Error connecting to database: {str(e)}")
         raise
-
-def get_db_connection():
-    """
-    Get a database connection
-    
-    Returns:
-        A database connection object
-    """
-    # For now, this is just an alias for get_direct_connection
-    # In the future, this could be enhanced to use a connection pool
-    return get_direct_connection()
-
 
 def execute_sql(sql: str, params: Optional[Tuple[Any, ...]] = None, fetch_all: bool = True) -> Union[List[Dict[str, Any]], Dict[str, Any], None]:
     """

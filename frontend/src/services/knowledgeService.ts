@@ -66,12 +66,12 @@ export const getKnowledgeFiles = async (limit = 20, offset = 0, forceRefresh = f
     
     const data = await response.json();
     
-    // Normalize file data to ensure consistent field names that match the database
+    // Normalize file data to ensure consistent field names
     if (data.files && Array.isArray(data.files)) {
-      data.files = data.files.map((file: any) => ({
+      data.files = data.files.map(file => ({
         ...file,
-        // Ensure we have filename as that's what the database uses
-        filename: file.filename || file.file_name || 'Unnamed file'
+        // Ensure we have file_name (some endpoints return filename instead)
+        file_name: file.file_name || file.filename || 'Unnamed file'
       }));
     }
     
@@ -115,17 +115,15 @@ export const getKnowledgeFile = async (fileId: string): Promise<KnowledgeFileWit
       throw new Error('No file data returned from API');
     }
     
-    // Create a normalized version of the file that always has the expected field names matching the database
+    // Create a normalized version of the file that always has the expected field names
     const normalizedFile: KnowledgeFileWithContent = {
       ...data.file,
-      // Ensure we have filename (that's what the database uses)
-      filename: data.file.filename || data.file.file_name || 'Unnamed file',
-      // Ensure proper text content, prioritizing binary_data as that's what the database uses
-      content: data.file.binary_data || data.file.content || '',
+      // Ensure we have file_name (some endpoints return filename instead)
+      file_name: data.file.file_name || data.file.filename || 'Unnamed file',
+      // Ensure proper text content
+      content: data.file.content || data.file.binary_data || '',
       // Parse tags if needed
-      tags: data.file.tags,
-      // Make sure binary_data is set properly
-      binary_data: data.file.binary_data || data.file.content || ''
+      tags: data.file.tags
     };
     
     return normalizedFile;
@@ -193,14 +191,12 @@ export const uploadKnowledgeFile = async (
           console.log('PDF upload successful', result);
           onProgress?.(100);
           
-          // Make sure the response has all the expected fields from KnowledgeFile interface
-          if (result.file) {
+          // Map the response to match the expected structure in KnowledgeFile
+          // Backend returns "filename" but frontend expects "file_name"
+          if (result.file && result.file.filename) {
             return {
               ...result.file,
-              filename: result.file.filename || result.file.file_name || file.name,
-              file_size: result.file.file_size || file.size,
-              file_type: result.file.file_type || file.type || determineMimeType(file.name),
-              binary_data: result.file.binary_data || result.file.content || ''
+              file_name: result.file.filename, // Map to the correct property name
             };
           }
           
@@ -217,43 +213,11 @@ export const uploadKnowledgeFile = async (
     }
 
     try {
-      // Get CSRF token for protection
-      const csrfResponse = await fetch('/api/csrf-token');
-      const csrfData = await csrfResponse.json();
-      const csrfToken = csrfData.csrf_token;
-      
-      // Try our new direct-upload-v2 endpoint first (most reliable)
-      console.log('Trying direct-upload-v2 endpoint...');
-      const directV2Response = await fetch('/api/knowledge/direct-upload-v2', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json',
-          'X-CSRFToken': csrfToken
-        },
-        body: JSON.stringify({
-          filename: file.name,
-          file_type: file.type || determineMimeType(file.name),
-          file_size: file.size,
-          binary_data: await readFileAsBase64(file),
-          category,
-          tags: tags && tags.length > 0 ? tags : [],
-        })
-      });
-      
-      // If direct-upload-v2 worked, return the result
-      if (directV2Response.ok) {
-        const result = await directV2Response.json();
-        console.log('Direct upload v2 successful', result);
-        return result.file;
-      }
-      
-      // Try binary upload endpoint as fallback
+      // Try binary upload endpoint
       const response = await fetch('/api/knowledge/files/binary', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'X-CSRFToken': csrfToken
+          'Authorization': `Bearer ${session.access_token}`
         },
         body: formData
       });
@@ -266,7 +230,7 @@ export const uploadKnowledgeFile = async (
         return result.file || result;
       }
       
-      // Try direct-upload endpoint as last resort
+      // Try direct-upload endpoint next
       const directResponse = await fetch('/api/knowledge/direct-upload', {
         method: 'POST',
         headers: {
@@ -291,14 +255,13 @@ export const uploadKnowledgeFile = async (
         // Get the filename from the response
         const filename = result.file_info?.filename || file.name;
         
-        // Format the response to match expected KnowledgeFile structure with correct database column names
+        // Format the response to match expected structure
         return {
           id: result.file_id,
           user_id: result.user_id,
-          filename: filename, // Database uses 'filename'
+          file_name: filename, // Use file_name to match the KnowledgeFile type
           file_size: result.file_info?.file_size || file.size,
           file_type: result.file_info?.file_type || file.type || determineMimeType(file.name),
-          binary_data: result.file_info?.binary_data || result.file_info?.content || '',
           created_at: result.file_info?.created_at || new Date().toISOString(),
           updated_at: result.file_info?.created_at || new Date().toISOString()
         };
@@ -310,28 +273,22 @@ export const uploadKnowledgeFile = async (
       // Convert file to base64
       const base64Content = await readFileAsBase64(file);
       
-      // Prepare JSON payload with field names matching the database schema
+      // Prepare JSON payload
       const fileData = {
-        filename: file.name, // Database uses 'filename'
+        file_name: file.name,
         file_size: file.size,
         file_type: file.type || determineMimeType(file.name),
-        binary_data: base64Content, // Database uses 'binary_data'
+        content: base64Content,
         category,
         tags: tags && tags.length > 0 ? JSON.stringify(tags) : undefined
       };
       
-      // Get CSRF token for protection
-      const csrfResponse = await fetch('/api/csrf-token');
-      const csrfData = await csrfResponse.json();
-      const csrfToken = csrfData.csrf_token;
-      
-      // Try standard JSON upload with CSRF token
+      // Try standard JSON upload
       const jsonResponse = await fetch('/api/knowledge/files', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-          'X-CSRFToken': csrfToken
+          'Authorization': `Bearer ${session.access_token}`
         },
         body: JSON.stringify(fileData)
       });
@@ -614,8 +571,8 @@ export const getTags = async (): Promise<KnowledgeTag[]> => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('Not authenticated');
 
-    // Use fixed API endpoint - avoids JSON comparison error
-    const response = await fetch(`/api/knowledge/files/tags-fixed`, {
+    // Use API endpoint
+    const response = await fetch(`/api/knowledge/files/tags`, {
       headers: {
         'Authorization': `Bearer ${session.access_token}`
       }
@@ -691,13 +648,13 @@ export const searchKnowledgeBase = async (
     
     const data = await response.json();
     
-    // Normalize search results to ensure consistent field names matching the database
+    // Normalize search results to ensure consistent field names
     let results = [];
     if (data.results && Array.isArray(data.results)) {
-      results = data.results.map((result: any) => ({
+      results = data.results.map(result => ({
         ...result,
-        // Ensure we have filename (that's what the database uses)
-        filename: result.filename || result.file_name || 'Unnamed file'
+        // Ensure we have file_name (some endpoints return filename instead)
+        file_name: result.file_name || result.filename || 'Unnamed file'
       }));
     } else {
       results = data.results || [];

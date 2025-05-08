@@ -773,8 +773,8 @@ export function KnowledgeBase() {
           {/* File icon and info */}
           <div className="flex flex-col items-center pt-4">
             <div className="text-3xl mb-2">{getFileIcon(file.file_type)}</div>
-            <h3 className="text-sm font-medium text-center line-clamp-2" title={file.filename}>
-              {file.filename}
+            <h3 className="text-sm font-medium text-center line-clamp-2" title={file.file_name}>
+              {file.file_name}
             </h3>
             <div className="mt-2 text-xs text-gray-500">
               {formatFileSize(file.file_size)}
@@ -879,8 +879,8 @@ export function KnowledgeBase() {
               <td className="px-3 py-4 whitespace-nowrap">
                 <div className="flex items-center">
                   <span className="text-xl mr-3">{getFileIcon(file.file_type)}</span>
-                  <div className="text-sm font-medium text-gray-900 line-clamp-1" title={file.filename}>
-                    {file.filename}
+                  <div className="text-sm font-medium text-gray-900 line-clamp-1" title={file.file_name}>
+                    {file.file_name}
                   </div>
                 </div>
               </td>
@@ -1090,7 +1090,7 @@ export function KnowledgeBase() {
           <div className="p-4">
             <p className="mb-3">Are you sure you want to delete this file?</p>
             <p className="text-sm text-gray-700 mb-4">
-              {fileToDelete ? files.find(f => f.id === fileToDelete)?.filename || 'Unnamed file' : ''}
+              {fileToDelete ? files.find(f => f.id === fileToDelete)?.file_name || files.find(f => f.id === fileToDelete)?.filename || 'Unnamed file' : ''}
             </p>
             
             {isFileInUse && (
