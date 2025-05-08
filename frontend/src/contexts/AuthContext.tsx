@@ -15,49 +15,9 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-interface AuthProviderProps {
-  children: ReactNode;
-}
-
-// Using named function declaration instead of arrow function for better Fast Refresh compatibility
-export function AuthProvider({ children }: AuthProviderProps) {
-  const [user, setUser] = useState<ExtendedUser | null>(null);
-  const [token, setToken] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Use the existing Supabase client
-  useEffect(() => {
-    // Check for existing session
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session) {
-        setUser(session.user);
-        setToken(session.access_token);
-      }
-      
-      setIsLoading(false);
-    };
-    
-    checkSession();
-    
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setUser(session?.user || null);
-        setToken(session?.access_token || null);
-        setIsLoading(false);
-      }
-    );
-
-    // Cleanup subscription when component unmounts
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  // Login function
-  const login = async (email: string, password: string) => {
+// Login function implementation
+function performLogin(email: string, password: string) {
+  return async () => {
     try {
       const { error } = await supabase.auth.signInWithPassword({
         email,
@@ -72,9 +32,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
       return { error };
     }
   };
+}
 
-  // Signup function
-  const signup = async (email: string, password: string, userData: any = {}) => {
+// Signup function implementation
+function performSignup(email: string, password: string, userData: any = {}) {
+  return async () => {
     try {
       // Register user
       const { data, error } = await supabase.auth.signUp({
@@ -95,21 +57,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
       return { error, user: null };
     }
   };
+}
 
-  // Logout function
-  const logout = async () => {
-    try {
-      await supabase.auth.signOut();
-      setUser(null);
-      setToken(null);
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
-  };
-
-  // Reset password
-  const resetPassword = async (email: string) => {
-    
+// Reset password implementation
+function performResetPassword(email: string) {
+  return async () => {
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`,
@@ -123,8 +75,76 @@ export function AuthProvider({ children }: AuthProviderProps) {
       return { error };
     }
   };
+}
 
-  const value = {
+// Define props type
+interface AuthProviderProps {
+  children: ReactNode;
+}
+
+// Main provider component using function declaration
+export function AuthProvider({ children }: AuthProviderProps) {
+  const [user, setUser] = useState<ExtendedUser | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Check for existing session
+    async function checkSession() {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session) {
+        setUser(session.user as ExtendedUser);
+        setToken(session.access_token);
+      }
+      
+      setIsLoading(false);
+    }
+    
+    checkSession();
+    
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setUser(session?.user as ExtendedUser || null);
+        setToken(session?.access_token || null);
+        setIsLoading(false);
+      }
+    );
+
+    // Cleanup subscription when component unmounts
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  // Implementing the login function
+  const login = async (email: string, password: string) => {
+    return await performLogin(email, password)();
+  };
+
+  // Implementing the signup function
+  const signup = async (email: string, password: string, userData: any = {}) => {
+    return await performSignup(email, password, userData)();
+  };
+
+  // Implementing the logout function
+  const logout = async () => {
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+      setToken(null);
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
+
+  // Implementing the reset password function
+  const resetPassword = async (email: string) => {
+    return await performResetPassword(email)();
+  };
+
+  const contextValue = {
     user,
     token,
     isAuthenticated: !!user,
@@ -135,10 +155,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
     resetPassword,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-};
+  return (
+    <AuthContext.Provider value={contextValue}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
 
-// Using named function declaration for consistency
+// Hook for using the auth context
 export function useAuth(): AuthContextType {
   const context = useContext(AuthContext);
   
