@@ -66,12 +66,12 @@ export const getKnowledgeFiles = async (limit = 20, offset = 0, forceRefresh = f
     
     const data = await response.json();
     
-    // Normalize file data to ensure consistent field names
+    // Normalize file data to ensure consistent field names that match the database
     if (data.files && Array.isArray(data.files)) {
-      data.files = data.files.map(file => ({
+      data.files = data.files.map((file: any) => ({
         ...file,
-        // Ensure we have file_name (some endpoints return filename instead)
-        file_name: file.file_name || file.filename || 'Unnamed file'
+        // Ensure we have filename as that's what the database uses
+        filename: file.filename || file.file_name || 'Unnamed file'
       }));
     }
     
@@ -115,15 +115,17 @@ export const getKnowledgeFile = async (fileId: string): Promise<KnowledgeFileWit
       throw new Error('No file data returned from API');
     }
     
-    // Create a normalized version of the file that always has the expected field names
+    // Create a normalized version of the file that always has the expected field names matching the database
     const normalizedFile: KnowledgeFileWithContent = {
       ...data.file,
-      // Ensure we have file_name (some endpoints return filename instead)
-      file_name: data.file.file_name || data.file.filename || 'Unnamed file',
-      // Ensure proper text content
-      content: data.file.content || data.file.binary_data || '',
+      // Ensure we have filename (that's what the database uses)
+      filename: data.file.filename || data.file.file_name || 'Unnamed file',
+      // Ensure proper text content, prioritizing binary_data as that's what the database uses
+      content: data.file.binary_data || data.file.content || '',
       // Parse tags if needed
-      tags: data.file.tags
+      tags: data.file.tags,
+      // Make sure binary_data is set properly
+      binary_data: data.file.binary_data || data.file.content || ''
     };
     
     return normalizedFile;
@@ -191,12 +193,14 @@ export const uploadKnowledgeFile = async (
           console.log('PDF upload successful', result);
           onProgress?.(100);
           
-          // Map the response to match the expected structure in KnowledgeFile
-          // Backend returns "filename" but frontend expects "file_name"
-          if (result.file && result.file.filename) {
+          // Make sure the response has all the expected fields from KnowledgeFile interface
+          if (result.file) {
             return {
               ...result.file,
-              file_name: result.file.filename, // Map to the correct property name
+              filename: result.file.filename || result.file.file_name || file.name,
+              file_size: result.file.file_size || file.size,
+              file_type: result.file.file_type || file.type || determineMimeType(file.name),
+              binary_data: result.file.binary_data || result.file.content || ''
             };
           }
           
@@ -255,13 +259,14 @@ export const uploadKnowledgeFile = async (
         // Get the filename from the response
         const filename = result.file_info?.filename || file.name;
         
-        // Format the response to match expected structure
+        // Format the response to match expected KnowledgeFile structure with correct database column names
         return {
           id: result.file_id,
           user_id: result.user_id,
-          file_name: filename, // Use file_name to match the KnowledgeFile type
+          filename: filename, // Database uses 'filename'
           file_size: result.file_info?.file_size || file.size,
           file_type: result.file_info?.file_type || file.type || determineMimeType(file.name),
+          binary_data: result.file_info?.binary_data || result.file_info?.content || '',
           created_at: result.file_info?.created_at || new Date().toISOString(),
           updated_at: result.file_info?.created_at || new Date().toISOString()
         };
@@ -273,12 +278,12 @@ export const uploadKnowledgeFile = async (
       // Convert file to base64
       const base64Content = await readFileAsBase64(file);
       
-      // Prepare JSON payload
+      // Prepare JSON payload with field names matching the database schema
       const fileData = {
-        file_name: file.name,
+        filename: file.name, // Database uses 'filename'
         file_size: file.size,
         file_type: file.type || determineMimeType(file.name),
-        content: base64Content,
+        binary_data: base64Content, // Database uses 'binary_data'
         category,
         tags: tags && tags.length > 0 ? JSON.stringify(tags) : undefined
       };
@@ -648,13 +653,13 @@ export const searchKnowledgeBase = async (
     
     const data = await response.json();
     
-    // Normalize search results to ensure consistent field names
+    // Normalize search results to ensure consistent field names matching the database
     let results = [];
     if (data.results && Array.isArray(data.results)) {
-      results = data.results.map(result => ({
+      results = data.results.map((result: any) => ({
         ...result,
-        // Ensure we have file_name (some endpoints return filename instead)
-        file_name: result.file_name || result.filename || 'Unnamed file'
+        // Ensure we have filename (that's what the database uses)
+        filename: result.filename || result.file_name || 'Unnamed file'
       }));
     } else {
       results = data.results || [];
