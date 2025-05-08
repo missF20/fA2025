@@ -217,11 +217,43 @@ export const uploadKnowledgeFile = async (
     }
 
     try {
-      // Try binary upload endpoint
+      // Get CSRF token for protection
+      const csrfResponse = await fetch('/api/csrf-token');
+      const csrfData = await csrfResponse.json();
+      const csrfToken = csrfData.csrf_token;
+      
+      // Try our new direct-upload-v2 endpoint first (most reliable)
+      console.log('Trying direct-upload-v2 endpoint...');
+      const directV2Response = await fetch('/api/knowledge/direct-upload-v2', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({
+          filename: file.name,
+          file_type: file.type || determineMimeType(file.name),
+          file_size: file.size,
+          binary_data: await readFileAsBase64(file),
+          category,
+          tags: tags && tags.length > 0 ? tags : [],
+        })
+      });
+      
+      // If direct-upload-v2 worked, return the result
+      if (directV2Response.ok) {
+        const result = await directV2Response.json();
+        console.log('Direct upload v2 successful', result);
+        return result.file;
+      }
+      
+      // Try binary upload endpoint as fallback
       const response = await fetch('/api/knowledge/files/binary', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${session.access_token}`
+          'Authorization': `Bearer ${session.access_token}`,
+          'X-CSRFToken': csrfToken
         },
         body: formData
       });
@@ -234,7 +266,7 @@ export const uploadKnowledgeFile = async (
         return result.file || result;
       }
       
-      // Try direct-upload endpoint next
+      // Try direct-upload endpoint as last resort
       const directResponse = await fetch('/api/knowledge/direct-upload', {
         method: 'POST',
         headers: {
