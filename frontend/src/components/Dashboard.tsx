@@ -1,7 +1,7 @@
 
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../contexts/AuthContext';
 import api from '../utils/api';
 import { MetricCard } from './MetricCard';
 import { TopIssuesChart } from './TopIssuesChart';
@@ -11,8 +11,8 @@ import {
   Users, 
   Clock, 
   AlertTriangle, 
-  LineChart, 
-  MessageCircle, 
+  // LineChart, - Unused import
+  // MessageCircle, - Unused import
   CheckCircle, 
   RefreshCw, 
   CalendarClock,
@@ -25,17 +25,25 @@ import {
   Zap,
   TrendingUp,
   TrendingDown,
-  HelpCircle,
-  BarChart
+  HelpCircle
+  // BarChart - Unused import
 } from 'lucide-react';
 import type { 
   ChatMetrics, 
-  TopIssue, 
-  PendingTask, 
-  EscalatedTask,
-  Interaction,
+  // TopIssue, - Unused type
+  // PendingTask, - Unused type
+  // EscalatedTask, - Unused type
+  // Interaction, - Unused type
   SentimentData
 } from '../types';
+import { User } from '@supabase/supabase-js';
+
+// Extended User type including the company property from user_metadata
+interface ExtendedUser extends User {
+  user_metadata?: {
+    company?: string;
+  }
+}
 
 // Define time range options
 const timeRanges = [
@@ -48,7 +56,7 @@ const timeRanges = [
 ];
 
 export const Dashboard = () => {
-  const { user } = useAuth();
+  const { user } = useAuth() as { user: ExtendedUser | null };
   const [metrics, setMetrics] = useState<ChatMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
