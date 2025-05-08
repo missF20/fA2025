@@ -124,7 +124,7 @@ export const Dashboard = () => {
     setError(null);
     
     try {
-      let url = `/api/visualization/dashboard?timeRange=${timeRange}`;
+      let url = `/api/dashboard_redesign/dashboard?timeRange=${timeRange}`;
       
       // Add custom date range parameters if needed
       if (timeRange === 'custom' && customDateRange.start && customDateRange.end) {
@@ -136,6 +136,7 @@ export const Dashboard = () => {
         url += `&platforms=${platformFilter.join(',')}`;
       }
       
+      console.log("Fetching dashboard data from:", url);
       const response = await api.get(url);
       
       if (response.status === 200 && response.data) {

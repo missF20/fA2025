@@ -19,7 +19,7 @@ from utils.auth import token_required, validate_user_access
 logger = logging.getLogger(__name__)
 
 # Create blueprint
-dashboard_bp = Blueprint('visualization', __name__, url_prefix='/api/visualization')
+dashboard_bp = Blueprint('dashboard_redesign', __name__, url_prefix='/api/dashboard_redesign')
 
 @dashboard_bp.route('/dashboard', methods=['GET'])
 @token_required
