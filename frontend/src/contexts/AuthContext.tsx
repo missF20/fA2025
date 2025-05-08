@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '../services/api'; // Import the existing supabase client
 import { ExtendedUser } from '../types';
 
@@ -19,7 +19,8 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+// Using named function declaration instead of arrow function for better Fast Refresh compatibility
+export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<ExtendedUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -58,7 +59,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Login function
   const login = async (email: string, password: string) => {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
@@ -137,7 +138,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-export const useAuth = (): AuthContextType => {
+// Using named function declaration for consistency
+export function useAuth(): AuthContextType {
   const context = useContext(AuthContext);
   
   if (context === undefined) {
@@ -145,4 +147,4 @@ export const useAuth = (): AuthContextType => {
   }
   
   return context;
-};
+}
