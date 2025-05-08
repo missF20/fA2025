@@ -38,10 +38,11 @@ import type {
 } from '../types';
 import { User } from '@supabase/supabase-js';
 
-// Extended User type including the company property from user_metadata
-interface ExtendedUser extends User {
-  user_metadata?: {
+// Extended User interface that properly extends User from Supabase
+interface ExtendedUser extends Omit<User, 'user_metadata'> {
+  user_metadata: {
     company?: string;
+    [key: string]: any;
   }
 }
 
@@ -321,7 +322,7 @@ export const Dashboard = () => {
       {/* Dashboard Header */}
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Welcome, {user?.company || 'Dashboard'}</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Welcome, {user?.user_metadata?.company || 'Dashboard'}</h1>
           <p className="text-gray-500">
             Here's your overview of data and insights
           </p>
@@ -699,7 +700,7 @@ export const Dashboard = () => {
           
           {/* Sentiment Analysis */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            {console.log("Sentiment Data:", sentiment)}
+            {/* Log sentiment data for debugging */}
             {sentiment && sentiment.length > 0 ? (
               <SentimentAnalysis data={sentiment} />
             ) : (
