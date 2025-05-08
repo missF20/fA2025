@@ -6,8 +6,8 @@ import {
 } from 'lucide-react';
 import { SentimentData } from '../types';
 
-// Define the sentiment type using the data from SentimentData
-type SentimentType = 'positive' | 'neutral' | 'negative';
+// Use the type from SentimentData.type
+type SentimentType = SentimentData['type'];
 
 interface SentimentAnalysisProps {
   data: SentimentData[];

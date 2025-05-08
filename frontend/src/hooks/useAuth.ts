@@ -2,10 +2,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { useQueryClient } from 'react-query';
 import * as Sentry from '@sentry/react';
 import { supabase } from '../services/api';
-import type { AuthError, User } from '@supabase/supabase-js';
+import type { AuthError } from '@supabase/supabase-js';
+import { ExtendedUser } from '../types';
 
 interface UseAuthReturn {
-  user: User | null;
+  user: ExtendedUser | null;
   loading: boolean;
   error: AuthError | null;
   signIn: (email: string, password: string) => Promise<void>;
@@ -14,7 +15,7 @@ interface UseAuthReturn {
 }
 
 export function useAuth(): UseAuthReturn {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<ExtendedUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<AuthError | null>(null);
   const queryClient = useQueryClient();
