@@ -1,224 +1,255 @@
 """
-Dana AI Platform - Integration Utilities
+Integration Utilities
 
-This module provides standardized utilities for integration endpoints.
-It includes common functions used across different integration implementations.
+This module provides utility functions for integration modules,
+especially regarding authentication, CSRF protection, and error handling.
 """
-
+import functools
 import logging
-import json
 import os
-from typing import Dict, Any, Tuple, Optional, List, Union
-from flask import jsonify, make_response, request, Response
+from typing import Any, Callable, Dict, Optional
 
-from utils.exceptions import IntegrationError, ValidationError
-from utils.response import success_response, error_response
-from utils.csrf import validate_csrf_token, create_cors_preflight_response
+from flask import current_app, jsonify, request
+from werkzeug.exceptions import BadRequest, Forbidden
 
 # Configure logger
 logger = logging.getLogger(__name__)
 
-def is_development_mode() -> bool:
+def validate_csrf_token(request_obj, bypass_in_development=True) -> bool:
     """
-    Check if the application is running in development mode
-    
-    Returns:
-        bool: True if in development mode, False otherwise
-    """
-    return (os.environ.get('FLASK_ENV') == 'development' or 
-            os.environ.get('DEVELOPMENT_MODE') == 'true' or
-            os.environ.get('APP_ENV') == 'development')
-
-def get_integration_config(integration_type: str, user_id: str) -> Dict[str, Any]:
-    """
-    Get configuration for a specific integration type and user
+    Validate CSRF token in request
     
     Args:
-        integration_type: Type of integration
-        user_id: User ID
+        request_obj: Flask request object
+        bypass_in_development: If True, bypass CSRF validation in development
         
     Returns:
-        dict: Integration configuration
-        
-    Raises:
-        IntegrationError: If config retrieval fails
+        bool: True if token is valid, False otherwise
     """
-    from utils.db_access import IntegrationDAL
+    # Bypass CSRF validation in development mode if configured
+    is_development = os.environ.get('FLASK_ENV') == 'development'
+    if bypass_in_development and is_development:
+        logger.debug('CSRF validation bypassed in development mode')
+        return True
     
-    try:
-        integration_dal = IntegrationDAL()
-        config = integration_dal.get_integration_config(integration_type, user_id)
-        if not config:
-            logger.info(f"No configuration found for {integration_type} integration for user {user_id}")
-            return {}
+    # Get stored token from app config
+    stored_token = current_app.config.get('CSRF_TOKEN')
+    
+    # Get token from request
+    token = request_obj.headers.get('X-CSRFToken')
+    
+    # Validate token
+    if not token or not stored_token or token != stored_token:
+        logger.warning('CSRF token validation failed')
+        return False
         
-        return config
-    except Exception as e:
-        logger.error(f"Error retrieving {integration_type} integration config: {str(e)}")
-        raise IntegrationError(f"Failed to retrieve integration configuration: {str(e)}")
+    return True
 
-def save_integration_config(integration_type: str, user_id: str, config: Dict[str, Any], 
-                           status: str = "active") -> bool:
+
+def route_with_csrf_protection(f: Callable) -> Callable:
     """
-    Save configuration for a specific integration type and user
+    Decorator for routes to enforce CSRF protection
     
     Args:
-        integration_type: Type of integration
-        user_id: User ID
-        config: Integration configuration
-        status: Integration status (default: "active")
+        f: Route function to protect
         
     Returns:
-        bool: True if saved successfully, False otherwise
-        
-    Raises:
-        IntegrationError: If config save fails
+        Wrapped function with CSRF protection
     """
-    from utils.db_access import IntegrationDAL
+    @functools.wraps(f)
+    def decorated_function(*args: Any, **kwargs: Any) -> Any:
+        # Methods that don't modify data don't need CSRF protection
+        if request.method in ['GET', 'HEAD', 'OPTIONS']:
+            return f(*args, **kwargs)
+            
+        # Validate CSRF token
+        if not validate_csrf_token(request):
+            return jsonify({
+                'error': 'CSRF token validation failed',
+                'message': 'Please refresh the page and try again'
+            }), 403
+            
+        # Call the route function
+        return f(*args, **kwargs)
+        
+    return decorated_function
+
+
+def handle_integration_error(func: Callable) -> Callable:
+    """
+    Decorator to handle integration errors consistently
     
+    Args:
+        func: Function to wrap
+        
+    Returns:
+        Wrapped function with error handling
+    """
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        try:
+            return func(*args, **kwargs)
+        except BadRequest as e:
+            logger.warning(f"Bad request: {str(e)}")
+            return jsonify({
+                'error': 'Bad Request',
+                'message': str(e)
+            }), 400
+        except Forbidden as e:
+            logger.warning(f"Forbidden: {str(e)}")
+            return jsonify({
+                'error': 'Forbidden',
+                'message': str(e)
+            }), 403
+        except Exception as e:
+            logger.error(f"Integration error: {str(e)}", exc_info=True)
+            return jsonify({
+                'error': 'Internal Server Error',
+                'message': 'An unexpected error occurred'
+            }), 500
+            
+    return wrapper
+
+
+def get_integration_config(user_id: str, integration_type: str) -> Optional[Dict]:
+    """
+    Get integration configuration for a user
+    
+    Args:
+        user_id: User ID
+        integration_type: Type of integration (e.g., 'slack', 'email')
+        
+    Returns:
+        Dict or None: Integration configuration if found, None otherwise
+    """
     try:
-        integration_dal = IntegrationDAL()
-        result = integration_dal.save_integration_config(
-            integration_type=integration_type,
-            user_id=user_id,
-            config=config,
-            status=status
-        )
+        from utils.db_access import get_db_connection
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        query = """
+        SELECT * FROM integration_configs
+        WHERE user_id = %s AND integration_type = %s
+        """
+        
+        cursor.execute(query, (user_id, integration_type))
+        result = cursor.fetchone()
+        
+        cursor.close()
+        conn.close()
         
         if result:
-            logger.info(f"{integration_type} integration config saved successfully for user {user_id}")
-        else:
-            logger.warning(f"Failed to save {integration_type} integration config for user {user_id}")
+            return dict(result)
+        return None
+        
+    except Exception as e:
+        logger.error(f"Error getting integration config: {e}")
+        return None
+
+
+def update_integration_config(user_id: str, integration_type: str, config: Dict) -> bool:
+    """
+    Update integration configuration for a user
+    
+    Args:
+        user_id: User ID
+        integration_type: Type of integration
+        config: Configuration data
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        from utils.db_access import get_db_connection
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Check if config exists
+        query = """
+        SELECT id FROM integration_configs
+        WHERE user_id = %s AND integration_type = %s
+        """
+        
+        cursor.execute(query, (user_id, integration_type))
+        result = cursor.fetchone()
+        
+        if result:
+            # Update existing config
+            update_fields = []
+            update_values = []
             
-        return result
+            for key, value in config.items():
+                if key not in ['id', 'user_id', 'integration_type']:
+                    update_fields.append(f"{key} = %s")
+                    update_values.append(value)
+                    
+            if update_fields:
+                update_query = f"""
+                UPDATE integration_configs
+                SET {', '.join(update_fields)}
+                WHERE user_id = %s AND integration_type = %s
+                """
+                
+                cursor.execute(update_query, update_values + [user_id, integration_type])
+                
+        else:
+            # Insert new config
+            keys = ['user_id', 'integration_type'] + list(config.keys())
+            values = [user_id, integration_type] + list(config.values())
+            
+            placeholders = ', '.join(['%s'] * len(keys))
+            
+            insert_query = f"""
+            INSERT INTO integration_configs
+            ({', '.join(keys)})
+            VALUES ({placeholders})
+            """
+            
+            cursor.execute(insert_query, values)
+            
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return True
+        
     except Exception as e:
-        logger.error(f"Error saving {integration_type} integration config: {str(e)}")
-        raise IntegrationError(f"Failed to save integration configuration: {str(e)}")
+        logger.error(f"Error updating integration config: {e}")
+        return False
 
-def validate_json_request(required_fields: List[str]) -> Dict[str, Any]:
+
+def delete_integration_config(user_id: str, integration_type: str) -> bool:
     """
-    Validate that the request contains JSON with required fields
+    Delete integration configuration for a user
     
     Args:
-        required_fields: List of required field names
-        
-    Returns:
-        dict: Parsed JSON data
-        
-    Raises:
-        ValidationError: If request is invalid
-    """
-    # Check if request has JSON data
-    if not request.is_json:
-        raise ValidationError("Request must contain JSON data")
-    
-    # Parse the JSON data
-    try:
-        data = request.get_json()
-    except Exception as e:
-        raise ValidationError(f"Invalid JSON data: {str(e)}")
-    
-    # Check for required fields
-    for field in required_fields:
-        if field not in data:
-            raise ValidationError(f"Missing required field: {field}")
-    
-    return data
-
-def get_integration_status(integration_type: str, user_id: str) -> Dict[str, Any]:
-    """
-    Get status information for a specific integration type and user
-    
-    Args:
-        integration_type: Type of integration
         user_id: User ID
-        
-    Returns:
-        dict: Integration status information
-    """
-    from utils.db_access import IntegrationDAL
-    
-    try:
-        integration_dal = IntegrationDAL()
-        status = integration_dal.get_integration_status(integration_type, user_id)
-        return status
-    except Exception as e:
-        logger.error(f"Error retrieving {integration_type} integration status: {str(e)}")
-        return {
-            "id": integration_type,
-            "type": integration_type,
-            "status": "error",
-            "error": str(e),
-            "lastSync": None
-        }
-
-def handle_integration_connection(integration_type: str, user_id: str, 
-                                 data: Dict[str, Any]) -> Tuple[Dict[str, Any], int]:
-    """
-    Generic handler for connecting an integration
-    
-    Args:
         integration_type: Type of integration
-        user_id: User ID
-        data: Connection data (API keys, credentials, etc.)
         
     Returns:
-        tuple: (Response data, status code)
+        bool: True if successful, False otherwise
     """
     try:
-        # Save the integration configuration
-        save_integration_config(integration_type, user_id, data)
+        from utils.db_access import get_db_connection
         
-        # Return success response
-        return success_response(
-            message=f"{integration_type.capitalize()} integration connected successfully",
-            data={"status": "active"}
-        )
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        query = """
+        DELETE FROM integration_configs
+        WHERE user_id = %s AND integration_type = %s
+        """
+        
+        cursor.execute(query, (user_id, integration_type))
+        conn.commit()
+        
+        cursor.close()
+        conn.close()
+        
+        return True
+        
     except Exception as e:
-        logger.error(f"Error connecting to {integration_type}: {str(e)}")
-        return error_response(f"Failed to connect {integration_type} integration: {str(e)}", 500)
-
-def csrf_validate_with_dev_bypass(request, operation_name: str = "unknown") -> Optional[Response]:
-    """
-    Validate CSRF token with development mode bypass
-    
-    Args:
-        request: Flask request object
-        operation_name: Name of the operation for logging
-        
-    Returns:
-        Response: Error response if validation fails and not in dev mode, None otherwise
-    """
-    # Validate CSRF token
-    token_result = validate_csrf_token(request)
-    if token_result:
-        # If in development mode, bypass CSRF
-        if is_development_mode():
-            logger.info(f"Development mode: bypassing CSRF protection for {operation_name}")
-            return None
-        return token_result
-    return None
-
-def handle_integration_disconnect(integration_type: str, user_id: str) -> Tuple[Dict[str, Any], int]:
-    """
-    Generic handler for disconnecting an integration
-    
-    Args:
-        integration_type: Type of integration
-        user_id: User ID
-        
-    Returns:
-        tuple: (Response data, status code)
-    """
-    try:
-        # Save empty config with inactive status
-        save_integration_config(integration_type, user_id, {}, status="inactive")
-        
-        # Return success response
-        return success_response(
-            message=f"{integration_type.capitalize()} integration disconnected successfully",
-            data={"status": "inactive"}
-        )
-    except Exception as e:
-        logger.error(f"Error disconnecting {integration_type}: {str(e)}")
-        return error_response(f"Failed to disconnect {integration_type} integration: {str(e)}", 500)
+        logger.error(f"Error deleting integration config: {e}")
+        return False
