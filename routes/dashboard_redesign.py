@@ -261,6 +261,15 @@ def get_dashboard_metrics():
         ).scalar()
         
         # 6. Get recent conversations
+        conversation_filters = [
+            Conversation.user_id == user_id,
+            Conversation.date_created.between(start_date, end_date)
+        ]
+        
+        # Add platform filter if specified
+        if filtered_platforms:
+            conversation_filters.append(Conversation.platform.in_(filtered_platforms))
+            
         recent_conversations = db.session.query(
             Conversation.id,
             Conversation.client_name,
@@ -271,9 +280,7 @@ def get_dashboard_metrics():
         ).outerjoin(
             Message, Message.conversation_id == Conversation.id
         ).filter(
-            Conversation.user_id == user_id,
-            Conversation.date_created.between(start_date, end_date),
-            Conversation.platform.in_(filtered_platforms) if filtered_platforms else True
+            *conversation_filters
         ).group_by(
             Conversation.id,
             Conversation.client_name,
@@ -301,10 +308,18 @@ def get_dashboard_metrics():
         try:
             # Subqueries to get consecutive messages for response time calculation
             response_times = []
-            conversations = db.session.query(Conversation.id).filter(
+            
+            conversation_filters = [
                 Conversation.user_id == user_id,
-                Conversation.date_created.between(start_date, end_date),
-                Conversation.platform.in_(filtered_platforms) if filtered_platforms else True
+                Conversation.date_created.between(start_date, end_date)
+            ]
+            
+            # Add platform filter if specified
+            if filtered_platforms:
+                conversation_filters.append(Conversation.platform.in_(filtered_platforms))
+                
+            conversations = db.session.query(Conversation.id).filter(
+                *conversation_filters
             ).all()
             
             conv_ids = [c.id for c in conversations]
@@ -377,13 +392,20 @@ def get_dashboard_metrics():
                     return "neutral"
             
             # Get client messages for sentiment analysis
+            message_filters = [
+                Conversation.user_id == user_id,
+                Message.sender_type == 'client',
+                Message.date_created.between(start_date, end_date)
+            ]
+            
+            # Add platform filter if specified
+            if filtered_platforms:
+                message_filters.append(Conversation.platform.in_(filtered_platforms))
+                
             client_messages = db.session.query(Message.content).join(
                 Conversation, Message.conversation_id == Conversation.id
             ).filter(
-                Conversation.user_id == user_id,
-                Message.sender_type == 'client',
-                Message.date_created.between(start_date, end_date),
-                Conversation.platform.in_(filtered_platforms) if filtered_platforms else True
+                *message_filters
             ).all()
             
             # Analyze sentiment
@@ -430,16 +452,23 @@ def get_dashboard_metrics():
         # 9. Extract top issues from message content
         try:
             # Get client messages for issue extraction
+            message_filters = [
+                Conversation.user_id == user_id,
+                Message.sender_type == 'client',
+                Message.date_created.between(start_date, end_date)
+            ]
+            
+            # Add platform filter if specified
+            if filtered_platforms:
+                message_filters.append(Conversation.platform.in_(filtered_platforms))
+                
             client_messages = db.session.query(
                 Message.content,
                 Conversation.platform
             ).join(
                 Conversation, Message.conversation_id == Conversation.id
             ).filter(
-                Conversation.user_id == user_id,
-                Message.sender_type == 'client',
-                Message.date_created.between(start_date, end_date),
-                Conversation.platform.in_(filtered_platforms) if filtered_platforms else True
+                *message_filters
             ).all()
             
             # Define common issue categories and their related keywords
@@ -520,15 +549,22 @@ def get_dashboard_metrics():
             }
             
             # Get client messages for interaction categorization
+            message_filters = [
+                Conversation.user_id == user_id,
+                Message.sender_type == 'client',
+                Message.date_created.between(start_date, end_date)
+            ]
+            
+            # Add platform filter if specified
+            if filtered_platforms:
+                message_filters.append(Conversation.platform.in_(filtered_platforms))
+                
             client_messages = db.session.query(
                 Message.content
             ).join(
                 Conversation, Message.conversation_id == Conversation.id
             ).filter(
-                Conversation.user_id == user_id,
-                Message.sender_type == 'client',
-                Message.date_created.between(start_date, end_date),
-                Conversation.platform.in_(filtered_platforms) if filtered_platforms else True
+                *message_filters
             ).all()
             
             # Count interactions by category
