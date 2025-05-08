@@ -449,9 +449,9 @@ def register_blueprints():
             logger.info("Visualization blueprint registered successfully")
             
             # Register the new dashboard blueprint with improved metrics
-            from routes.dashboard_redesign import dashboard_bp
-            app.register_blueprint(dashboard_bp)
-            logger.info("Dashboard redesign blueprint registered successfully")
+            from routes.dashboard_redesign import dashboard_bp as visualization_bp
+            app.register_blueprint(visualization_bp)
+            logger.info("Dashboard redesign blueprint registered successfully with visualization URL")
         except ImportError as e:
             logger.warning(f"Could not register visualization blueprint: {e}")
             

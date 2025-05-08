@@ -19,9 +19,9 @@ from utils.auth import token_required, validate_user_access
 logger = logging.getLogger(__name__)
 
 # Create blueprint
-dashboard_bp = Blueprint('dashboard', __name__, url_prefix='/api/dashboard')
+dashboard_bp = Blueprint('visualization', __name__, url_prefix='/api/visualization')
 
-@dashboard_bp.route('/metrics', methods=['GET'])
+@dashboard_bp.route('/dashboard', methods=['GET'])
 @token_required
 def get_dashboard_metrics():
     """
