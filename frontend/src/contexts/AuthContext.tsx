@@ -1,14 +1,15 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../services/api'; // Import the existing supabase client
+import { ExtendedUser } from '../types';
 
 interface AuthContextType {
-  user: User | null;
+  user: ExtendedUser | null;
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<{ error: any | null }>;
-  signup: (email: string, password: string, userData?: any) => Promise<{ error: any | null, user: User | null }>;
+  signup: (email: string, password: string, userData?: any) => Promise<{ error: any | null, user: ExtendedUser | null }>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: any | null }>;
 }
@@ -20,7 +21,7 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<ExtendedUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 

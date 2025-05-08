@@ -34,17 +34,9 @@ import type {
   // PendingTask, - Unused type
   // EscalatedTask, - Unused type
   // Interaction, - Unused type
-  SentimentData
+  SentimentData,
+  ExtendedUser
 } from '../types';
-import { User } from '@supabase/supabase-js';
-
-// Extended User interface that properly extends User from Supabase
-interface ExtendedUser extends Omit<User, 'user_metadata'> {
-  user_metadata: {
-    company?: string;
-    [key: string]: any;
-  }
-}
 
 // Define time range options
 const timeRanges = [

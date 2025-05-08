@@ -241,6 +241,16 @@ export interface Rating {
 }
 
 // Auth and User Management
+import { User as SupabaseUser } from '@supabase/supabase-js';
+
+// Extended User interface that properly extends User from Supabase
+export interface ExtendedUser extends Omit<SupabaseUser, 'user_metadata'> {
+  user_metadata: {
+    company?: string;
+    [key: string]: any;
+  }
+}
+
 export interface SignUpData {
   email: string;
   password: string;
