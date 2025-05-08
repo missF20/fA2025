@@ -33,15 +33,21 @@ def get_dashboard_metrics():
     - endDate: End date for custom range (format: YYYY-MM-DD)
     - platforms: Comma-separated list of platforms to include (default: all)
     """
+    # Debug log to confirm this endpoint is being called
+    logger.info("DASHBOARD REDESIGN: Dashboard metrics endpoint called")
+    
     try:
         # Get user ID from token
         user_id = g.user.get('user_id')
         if not user_id:
             return jsonify({"error": "User not authorized"}), 401
+            
+        logger.info(f"DASHBOARD REDESIGN: Fetching metrics for user_id {user_id}")
 
         # Get query parameters
         time_range = request.args.get('timeRange', '7d', type=str)
         platforms_param = request.args.get('platforms', None, type=str)
+        logger.info(f"DASHBOARD REDESIGN: Params - timeRange: {time_range}, platforms: {platforms_param}")
         
         # Parse platforms filter
         filtered_platforms = None
