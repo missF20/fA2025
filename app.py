@@ -296,7 +296,8 @@ def list_routes():
     for rule in app.url_map.iter_rules():
         routes.append({
             'endpoint': rule.endpoint,
-            'methods': list(rule.methods),
+            'methods': list(rule.methods) if         
+        rule.methods else [],
             'path': str(rule)
         })
     return jsonify(routes)
@@ -331,11 +332,11 @@ def status():
             backup_stats = get_backup_stats()
             health_status, health_message = check_backup_health()
             
-            status_info["database_backups"] = {
+            status_info["database_backups"] = jsonify({
                 "count": backup_stats["count"],
                 "latest": backup_stats["newest"],
                 "healthy": health_status
-            }
+            }).json
         except Exception as e:
             logger.warning(f"Could not retrieve backup stats: {str(e)}")
     except Exception as e:
