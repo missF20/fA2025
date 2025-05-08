@@ -162,30 +162,31 @@ export const Dashboard = () => {
         clearTimeout(timeoutId); // Clear timeout since request completed
         
         if (response.status === 200 && response.data) {
-        setMetrics(response.data);
-        
-        // Process sentiment data
-        if (response.data.sentimentData) {
-          setSentiment(response.data.sentimentData);
+          setMetrics(response.data);
+          
+          // Process sentiment data
+          if (response.data.sentimentData) {
+            setSentiment(response.data.sentimentData);
+          } else {
+            // Calculate sentiment based on interactions if not provided directly
+            // This is a fallback approach
+            calculateSentiment(response.data);
+          }
+          
+          // Check for anomalies
+          checkForAnomalies(response.data);
+          
+          setLastUpdated(new Date());
         } else {
-          // Calculate sentiment based on interactions if not provided directly
-          // This is a fallback approach
-          calculateSentiment(response.data);
+          throw new Error(`Invalid response from server: ${response.status} - ${response.statusText}`);
         }
-        
-        // Check for anomalies
-        checkForAnomalies(response.data);
-        
-        setLastUpdated(new Date());
-      } else {
-        throw new Error('Invalid response from server');
+      } catch (err: any) {
+        setError(err.message || 'Failed to fetch dashboard data');
+        console.error('Error fetching dashboard metrics:', err);
+      } finally {
+        setLoading(false);
+        setRefreshLoading(false);
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to fetch dashboard data');
-      console.error('Error fetching dashboard metrics:', err);
-    } finally {
-      setLoading(false);
-      setRefreshLoading(false);
     }
   }, [timeRange, customDateRange, platformFilter]);
 
