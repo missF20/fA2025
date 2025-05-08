@@ -6,6 +6,9 @@ import {
 } from 'lucide-react';
 import { SentimentData } from '../types';
 
+// Define the sentiment type using the data from SentimentData
+type SentimentType = 'positive' | 'neutral' | 'negative';
+
 interface SentimentAnalysisProps {
   data: SentimentData[];
 }
@@ -46,8 +49,6 @@ export function SentimentAnalysis({ data }: SentimentAnalysisProps) {
   }
 
   // Define types for sentiment colors
-  type SentimentType = 'positive' | 'neutral' | 'negative';
-  
   type SentimentColorScheme = {
     main: string;
     light: string;
