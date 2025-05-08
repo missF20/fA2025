@@ -525,12 +525,16 @@ def get_dashboard_metrics():
                 # Generate trend value (alternating negative/positive with decreasing magnitude)
                 trend = -15 + (i * 5) if i % 2 == 0 else 5 - (i * 3)
                 
+                # Calculate percentage of total issues
+                percentage = round((count / sum([c for _, c in sorted_issues])) * 100, 1) if sorted_issues else 0
+                
                 formatted_top_issues.append({
                     'id': str(i+1),
                     'name': issue_name,
                     'count': count,
                     'trend': trend,
-                    'platform': platform
+                    'platform': platform,
+                    'percentage': percentage
                 })
         except Exception as e:
             logger.warning(f"Error extracting top issues: {str(e)}")
