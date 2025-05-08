@@ -288,12 +288,18 @@ export const uploadKnowledgeFile = async (
         tags: tags && tags.length > 0 ? JSON.stringify(tags) : undefined
       };
       
-      // Try standard JSON upload
+      // Get CSRF token for protection
+      const csrfResponse = await fetch('/api/csrf-token');
+      const csrfData = await csrfResponse.json();
+      const csrfToken = csrfData.csrf_token;
+      
+      // Try standard JSON upload with CSRF token
       const jsonResponse = await fetch('/api/knowledge/files', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
+          'Authorization': `Bearer ${session.access_token}`,
+          'X-CSRFToken': csrfToken
         },
         body: JSON.stringify(fileData)
       });
@@ -576,8 +582,8 @@ export const getTags = async (): Promise<KnowledgeTag[]> => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('Not authenticated');
 
-    // Use API endpoint
-    const response = await fetch(`/api/knowledge/files/tags`, {
+    // Use fixed API endpoint - avoids JSON comparison error
+    const response = await fetch(`/api/knowledge/files/tags-fixed`, {
       headers: {
         'Authorization': `Bearer ${session.access_token}`
       }
