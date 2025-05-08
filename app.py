@@ -346,14 +346,15 @@ def status():
     
     return jsonify(status_info)
 
-@app.route('/api/visualization/dashboard', methods=['GET'])
-def dashboard_data():
-    """
-    Temporary API endpoint for dashboard visualization data
-    This is a temporary endpoint until the proper API endpoints are fully implemented
-    """
-    from utils.mock_dashboard_data import get_mock_dashboard_data
-    return jsonify(get_mock_dashboard_data())
+# Route commented out to allow dashboard_redesign.py to handle the endpoint
+# @app.route('/api/visualization/dashboard', methods=['GET'])
+# def dashboard_data():
+#     """
+#     Temporary API endpoint for dashboard visualization data
+#     This is a temporary endpoint until the proper API endpoints are fully implemented
+#     """
+#     from utils.mock_dashboard_data import get_mock_dashboard_data
+#     return jsonify(get_mock_dashboard_data())
 
 # Load user for Flask-Login
 @login_manager.user_loader
@@ -444,16 +445,20 @@ def register_blueprints():
             logger.warning(f"Could not register admin blueprint: {e}")
             
         try:
-            from routes.visualization import visualization_bp
-            app.register_blueprint(visualization_bp)
-            logger.info("Visualization blueprint registered successfully")
-            
-            # Register the new dashboard blueprint with improved metrics
-            from routes.dashboard_redesign import dashboard_bp as visualization_bp
-            app.register_blueprint(visualization_bp)
+            # Register the new dashboard blueprint first (higher priority)
+            from routes.dashboard_redesign import dashboard_bp as dashboard_bp_new
+            app.register_blueprint(dashboard_bp_new)
             logger.info("Dashboard redesign blueprint registered successfully with visualization URL")
+            
+            # Only register the old visualization blueprint if the new one fails
+            try:
+                from routes.visualization import visualization_bp
+                app.register_blueprint(visualization_bp)
+                logger.info("Visualization blueprint registered successfully")
+            except ImportError as e:
+                logger.warning(f"Could not register old visualization blueprint: {e}")
         except ImportError as e:
-            logger.warning(f"Could not register visualization blueprint: {e}")
+            logger.warning(f"Could not register dashboard redesign blueprint: {e}")
             
         try:
             from routes.webhooks import webhooks_bp
