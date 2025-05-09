@@ -74,7 +74,7 @@ def test_payment_link():
         "amount": 1.0,
         "description": "Test Payment",
         "callback_url": ipn_url.replace("/ipn", "/callback"),
-        # Don't include any IPN ID - let PesaPal use default
+        "ipn_notification_url_id": ipn_id,  # Add IPN ID explicitly
         "billing_address": {
             "email_address": "test@example.com",
             "phone_number": "",

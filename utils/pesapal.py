@@ -409,7 +409,8 @@ def submit_order(order_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
             "amount": float(order_data['amount']),
             "description": order_data['description'],
             "callback_url": order_data['callback_url'],
-            # Do not include the IPN ID here - it's causing API errors
+            # Include the IPN ID if available in environment
+            "ipn_notification_url_id": os.environ.get('PESAPAL_IPN_ID', ''),
             "billing_address": {
                 "email_address": order_data['customer_email'],
                 "phone_number": order_data.get('phone_number', ''),
@@ -597,9 +598,16 @@ def generate_payment_link(
     if callback_url:
         order_data['callback_url'] = callback_url
     
-    # Add notification ID if provided
-    if notification_id:
-        order_data['notification_id'] = notification_id
+    # Try to get or use provided IPN ID
+    ipn_id = os.environ.get('PESAPAL_IPN_ID', '')
+    if ipn_id:
+        # Use IPN ID from environment as this is what we registered
+        order_data['ipn_notification_url_id'] = ipn_id
+        logger.info(f"Using registered IPN ID from environment: {ipn_id}")
+    elif notification_id:
+        # Still allow passing in a notification ID if provided
+        order_data['ipn_notification_url_id'] = notification_id
+        logger.info(f"Using provided notification ID: {notification_id}")
     
     # Submit the order
     logger.info(f"Generating payment link for amount {amount} {currency}")
