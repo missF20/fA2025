@@ -1,48 +1,66 @@
 """
-Fix main.py after removing email endpoints
+Fix main.py email endpoints
 
-This script cleans up the main.py file by removing orphaned code blocks
-that might have been left after removing function definitions.
+This script creates a clean version of main.py by removing all email-related endpoints.
 """
 
+import re
+
 def fix_main_py():
-    # Read the current content of main.py
-    with open('main.py', 'r') as file:
-        lines = file.readlines()
-    
-    # Track if we're inside a function
-    in_function = False
-    function_indentation = 0
-    last_line_idx = 0
-    fixed_lines = []
-    
-    # Process each line
-    for i, line in enumerate(lines):
-        stripped_line = line.strip()
+    """
+    Clean up main.py by removing email-related endpoints
+    """
+    try:
+        # Create a backup of the original file
+        import os
+        if not os.path.exists("main.py.email_backup"):
+            os.system("cp main.py main.py.email_backup")
+            print("Created backup: main.py.email_backup")
         
-        # Track function entry
-        if stripped_line.startswith('def '):
-            in_function = True
-            function_indentation = len(line) - len(line.lstrip())
+        # Read the content of main.py
+        with open("main.py", "r") as file:
+            content = file.read()
         
-        # Check if we're exiting a function based on indentation
-        if in_function and stripped_line and not line.startswith(' ' * function_indentation) and not stripped_line.startswith('@'):
-            in_function = False
+        # Define regex patterns to match email-related sections
+        email_endpoints_pattern = r'@app\.route\([\'"]\/api\/.*?email.*?[\'"].*?\)\s*\n\s*def\s+\w+\s*\(.*?\):\s*.*?(?=@app\.route|\Z)'
         
-        # Check if line is a return statement outside of a function
-        if not in_function and stripped_line.startswith('return '):
-            # Replace return statement with a comment
-            fixed_lines.append(f"# Removed orphaned return statement: {stripped_line}\n")
-        else:
+        # Replace email-related sections with empty string
+        cleaned_content = re.sub(email_endpoints_pattern, '', content, flags=re.DOTALL)
+        
+        # Fix orphaned return statements (common issue after removing functions)
+        lines = cleaned_content.split('\n')
+        fixed_lines = []
+        in_function = False
+        function_indent = 0
+        
+        for line in lines:
+            line_stripped = line.strip()
+            
+            # Track function entry
+            if line_stripped.startswith('def '):
+                in_function = True
+                function_indent = len(line) - len(line.lstrip())
+            
+            # Track function exit based on indentation
+            elif in_function and line_stripped and not line.startswith(' ' * function_indent) and not line_stripped.startswith('@'):
+                in_function = False
+            
+            # Skip orphaned return statements
+            if not in_function and line_stripped.startswith('return '):
+                continue
+            
             fixed_lines.append(line)
         
-        last_line_idx = i
+        # Write the cleaned content back to main.py
+        with open("main.py", "w") as file:
+            file.write('\n'.join(fixed_lines))
+        
+        print("Successfully removed email-related endpoints from main.py")
+        return True
     
-    # Write the fixed content back to main.py
-    with open('main.py', 'w') as file:
-        file.writelines(fixed_lines)
-    
-    print("Fixed main.py by removing orphaned return statements")
+    except Exception as e:
+        print(f"Error fixing main.py: {str(e)}")
+        return False
 
 if __name__ == "__main__":
     fix_main_py()

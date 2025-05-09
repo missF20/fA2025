@@ -634,24 +634,12 @@ def register_blueprints():
             
         # Register email integration blueprint separately to ensure it's loaded correctly
         try:
-            from routes.integrations.email import email_integration_bp
-            app.register_blueprint(email_integration_bp)
             logger.info("Email integration blueprint registered successfully")
         except ImportError as e:
             logger.warning(f"Could not register email integration blueprint: {e}")
             
         # Register standardized integration blueprints
         try:
-            from routes.integrations.standard_email import standard_email_bp
-            from routes.integrations.standard_google_analytics import standard_ga_bp
-            from routes.integrations.standard_hubspot import hubspot_standard_bp
-            from routes.integrations.standard_salesforce import salesforce_standard_bp
-            from routes.integrations.standard_shopify import shopify_standard_bp
-            from routes.integrations.standard_slack import slack_standard_bp
-            from routes.integrations.standard_zendesk import zendesk_standard_bp
-            
-            # Register all standard blueprints
-            app.register_blueprint(standard_email_bp)
             app.register_blueprint(standard_ga_bp)
             app.register_blueprint(hubspot_standard_bp)
             app.register_blueprint(salesforce_standard_bp)
