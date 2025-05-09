@@ -12,7 +12,7 @@ from utils.auth_utils import get_authenticated_user
 from utils.db_access import IntegrationDAL
 from utils.response import success_response, error_response
 from utils.exceptions import AuthenticationError, DatabaseAccessError, ValidationError
-from routes.integrations.slack import connect_slack, send_message, get_channel_history
+from routes.integrations.slack import connect_slack, post_message as send_message, get_channel_history
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 INTEGRATION_TYPE = 'slack'
 
 # Create blueprint with standard naming convention
-slack_standard_bp = Blueprint(f'standard_{INTEGRATION_TYPE}_integration', __name__)
+standard_slack_bp = Blueprint(f'standard_{INTEGRATION_TYPE}_bp', __name__)
 
 # Mark all routes as CSRF exempt for API endpoints
 slack_standard_bp.decorators = [csrf_exempt]
