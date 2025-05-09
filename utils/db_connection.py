@@ -11,10 +11,10 @@ from psycopg2.extras import RealDictCursor
 
 logger = logging.getLogger(__name__)
 
-def get_direct_connection():
+def get_db_connection():
     """
     Get a direct PostgreSQL connection using environment variables
-    
+
     Returns:
         A psycopg2 connection object
     """
@@ -25,7 +25,7 @@ def get_direct_connection():
         db_name = os.environ.get("PGDATABASE", "postgres")
         db_user = os.environ.get("PGUSER", "postgres")
         db_password = os.environ.get("PGPASSWORD", "")
-        
+
         # Establish connection
         conn = psycopg2.connect(
             host=db_host,
@@ -35,12 +35,16 @@ def get_direct_connection():
             password=db_password,
             cursor_factory=RealDictCursor
         )
-        
+
         logger.info("Direct database connection established successfully")
         return conn
     except Exception as e:
         logger.error(f"Error connecting to database: {str(e)}")
         raise
+
+def get_direct_connection():
+    """Alias for get_db_connection for backward compatibility"""
+    return get_db_connection()
 
 def execute_sql(sql: str, params: Optional[Tuple[Any, ...]] = None, fetch_all: bool = True) -> Union[List[Dict[str, Any]], Dict[str, Any], None]:
     """

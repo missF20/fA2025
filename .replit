@@ -6,10 +6,10 @@ packages = ["libxcrypt", "postgresql", "unixODBC"]
 
 [deployment]
 deploymentTarget = "autoscale"
-run = ["gunicorn", "--bind", "0.0.0.0:5000", "main:app"]
+run = ["sh", "-c", "gunicorn --bind 0.0.0.0:5000 main:app"]
 
 [workflows]
-runButton = "Dev Environment"
+runButton = "Run Flask Server"
 
 [[workflows.workflow]]
 name = "Project"
@@ -43,6 +43,15 @@ mode = "parallel"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "cd frontend && npm run dev"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "gunicorn --bind 0.0.0.0:5000 --reuse-port --reload main:app"
+
+[[workflows.workflow]]
+name = "Run Flask Server"
+author = 40931725
+mode = "sequential"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
