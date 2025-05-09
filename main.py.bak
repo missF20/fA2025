@@ -98,107 +98,12 @@ except Exception as e:
 # Email connection test page route already defined in app.py
 # No need to redefine it here as it would conflict
 
-# Add a direct test endpoint for email that doesn't require authentication
-@app.route('/test-email')
-def test_email_direct_endpoint():
-    """Simple test endpoint for email integration that doesn't require auth"""
-    return jsonify({
-        'success': True,
-        'message': 'Email test endpoint is working',
-        'status': 'active',
-        'version': '1.0.0'
-    })
-
-# Add a simple test page for email integration
-@app.route('/simple-email-test')
-def simple_email_test():
-    """Simple test page for email integration that doesn't require auth"""
-    return render_template('simple_email_test.html')
-
-# Add direct email integration routes with improved error handling
-try:
-    # Use V12 version with fixed column names and proper result handling
-    # Import standard_email_bp instead of direct routes
-    from routes.integrations.standard_email import standard_email_bp
-    app.register_blueprint(standard_email_bp)
-    logger.info("Standard email blueprint registered successfully")
-    
-    # Also add direct standardized email routes for more reliability
-    try:
-        from direct_standard_email_fix import register_direct_standard_email_routes
-        if register_direct_standard_email_routes():
-            logger.info("Direct standardized email routes added successfully")
-        else:
-            logger.warning("Failed to add direct standardized email routes")
-    except Exception as e:
-        logger.warning(f"Error adding direct standardized email routes: {str(e)}")
-    
-    # Define a dummy function to replace the original
-    def add_direct_email_integration_routes():
-        """Disabled function to prevent direct email routes."""
-        logger.info("Direct email routes disabled in favor of standard_email_bp")
-        return False
-        
-    logger.info("Email integration using standard_email_bp")
-except Exception as e:
-    logger.error(f"Error setting up email integration: {str(e)}")
-    
-    # Try direct standardized email routes first
-    try:
-        from direct_standard_email_fix import register_direct_standard_email_routes
-        if register_direct_standard_email_routes():
-            logger.info("Direct standardized email routes added successfully (fallback)")
-        else:
-            logger.warning("Failed to add direct standardized email routes (fallback)")
-    except Exception as std_error:
-        logger.warning(f"Error adding direct standardized email routes: {str(std_error)}")
-    
-    # Fall back to direct import if standard_email_bp fails
-    try:
-        from direct_email_integration_fix_v12 import add_direct_email_integration_routes
-        
-        if add_direct_email_integration_routes():
-            logger.info("Email integration routes added successfully with fixed result handling")
-        else:
-            logger.error("Failed to add email integration routes")
-    except Exception as e:
-        # Try falling back to V11 if V12 fails
-        try:
-            logger.warning(f"Error with V12 email integration fix: {str(e)}, trying V11 as fallback")
-            from direct_email_integration_fix_v11 import add_direct_email_integration_routes
-            
-            if add_direct_email_integration_routes():
-                logger.info("Email integration routes added successfully with V11 fallback")
-            else:
-                logger.error("Failed to add email integration routes with V11 fallback")
-        except Exception as fallback_error:
-            logger.error(f"Error with email integration fallback: {str(fallback_error)}")
-            # Try falling back to V10 if both V12 and V11 fail
-            try:
-                logger.warning(f"Error with V11 email integration fix: {str(fallback_error)}, trying V10 as fallback")
-                from direct_email_integration_fix_v10 import add_direct_email_integration_routes
-                if add_direct_email_integration_routes():
-                    logger.info("Email integration routes added successfully with V10 fallback")
-                else:
-                    logger.error("Failed to add email integration routes with V10 fallback")
-            except Exception as second_fallback_error:
-                # Try falling back to V9 if all other versions fail
-                try:
-                    logger.warning(f"Error with V10 email integration fix: {str(second_fallback_error)}, trying V9 as fallback")
-                    from direct_email_integration_fix_v9 import add_direct_email_integration_routes
-                    if add_direct_email_integration_routes():
-                        logger.info("Email integration routes added successfully with V9 fallback")
-                    else:
-                        logger.error("Failed to add email integration routes with V9 fallback")
-                except Exception as final_error:
-                    # Use logger if already initialized above
-                    if not 'logger' in locals():
-                        logger = logging.getLogger(__name__)
-                    logger.error(f"Error setting up email integration routes: {str(final_error)}")
+# Removed email integration code as requested
+logger.info("Email integration modules removed as requested")
 
 # Add direct Google Analytics routes
 try:
-    from direct_google_analytics_fix import add_direct_google_analytics_routes
+    # Removed import of test file or direct fix (by migration 005_update_main_imports)
     if add_direct_google_analytics_routes(app):
         logger.info("Google Analytics direct routes added successfully")
     else:
@@ -208,12 +113,12 @@ except Exception as ga_error:
 
 # Add direct routes for all standardized integrations
 try:
-    from direct_standard_integrations_fix import add_direct_standard_integration_routes
+    # Removed import of test file or direct fix (by migration 005_update_main_imports)
     if add_direct_standard_integration_routes(app):
         logger.info("Direct routes for standardized integrations added successfully")
         
     # Add the endpoint that returns all integrations statuses
-    from direct_integrations_status_fix import add_all_integrations_status_endpoint
+    # Removed import of test file or direct fix (by migration 005_update_main_imports)
     if add_all_integrations_status_endpoint(app):
         logger.info("All integrations status endpoint added successfully")
     else:
@@ -335,8 +240,7 @@ def direct_google_analytics_connect():
 
 # Add direct email disconnect endpoint
 # Test endpoint to connect email integration
-@app.route('/api/integrations/email/connect', methods=['POST', 'OPTIONS'])
-def direct_email_connect():
+# Removed email endpoint 'direct_email_connect' as requested
     """Direct endpoint for email connection."""
     logger = logging.getLogger(__name__)
     
@@ -722,8 +626,7 @@ def direct_email_connect():
             'message': f"Error connecting email: {str(e)}"
         }), 500
 
-@app.route('/api/integrations/email/disconnect', methods=['POST', 'OPTIONS'])
-def direct_email_disconnect():
+# Removed email endpoint 'direct_email_disconnect' as requested
     """Direct endpoint for email disconnection."""
     logger = logging.getLogger(__name__)
     
@@ -1676,8 +1579,7 @@ def get_integrations_status_direct():
         return jsonify({"error": "Integrations status API error", "details": str(e)}), 500
 
 # Email integration endpoints
-@app.route('/api/integrations/email/test', methods=['GET'])
-def test_email_direct_v2():
+# Removed email endpoint 'test_email_direct_v2' as requested
     """Test endpoint for Email integration API v2 that doesn't require authentication"""
     return jsonify({
         'success': True,
@@ -1685,8 +1587,7 @@ def test_email_direct_v2():
         'version': '2.0.0'
     })
     
-@app.route('/api/integrations/email/connect/legacy', methods=['POST'])
-def connect_email_direct_legacy():
+# Removed email endpoint 'connect_email_direct_legacy' as requested
     """Legacy connect endpoint for email integration - direct endpoint"""
     try:
         from routes.integrations.email import connect_email
@@ -1749,8 +1650,7 @@ def connect_email_direct_legacy():
         logger.error(f"Error in direct email connect endpoint: {str(e)}")
         return jsonify({"success": False, "message": f"Email connect API error: {str(e)}"}), 500
     
-@app.route('/api/integrations/email/send', methods=['POST'])
-def send_email_direct():
+# Removed email endpoint 'send_email_direct' as requested
     """Send email - direct endpoint"""
     try:
         from routes.integrations.email import send_email
@@ -1774,7 +1674,7 @@ def send_email_direct():
             _request_ctx_stack.top.g.user = FakeUser()
             
             # Call the original implementation which handles the request body extraction
-            return send_email()
+# Removed orphaned return statement: return send_email()
         else:
             # For regular tokens, use the normal auth process
             from utils.auth import token_required_impl
@@ -1783,13 +1683,13 @@ def send_email_direct():
             auth_result = token_required_impl()
             if isinstance(auth_result, tuple):
                 # Auth failed, return the error response
-                return auth_result
+# Removed orphaned return statement: return auth_result
                 
             # Call the original implementation which handles the request body extraction
-            return send_email()
+# Removed orphaned return statement: return send_email()
     except Exception as e:
         logger.error(f"Error in direct email send endpoint: {str(e)}")
-        return jsonify({"success": False, "message": f"Email send API error: {str(e)}"}), 500
+# Removed orphaned return statement: return jsonify({"success": False, "message": f"Email send API error: {str(e)}"}), 500
 
 # HubSpot integration endpoints
 @app.route('/api/integrations/hubspot/test', methods=['GET'])
@@ -1867,8 +1767,7 @@ def connect_salesforce_direct():
 # Note: The test_email_direct function exists elsewhere in the codebase,
 # so we're not redefining it here
 
-@app.route('/api/integrations/email/status', methods=['GET'])
-def get_email_status_direct():
+# Removed email endpoint 'get_email_status_direct' as requested
     """Get status of Email integration API - direct endpoint"""
     # Allow all requests for testing purposes
     logger = logging.getLogger(__name__)
@@ -1891,8 +1790,7 @@ def get_email_status_direct():
         'version': '1.0.0'
     })
 
-@app.route('/api/integrations/email/connect', methods=['POST', 'OPTIONS'])
-def connect_email_direct_v2():
+# Removed email endpoint 'connect_email_direct_v2' as requested
     """Connect to email service - direct endpoint (v2)"""
     # Handle OPTIONS request (CORS preflight)
     if request.method == 'OPTIONS':
@@ -1924,8 +1822,7 @@ def connect_email_direct_v2():
             'message': f'An error occurred while connecting to email service: {str(e)}'
         }), 500
 
-@app.route('/api/integrations/email/configure', methods=['GET'])
-def get_email_configure_direct():
+# Removed email endpoint 'get_email_configure_direct' as requested
     """Get configuration schema for Email integration - direct endpoint"""
     try:
         # Return a basic configuration schema
@@ -1968,8 +1865,7 @@ def get_email_configure_direct():
             'message': f'An error occurred while getting email configuration schema: {str(e)}'
         }), 500
 
-@app.route('/api/integrations/email/disconnect', methods=['POST', 'OPTIONS'])
-def disconnect_email_direct():
+# Removed email endpoint 'disconnect_email_direct' as requested
     """Disconnect from email service - direct endpoint"""
     # Handle OPTIONS request (CORS preflight)
     if request.method == 'OPTIONS':
@@ -2021,8 +1917,7 @@ def connect_salesforce_fixed():
 
 # Direct Email Integration Endpoints V2 - Unique function names to prevent conflicts
 
-@app.route('/api/integrations/email/test', methods=['GET'])
-def email_integration_api_is_working_v2():
+# Removed email endpoint 'email_integration_api_is_working_v2' as requested
     """Test endpoint for Email integration that doesn't require authentication - V2"""
     return jsonify({
         'success': True,
@@ -2030,8 +1925,7 @@ def email_integration_api_is_working_v2():
         'version': '2.0.0'
     })
 
-@app.route('/api/integrations/email/status', methods=['GET'])
-def email_integration_status_check_v2():
+# Removed email endpoint 'email_integration_status_check_v2' as requested
     """Get status of Email integration API - V2"""
     return jsonify({
         'success': True,
@@ -2039,8 +1933,7 @@ def email_integration_status_check_v2():
         'version': '1.0.0'
     })
 
-@app.route('/api/integrations/email/configure', methods=['GET'])
-def email_integration_get_config_schema_v2():
+# Removed email endpoint 'email_integration_get_config_schema_v2' as requested
     """Get configuration schema for Email integration - V2"""
     try:
         from routes.integrations.email import get_email_config_schema
@@ -2057,8 +1950,7 @@ def email_integration_get_config_schema_v2():
             'message': f'An error occurred while getting email configuration schema: {str(e)}'
         }), 500
 
-@app.route('/api/integrations/email/connect', methods=['POST', 'OPTIONS'])
-def email_integration_connect_service_v2():
+# Removed email endpoint 'email_integration_connect_service_v2' as requested
     """Connect to email service - V2"""
     # Handle OPTIONS request (CORS preflight)
     if request.method == 'OPTIONS':
@@ -2119,8 +2011,7 @@ def email_integration_connect_service_v2():
             'message': f'An error occurred while connecting to email service: {str(e)}'
         }), 500
 
-@app.route('/api/integrations/email/disconnect', methods=['POST', 'OPTIONS'])
-def email_integration_disconnect_service_v2():
+# Removed email endpoint 'email_integration_disconnect_service_v2' as requested
     """Disconnect from email service - V2"""
     # Handle OPTIONS request (CORS preflight)
     if request.method == 'OPTIONS':
@@ -2802,8 +2693,7 @@ if __name__ == "__main__":
             logger.warning(f"SocketIO error with SSL, trying without: {e}")
             socketio.run(app, host="0.0.0.0", port=5000, debug=True)
 # Direct email disconnection endpoint that doesn't rely on complex auth
-@app.route('/api/direct/integrations/email/disconnect', methods=['POST', 'OPTIONS'])
-def direct_fix_email_disconnect():
+# Removed email endpoint 'direct_fix_email_disconnect' as requested
     """Simplified endpoint to fix email disconnection"""
     logger = logging.getLogger(__name__)
     
@@ -2875,8 +2765,7 @@ def direct_fix_email_disconnect():
         }), 500
 
 # Direct email connection endpoint that doesn't rely on complex auth
-@app.route('/api/direct/integrations/email/connect', methods=['POST', 'OPTIONS'])
-def direct_fix_email_connect():
+# Removed email endpoint 'direct_fix_email_connect' as requested
     """Simplified endpoint to fix email connection"""
     logger = logging.getLogger(__name__)
     
@@ -3034,8 +2923,8 @@ def direct_integrations_status():
     integrations = []
     
     # Add Slack integration (use the same function from routes)
-    from routes.integrations.routes import check_slack_status
-    slack_status = check_slack_status()
+    # Removed import from routes.integrations.routes (by migration 005_update_main_imports)
+    slack_status = None # Removed call to test file or direct fix (by migration 005_update_main_imports)
     integrations.append({
         'id': 'slack',
         'type': IntegrationType.SLACK.value,
@@ -3382,8 +3271,7 @@ def toggle_email_status():
     })
 
 # Updated email connect endpoint
-@app.route('/api/toggle/integrations/email/connect', methods=['POST', 'OPTIONS'])
-def toggle_email_connect():
+# Removed email endpoint 'toggle_email_connect' as requested
     """Connect email endpoint that updates the status file"""
     if request.method == 'OPTIONS':
         response = jsonify({"status": "success"})
@@ -3410,9 +3298,25 @@ def toggle_email_connect():
             'message': f'Error connecting email: {str(e)}'
         }), 500
 
+
+# Use the centralized integration registration system (added by migration 005_update_main_imports)
+try:
+    # Import the migration manager to register integrations
+    from utils.migration_manager import MigrationManager
+    
+    # Create a migration manager instance
+    migration_manager = MigrationManager(app)
+    
+    # Register standard integration blueprints
+    migration_manager.run_migration_by_name(
+        'integration_standardization', 
+        '001_create_centralized_registration'
+    )
+    logger.info("Registered standard integration blueprints via migration manager")
+except Exception as e:
+    logger.error(f"Error registering standard integration blueprints: {str(e)}")
 # Updated email disconnect endpoint
-@app.route('/api/toggle/integrations/email/disconnect', methods=['POST', 'OPTIONS'])
-def toggle_email_disconnect():
+# Removed email endpoint 'toggle_email_disconnect' as requested
     """Disconnect email endpoint that updates the status file"""
     if request.method == 'OPTIONS':
         response = jsonify({"status": "success"})
@@ -3437,3 +3341,106 @@ def toggle_email_disconnect():
             'success': False,
             'message': f'Error disconnecting email: {str(e)}'
         }), 500
+
+# Direct dashboard route to fix route conflict issues
+@app.route('/api/dashboard_redesign/dashboard', methods=['GET', 'OPTIONS'])
+@token_required
+def direct_dashboard_metrics():
+    """Direct fallback endpoint for dashboard metrics"""
+    from datetime import datetime, timedelta
+    
+    # Debug log
+    logger.info("DIRECT DASHBOARD: Direct dashboard metrics endpoint called")
+    
+    # CORS headers for OPTIONS request
+    if request.method == 'OPTIONS':
+        response = jsonify({"status": "success"})
+        response.headers.add('Access-Control-Allow-Methods', 'GET, OPTIONS')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response
+    
+    # Get user ID from token
+    user = get_user_from_token()
+    user_id = user.get('user_id') if user else None
+    if not user_id:
+        return jsonify({"error": "User not authorized"}), 401
+    
+    # Get query parameters
+    time_range = request.args.get('timeRange', '7d', type=str)
+    platforms_param = request.args.get('platforms', None, type=str)
+    
+    # Simple sample response for testing frontend
+    sample_data = {
+        "totalChats": 142,
+        "completedTasks": 87,
+        "pendingTasks": [
+            {
+                "id": "task1",
+                "task": "Follow up with client",
+                "client": {"name": "John Doe", "company": "Acme Corp"},
+                "timestamp": datetime.now().isoformat(),
+                "platform": "email",
+                "priority": "high"
+            }
+        ],
+        "escalatedTasks": [
+            {
+                "id": "task2",
+                "task": "Urgent support request",
+                "client": {"name": "Alice Smith", "company": "Tech Inc"},
+                "timestamp": datetime.now().isoformat(),
+                "platform": "slack",
+                "priority": "high",
+                "reason": "Customer reporting service outage"
+            }
+        ],
+        "responseTime": "45m",
+        "platformBreakdown": {
+            "facebook": 30,
+            "instagram": 25,
+            "whatsapp": 40,
+            "slack": 22,
+            "email": 25
+        },
+        "sentimentData": [
+            {
+                "id": "positive",
+                "type": "positive",
+                "count": 85,
+                "trend": 5,
+                "percentage": 60
+            },
+            {
+                "id": "neutral",
+                "type": "neutral",
+                "count": 42,
+                "trend": -2,
+                "percentage": 30
+            },
+            {
+                "id": "negative",
+                "type": "negative",
+                "count": 15,
+                "trend": -10,
+                "percentage": 10
+            }
+        ],
+        "topIssues": [
+            {"issue": "Account access", "count": 28, "percentage": 35},
+            {"issue": "Billing questions", "count": 22, "percentage": 28},
+            {"issue": "Feature requests", "count": 18, "percentage": 22},
+            {"issue": "Technical support", "count": 12, "percentage": 15}
+        ],
+        "interactionActivity": [
+            {"hour": "00:00", "count": 5},
+            {"hour": "06:00", "count": 12},
+            {"hour": "12:00", "count": 45},
+            {"hour": "18:00", "count": 30}
+        ]
+    }
+    
+    # Apply CORS headers to the response
+    response = jsonify(sample_data)
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    return response
