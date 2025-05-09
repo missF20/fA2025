@@ -377,7 +377,7 @@ def submit_order(order_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
             "amount": float(order_data['amount']),
             "description": order_data['description'],
             "callback_url": order_data['callback_url'],
-            "notification_id": str(uuid.uuid4()),  # Generate a unique notification ID
+            "notification_id": order_data.get('notification_id', str(uuid.uuid4())),  # Use provided notification_id or generate one
             "billing_address": {
                 "email_address": order_data['customer_email'],
                 "phone_number": order_data.get('phone_number', ''),

@@ -147,7 +147,7 @@ def verify_api_connection():
         return False
 
 def verify_ipn_url():
-    """Verify IPN URL configuration"""
+    """Verify IPN URL configuration and register it with PesaPal"""
     logger.info("\nVerifying IPN URL configuration...")
     
     try:
@@ -180,6 +180,29 @@ def verify_ipn_url():
             logger.warning(f"Could not access domain: {str(request_error)}")
         
         logger.info(f"IPN URL configuration is valid: {ipn_url}")
+        
+        # Register the IPN URL with PesaPal
+        try:
+            # Import register_ipn_url function
+            try:
+                from utils.pesapal import register_ipn_url
+                logger.info("Registering IPN URL with PesaPal...")
+                
+                # Ensure IPN URL is set in environment before registration
+                os.environ['PESAPAL_IPN_URL'] = ipn_url
+                
+                # Register the IPN URL
+                registration_result = register_ipn_url()
+                
+                if registration_result:
+                    logger.info("Successfully registered IPN URL with PesaPal")
+                else:
+                    logger.warning("Failed to register IPN URL with PesaPal - proceed anyway as it might already be registered")
+            except ImportError:
+                logger.warning("Could not import register_ipn_url from pesapal module")
+        except Exception as reg_error:
+            logger.warning(f"Error registering IPN URL: {str(reg_error)}")
+        
         return True
     except Exception as e:
         logger.error(f"Error verifying IPN URL: {str(e)}")
@@ -197,14 +220,15 @@ def verify_payment_page_generation():
             logger.error("Could not import generate_payment_link from pesapal module")
             return False
         
-        # Test payment data
+        # Test payment data - use very small amount (1.0) to avoid exceeding sandbox limits
+        current_timestamp = int(datetime.now().timestamp())
         test_data = {
-            'amount': 10.0,
+            'amount': 1.0,  # Reduced from 10.0 to stay within PesaPal sandbox limits
             'currency': 'USD',
             'description': 'Test Payment',
             'callback_url': os.environ.get('PESAPAL_IPN_URL'),
-            'notification_id': f'test-{int(datetime.now().timestamp())}',
-            'reference': f'REF-{int(datetime.now().timestamp())}',
+            'notification_id': f'IPN{current_timestamp}',  # Simple alphanumeric format
+            'reference': f'REF{current_timestamp}',  # Simple alphanumeric format
             'email': 'test@example.com',
             'first_name': 'Test',
             'last_name': 'User'
@@ -213,6 +237,8 @@ def verify_payment_page_generation():
         # Generate payment link
         logger.info("Generating test payment link...")
         try:
+            # First try with notification_id
+            logger.info("Attempting payment link generation with notification_id...")
             result = generate_payment_link(
                 amount=test_data['amount'],
                 currency=test_data['currency'],
@@ -224,6 +250,20 @@ def verify_payment_page_generation():
                 first_name=test_data['first_name'],
                 last_name=test_data['last_name']
             )
+            
+            # If failed, try without notification_id
+            if not result or not result.get('redirect_url'):
+                logger.info("First attempt failed. Trying again without notification_id...")
+                result = generate_payment_link(
+                    amount=test_data['amount'],
+                    currency=test_data['currency'],
+                    description=test_data['description'],
+                    callback_url=test_data['callback_url'],
+                    reference=test_data['reference'],
+                    email=test_data['email'],
+                    first_name=test_data['first_name'],
+                    last_name=test_data['last_name']
+                )
             
             if not result or not result.get('redirect_url'):
                 logger.error("Failed to generate payment link")
