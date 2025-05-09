@@ -12,6 +12,14 @@ from flask_login import LoginManager
 from flask_socketio import SocketIO
 from flask_cors import CORS
 from flask_wtf.csrf import CSRFProtect
+
+# Load environment variables from .env files
+try:
+    from utils.env_loader import load_dotenv
+    load_dotenv()
+    logging.info("Environment variables loaded from .env files")
+except ImportError:
+    logging.warning("Could not import env_loader module, environment variables from .env files will not be loaded")
 # Temporarily commented out due to installation issues
 # from flask_limiter import Limiter
 # from flask_limiter.util import get_remote_address
