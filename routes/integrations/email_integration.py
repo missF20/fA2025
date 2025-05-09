@@ -1,8 +1,8 @@
 """
-Dana AI Platform - Integration Template
+Dana AI Platform - Email Integration
 
-This module provides a standardized template for creating new integrations.
-All new integrations should follow this pattern for consistency.
+This module provides standardized endpoints for email integration.
+It follows the new templated approach for all integrations.
 """
 
 import logging
@@ -17,8 +17,8 @@ logger = logging.getLogger(__name__)
 # Initialize CSRF protection
 csrf = CSRFProtect()
 
-# Define integration type - REPLACE WITH ACTUAL INTEGRATION TYPE
-INTEGRATION_TYPE = 'template'
+# Define integration type
+INTEGRATION_TYPE = 'email'
 
 # Import csrf utilities
 try:
@@ -50,92 +50,39 @@ except ImportError:
         return bp
 
 # Import utilities
-try:
-    from utils.auth_utils import get_authenticated_user
-    from utils.db_access import IntegrationDAL
-    from utils.response import success_response, error_response
-    from utils.exceptions import AuthenticationError, DatabaseAccessError, ValidationError, IntegrationError
-    from utils.integration_utils import (
-        is_development_mode,
-        get_integration_config,
-        save_integration_config,
-        get_integration_status,
-        validate_json_request,
-        handle_integration_connection, 
-        handle_integration_disconnect,
-        csrf_validate_with_dev_bypass
-    )
-except ImportError as e:
-    logger.error(f"Error importing required utilities: {str(e)}")
-    # Define minimal fallback functions for development
-    def get_authenticated_user(request, allow_dev_tokens=True):
-        return {'id': 'dev-user-id'}
-        
-    def success_response(message="Success", data=None):
-        return jsonify({'success': True, 'message': message, 'data': data})
-        
-    def error_response(error):
-        if isinstance(error, str):
-            message = error
-        else:
-            message = str(error)
-        return jsonify({'success': False, 'message': message}), 400
-        
-    def is_development_mode():
-        return True
-        
-    def get_integration_config(integration_type, user_id):
-        return None
-        
-    def save_integration_config(integration_type, user_id, config):
-        return True
-        
-    def get_integration_status(integration_type, user_id):
-        return {'configured': False, 'active': False}
-        
-    def validate_json_request(required_fields):
-        return {}
-        
-    def handle_integration_connection(integration_type, user_id, config):
-        return success_response(f"Connected to {integration_type}")
-        
-    def handle_integration_disconnect(integration_type, user_id):
-        return success_response(f"Disconnected from {integration_type}")
-        
-    def csrf_validate_with_dev_bypass(request, validation_key):
-        return None
-        
-    # Exception classes
-    class AuthenticationError(Exception):
-        pass
-        
-    class DatabaseAccessError(Exception):
-        pass
-        
-    class ValidationError(Exception):
-        pass
-        
-    class IntegrationError(Exception):
-        pass
+from utils.auth_utils import get_authenticated_user
+from utils.db_access import IntegrationDAL
+from utils.response import success_response, error_response
+from utils.exceptions import AuthenticationError, DatabaseAccessError, ValidationError, IntegrationError
+from utils.integration_utils import (
+    is_development_mode,
+    get_integration_config,
+    save_integration_config,
+    get_integration_status,
+    validate_json_request,
+    handle_integration_connection, 
+    handle_integration_disconnect,
+    csrf_validate_with_dev_bypass
+)
 
 # Create blueprint with standard naming convention
-template_bp = Blueprint(f'{INTEGRATION_TYPE}_integration', __name__)
+email_bp = Blueprint(f'{INTEGRATION_TYPE}_integration', __name__)
 
 # Exempt the entire blueprint from CSRF protection
 try:
-    template_bp = csrf_exempt_blueprint(template_bp)
+    email_bp = csrf_exempt_blueprint(email_bp)
 except Exception as e:
-    logger.warning(f"Could not exempt {INTEGRATION_TYPE} blueprint using csrf_exempt_blueprint: {str(e)}")
+    logger.warning(f"Could not exempt email blueprint using csrf_exempt_blueprint: {str(e)}")
     # Fall back to the traditional approach
-    csrf.exempt(template_bp)
+    csrf.exempt(email_bp)
 
 # Standard route pattern: /api/v2/integrations/{integration_type}/{action}
-@template_bp.route(f'/api/v2/integrations/{INTEGRATION_TYPE}/connect', methods=['POST', 'OPTIONS'])
+@email_bp.route(f'/api/v2/integrations/{INTEGRATION_TYPE}/connect', methods=['POST', 'OPTIONS'])
 def connect():
     """
-    Connect template integration
+    Connect email integration
     
-    Standard endpoint for connecting template integration that follows the
+    Standard endpoint for connecting email integration that follows the
     unified integration pattern. This endpoint:
     1. Validates the CSRF token with dev mode bypass
     2. Authenticates the user
@@ -160,8 +107,7 @@ def connect():
         
         try:
             # Validate request data using standard utility
-            # REPLACE required_fields WITH ACTUAL REQUIRED FIELDS FOR THIS INTEGRATION
-            data = validate_json_request(['required_field1', 'required_field2'])
+            data = validate_json_request(['email', 'password', 'smtp_server', 'smtp_port'])
             
             # Use standardized integration connection handler
             return handle_integration_connection(INTEGRATION_TYPE, user_id, data)
@@ -180,12 +126,12 @@ def connect():
         logger.exception(f"Unexpected error in {INTEGRATION_TYPE} connect: {str(e)}")
         return error_response(f"Error connecting {INTEGRATION_TYPE} integration: {str(e)}")
 
-@template_bp.route(f'/api/v2/integrations/{INTEGRATION_TYPE}/disconnect', methods=['POST', 'OPTIONS'])
+@email_bp.route(f'/api/v2/integrations/{INTEGRATION_TYPE}/disconnect', methods=['POST', 'OPTIONS'])
 def disconnect():
     """
-    Disconnect template integration
+    Disconnect email integration
     
-    Standard endpoint for disconnecting template integration that follows the
+    Standard endpoint for disconnecting email integration that follows the
     unified integration pattern. This endpoint:
     1. Validates the CSRF token with dev mode bypass
     2. Authenticates the user
@@ -222,16 +168,16 @@ def disconnect():
         return error_response(f"Error disconnecting {INTEGRATION_TYPE} integration: {str(e)}")
 
 
-@template_bp.route(f'/api/v2/integrations/{INTEGRATION_TYPE}/status', methods=['GET', 'OPTIONS'])
+@email_bp.route(f'/api/v2/integrations/{INTEGRATION_TYPE}/status', methods=['GET', 'OPTIONS'])
 def status():
     """
-    Get template integration status
+    Get email integration status
     
-    Standard endpoint for retrieving template integration status that follows the
+    Standard endpoint for retrieving email integration status that follows the
     unified integration pattern. This endpoint:
     1. Authenticates the user
     2. Retrieves integration status using the standard utility
-    3. Adds template-specific configuration details if available
+    3. Adds email-specific configuration details if available
     """
     # Standard CORS handling for OPTIONS requests
     if request.method == 'OPTIONS':
@@ -245,13 +191,12 @@ def status():
         # Get integration status using standard utility
         status_data = get_integration_status(INTEGRATION_TYPE, user_id)
         
-        # Add template-specific information if configured
+        # Add email-specific information if configured
         if status_data.get('configured', False):
             # Get the integration config using utility
             integration = get_integration_config(INTEGRATION_TYPE, user_id)
             if integration and integration.get('config'):
-                # REPLACE WITH INTEGRATION-SPECIFIC DETAILS FOR THIS INTEGRATION
-                status_data['config_detail'] = integration['config'].get('config_detail', 'Not configured')
+                status_data['email'] = integration['config'].get('email', 'Not configured')
                 
         return success_response(data=status_data)
 
@@ -266,12 +211,12 @@ def status():
         return error_response(f"Error getting {INTEGRATION_TYPE} integration status: {str(e)}")
 
 
-@template_bp.route(f'/api/v2/integrations/{INTEGRATION_TYPE}/test', methods=['GET', 'OPTIONS'])
+@email_bp.route(f'/api/v2/integrations/{INTEGRATION_TYPE}/test', methods=['GET', 'OPTIONS'])
 def test():
     """
-    Test template integration API
+    Test email integration API
 
-    This endpoint is used to test if the template integration API is working.
+    This endpoint is used to test if the email integration API is working.
     It does not require authentication.
     """
     # Standard CORS handling for OPTIONS requests
@@ -280,14 +225,14 @@ def test():
 
     # Simple test endpoint that doesn't require authentication
     return success_response(
-        message=f"{INTEGRATION_TYPE} integration API is working",
-        data={'version': '1.0.0'})
+        message=f"{INTEGRATION_TYPE} integration API is working (v3)",
+        data={'version': '3.0.0'})
 
 # Blueprint registration function
 def register_blueprint(app):
-    """Register the template integration blueprint with the app"""
+    """Register the email integration blueprint with the app"""
     try:
-        app.register_blueprint(template_bp)
+        app.register_blueprint(email_bp)
         logger.info(f"{INTEGRATION_TYPE} integration blueprint registered successfully")
         return True
     except Exception as e:

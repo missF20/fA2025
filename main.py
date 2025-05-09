@@ -115,31 +115,31 @@ def simple_email_test():
     """Simple test page for email integration that doesn't require auth"""
     return render_template('simple_email_test.html')
 
-# Add direct email integration routes with improved error handling
+# Add email integration routes with template-based approach
 try:
-    # Use V12 version with fixed column names and proper result handling
-    # Import standard_email_bp instead of direct routes
-    from routes.integrations.standard_email import standard_email_bp
-    app.register_blueprint(standard_email_bp)
-    logger.info("Standard email blueprint registered successfully")
-    
-    # Also add direct standardized email routes for more reliability
+    # First try to use our new template-based email integration
     try:
-        from direct_standard_email_fix import register_direct_standard_email_routes
-        if register_direct_standard_email_routes():
-            logger.info("Direct standardized email routes added successfully")
+        from routes.integrations.email_integration import register_blueprint as register_email_blueprint
+        if register_email_blueprint(app):
+            logger.info("Template-based email integration blueprint registered successfully")
         else:
-            logger.warning("Failed to add direct standardized email routes")
-    except Exception as e:
-        logger.warning(f"Error adding direct standardized email routes: {str(e)}")
+            logger.warning("Failed to register template-based email integration blueprint")
+            raise ImportError("Template-based email integration registration failed")
+    except ImportError as e:
+        logger.warning(f"Could not register template-based email integration: {str(e)}")
+        
+        # Fall back to standard_email if template-based approach fails
+        from routes.integrations.standard_email import standard_email_bp
+        app.register_blueprint(standard_email_bp)
+        logger.info("Standard email blueprint registered successfully (fallback)")
     
     # Define a dummy function to replace the original
     def add_direct_email_integration_routes():
         """Disabled function to prevent direct email routes."""
-        logger.info("Direct email routes disabled in favor of standard_email_bp")
+        logger.info("Direct email routes disabled in favor of template-based or standard email blueprint")
         return False
         
-    logger.info("Email integration using standard_email_bp")
+    logger.info("Email integration configured successfully")
 except Exception as e:
     logger.error(f"Error setting up email integration: {str(e)}")
     
