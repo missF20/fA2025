@@ -156,10 +156,19 @@ def add_integration_routes(app, integration_name):
     # Integration route URL prefix
     url_prefix = f'/api/integrations'
     
-    # Status endpoint
-    @app.route(f'{url_prefix}/status/{integration_name}', methods=['GET'])
-    def integration_status_endpoint():
-        """Check integration status"""
+    # Create unique function name for this integration's status endpoint
+    status_endpoint_name = f'direct_{integration_name}_status_endpoint'
+    
+    # Use a factory function to create a dynamic function to avoid naming conflicts
+    def create_status_endpoint_function():
+        def dynamic_status_endpoint():
+            """Check integration status"""
+        dynamic_status_endpoint.__name__ = f'direct_{integration_name}_status'
+        return dynamic_status_endpoint
+        
+    # Create and register the status endpoint using the factory function
+    status_endpoint_function = create_status_endpoint_function()
+    app.route(f'{url_prefix}/status/{integration_name}', methods=['GET'])(status_endpoint_function)
         # Extract token from Authorization header
         auth_header = request.headers.get('Authorization', '')
         token = None
@@ -243,7 +252,7 @@ def add_integration_routes(app, integration_name):
             }), 500
     
     # Rename the function to avoid conflicts
-    integration_status_endpoint.__name__ = f'direct_{integration_name}_status'
+    status_endpoint_func.__name__ = f'direct_{integration_name}_status'
     
     # Connect endpoint
     @app.route(f'{url_prefix}/connect/{integration_name}', methods=['POST', 'OPTIONS'])
