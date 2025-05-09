@@ -665,7 +665,7 @@ def register_blueprints():
             # Register all standard blueprints
             app.register_blueprint(standard_email_bp)
             app.register_blueprint(standard_ga_bp)
-            app.register_blueprint(hubspot_standard_bp)
+            app.register_blueprint(standard_hubspot_bp)
             app.register_blueprint(salesforce_standard_bp)
             app.register_blueprint(shopify_standard_bp)
             app.register_blueprint(standard_slack_bp)
