@@ -1,148 +1,174 @@
-#!/usr/bin/env python3
 """
-Test Email Integration Endpoints
+Test Email Endpoints
 
-This script tests the direct email integration endpoints to verify that they're working properly.
+This script tests the direct email endpoints to ensure they're working properly.
 """
 
-import json
 import logging
-import subprocess
-import os
-import re
+import requests
+import json
+import sys
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger('email_test')
+logger = logging.getLogger(__name__)
 
-def run_curl_command(method, url, headers=None, data=None):
-    """Run a curl command and return the response"""
-    curl_cmd = ["curl", "-s", "-X", method]
-    
-    # Add headers
-    if headers:
-        for key, value in headers.items():
-            curl_cmd.extend(["-H", f"{key}: {value}"])
-    
-    # Add data for POST requests
-    if data:
-        curl_cmd.extend(["-d", json.dumps(data)])
-    
-    # Add URL
-    curl_cmd.append(url)
-    
-    # Run the command
-    try:
-        result = subprocess.run(curl_cmd, capture_output=True, text=True)
-        try:
-            json_response = json.loads(result.stdout) if result.stdout.strip() else {}
-            return {
-                "status_code": result.returncode if result.returncode != 0 else 200,
-                "text": result.stdout,
-                "json": json_response,
-                "error": result.stderr
-            }
-        except json.JSONDecodeError:
-            return {
-                "status_code": result.returncode if result.returncode != 0 else 200,
-                "text": result.stdout,
-                "json": {},
-                "error": result.stderr
-            }
-    except Exception as e:
-        return {
-            "status_code": 500,
-            "text": str(e),
-            "json": {},
-            "error": str(e)
-        }
-
-def get_csrf_token():
-    """Get a CSRF token by making a request to the homepage"""
-    logger.info("Getting CSRF token...")
-    
-    # Make a request to get the homepage
-    result = subprocess.run(["curl", "-s", "-c", "cookies.txt", "http://localhost:5000/"], 
-                          capture_output=True, text=True)
-    
-    # Find the CSRF token in the response
-    match = re.search(r"name=\"csrf_token\" value=\"([^\"]+)\"", result.stdout)
-    if match:
-        csrf_token = match.group(1)
-        logger.info(f"Found CSRF token: {csrf_token[:10]}...")
-        return csrf_token
-    else:
-        logger.error("Could not find CSRF token in response")
-        return None
-
-def test_email_endpoints():
+def test_email_endpoints(base_url="http://localhost:5000"):
     """
-    Test all email integration endpoints
+    Test all email endpoints
+    
+    Args:
+        base_url (str): Base URL of the API
+        
+    Returns:
+        success (bool): True if all tests pass
     """
-    base_url = "http://localhost:5000"
-    
-    # Get CSRF token
-    csrf_token = get_csrf_token()
-    
-    # Test endpoints
     endpoints = [
-        {"method": "GET", "url": "/api/integrations/email/test", "name": "Test endpoint"},
-        {"method": "GET", "url": "/api/integrations/email/status", "name": "Status endpoint"},
-        {"method": "GET", "url": "/api/integrations/email/configure", "name": "Configure endpoint"},
-        {"method": "POST", "url": "/api/integrations/email/connect", "name": "Connect endpoint", "json": {
-            "config": {
-                "server": "smtp.example.com",
-                "port": 587,
-                "username": "test@example.com", 
-                "password": "testpassword"
-            },
-            "csrf_token": csrf_token
-        }},
-        {"method": "POST", "url": "/api/integrations/email/disconnect", "name": "Disconnect endpoint", "json": {
-            "csrf_token": csrf_token
-        }}
+        {
+            "name": "Test endpoint",
+            "url": f"{base_url}/api/integrations/email/test",
+            "method": "GET",
+            "expected_status": 200,
+            "expected_response": {"success": True}
+        },
+        {
+            "name": "Status endpoint",
+            "url": f"{base_url}/api/integrations/email/status",
+            "method": "GET",
+            "expected_status": 200,
+            "expected_response": {"success": True, "status": "active"}
+        },
+        {
+            "name": "Configure endpoint",
+            "url": f"{base_url}/api/integrations/email/configure",
+            "method": "GET",
+            "expected_status": 200,
+            "expected_response": {"success": True}
+        },
+        {
+            "name": "Connect endpoint",
+            "url": f"{base_url}/api/integrations/email/connect",
+            "method": "POST",
+            "data": {"server": "test.example.com", "port": 587, "username": "test@example.com", "password": "password"},
+            "expected_status": 200,
+            "expected_response": {"success": True}
+        },
+        {
+            "name": "Send endpoint",
+            "url": f"{base_url}/api/integrations/email/send",
+            "method": "POST",
+            "data": {"to": "test@example.com", "subject": "Test email", "body": "This is a test email"},
+            "expected_status": 200,
+            "expected_response": {"success": True}
+        },
+        {
+            "name": "Disconnect endpoint",
+            "url": f"{base_url}/api/integrations/email/disconnect",
+            "method": "POST",
+            "data": {},
+            "expected_status": 200,
+            "expected_response": {"success": True}
+        }
     ]
     
-    # Set authorization header for endpoints that require it
-    headers = {
-        "Authorization": "test-token", 
-        "Content-Type": "application/json",
-        "Cookie": "session=test-session",
-        "X-CSRF-Token": csrf_token
-    }
+    # Test each endpoint
+    results = []
+    all_passed = True
     
     for endpoint in endpoints:
-        url = f"{base_url}{endpoint['url']}"
-        method = endpoint['method']
-        name = endpoint['name']
-        
-        logger.info(f"Testing {name} ({method} {endpoint['url']})...")
-        
         try:
-            json_data = endpoint.get('json', {})
-            response = run_curl_command(method, url, headers, json_data if method == "POST" else None)
-                
-            if response["status_code"] == 200:
-                logger.info(f"✅ {name} - SUCCESS (Status code: {response['status_code']})")
-                try:
-                    pretty_json = json.dumps(response["json"], indent=2)
-                    logger.info(f"Response: {pretty_json}")
-                except:
-                    logger.info(f"Response: {response['text']}")
+            print(f"Testing {endpoint['name']}...")
+            
+            # Make the request
+            if endpoint["method"].upper() == "GET":
+                response = requests.get(endpoint["url"])
             else:
-                logger.error(f"❌ {name} - FAILED (Status code: {response['status_code']})")
-                logger.error(f"Response: {response['text']}")
-                if response["error"]:
-                    logger.error(f"Error: {response['error']}")
+                headers = {'Content-Type': 'application/json'}
+                data = endpoint.get("data", {})
+                response = requests.post(endpoint["url"], headers=headers, json=data)
+            
+            # Check status code
+            status_passed = response.status_code == endpoint["expected_status"]
+            if not status_passed:
+                all_passed = False
+                print(f"  ❌ Status code: Expected {endpoint['expected_status']}, got {response.status_code}")
+            else:
+                print(f"  ✅ Status code: {response.status_code}")
+            
+            # Parse response JSON
+            try:
+                response_json = response.json()
                 
+                # Check expected response keys
+                response_passed = True
+                for key, value in endpoint["expected_response"].items():
+                    if key not in response_json or response_json[key] != value:
+                        response_passed = False
+                        all_passed = False
+                        print(f"  ❌ Response missing or incorrect value for key: {key}")
+                        break
+                
+                if response_passed:
+                    print(f"  ✅ Response contains expected values")
+                    print(f"  Response: {json.dumps(response_json, indent=2)}")
+                
+            except json.JSONDecodeError:
+                all_passed = False
+                print(f"  ❌ Response is not valid JSON: {response.text}")
+            
+            results.append({
+                "endpoint": endpoint["name"],
+                "url": endpoint["url"],
+                "passed": status_passed and response_passed,
+                "status_code": response.status_code,
+                "response": response_json if 'response_json' in locals() else None
+            })
+            
+            print()
+            
         except Exception as e:
-            logger.error(f"❌ {name} - ERROR: {str(e)}")
+            all_passed = False
+            print(f"  ❌ Error testing {endpoint['name']}: {str(e)}")
+            results.append({
+                "endpoint": endpoint["name"],
+                "url": endpoint["url"],
+                "passed": False,
+                "error": str(e)
+            })
+            print()
     
-    # Clean up
-    if os.path.exists("cookies.txt"):
-        os.remove("cookies.txt")
-        
-    logger.info("Email endpoints testing completed")
+    # Print summary
+    print("\nTest Summary:")
+    print("=" * 80)
+    passed_count = sum(1 for result in results if result.get("passed", False))
+    print(f"Passed: {passed_count}/{len(endpoints)} tests")
+    
+    # Print details of failed tests
+    if passed_count < len(endpoints):
+        print("\nFailed Tests:")
+        for result in results:
+            if not result.get("passed", False):
+                print(f"- {result['endpoint']} ({result['url']})")
+                if "error" in result:
+                    print(f"  Error: {result['error']}")
+                else:
+                    print(f"  Status: {result.get('status_code', 'N/A')}")
+                    if result.get("response"):
+                        print(f"  Response: {json.dumps(result['response'], indent=2)}")
+    
+    return all_passed
 
 if __name__ == "__main__":
-    test_email_endpoints()
+    # Configure logging
+    logging.basicConfig(level=logging.INFO)
+    
+    # Get base URL from command line args or use default
+    base_url = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:5000"
+    
+    print(f"Testing email endpoints at {base_url}...")
+    success = test_email_endpoints(base_url)
+    
+    if success:
+        print("\n✅ All tests passed!")
+        sys.exit(0)
+    else:
+        print("\n❌ Some tests failed!")
+        sys.exit(1)

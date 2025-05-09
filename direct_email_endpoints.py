@@ -7,12 +7,20 @@ to avoid import cycle issues.
 
 import logging
 from flask import jsonify, request
+from flask_wtf.csrf import CSRFProtect
 
 logger = logging.getLogger(__name__)
 
 def add_direct_email_endpoints(app):
     """Add direct email endpoints to the provided Flask app"""
     try:
+        # Get the CSRF instance from the app
+        csrf = None
+        for extension in app.extensions.values():
+            if isinstance(extension, CSRFProtect):
+                csrf = extension
+                break
+        
         # Define the test endpoint
         @app.route('/api/integrations/email/test', methods=['GET'])
         def test_email_direct():
@@ -73,6 +81,9 @@ def add_direct_email_endpoints(app):
         @app.route('/api/integrations/email/connect', methods=['POST', 'OPTIONS'])
         def connect_email_direct():
             """Connect to email service - direct endpoint"""
+            # Exempt from CSRF protection
+            if csrf:
+                csrf.exempt(connect_email_direct)
             # Handle OPTIONS request (CORS preflight)
             if request.method == 'OPTIONS':
                 response = jsonify({})
@@ -94,6 +105,9 @@ def add_direct_email_endpoints(app):
         @app.route('/api/integrations/email/send', methods=['POST', 'OPTIONS'])
         def send_email_direct():
             """Send email - direct endpoint"""
+            # Exempt from CSRF protection
+            if csrf:
+                csrf.exempt(send_email_direct)
             # Handle OPTIONS request (CORS preflight)
             if request.method == 'OPTIONS':
                 response = jsonify({})
