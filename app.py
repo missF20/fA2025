@@ -759,19 +759,18 @@ def init_token_tracking():
 def check_pesapal_config():
     """Check if PesaPal is properly configured and run setup if needed"""
     try:
-        # First try to load configuration from database
+        # First try to load configuration from database using our standardized script
+        config_loaded = False
         try:
             logger.info("Attempting to load PesaPal configuration from database...")
-            from fix_payment_configs import load_payment_config
-            config_loaded = load_payment_config()
+            import init_payment_config
+            config_loaded = init_payment_config.init_payment_config()
             if config_loaded:
                 logger.info("PesaPal configuration successfully loaded from database")
         except ImportError:
-            logger.warning("Could not import payment config fix module")
-            config_loaded = False
+            logger.warning("Could not import payment config initialization module")
         except Exception as db_error:
             logger.error(f"Error loading PesaPal configuration from database: {str(db_error)}")
-            config_loaded = False
         
         # Check if keys are available in environment variables
         pesapal_keys_exist = all([
@@ -785,13 +784,30 @@ def check_pesapal_config():
         
         # Check if IPN URL is configured
         if not os.environ.get('PESAPAL_IPN_URL'):
-            # Run setup script
-            logger.info("PesaPal IPN URL not configured. Running setup script...")
+            # Try to auto-generate an IPN URL based on the current domain
+            logger.info("PesaPal IPN URL not configured. Attempting to generate one...")
             try:
-                import setup_pesapal_environment
-                setup_pesapal_environment.main()
+                # Get the current domain from environment variables
+                domain = None
+                if os.environ.get('REPLIT_DEV_DOMAIN'):
+                    domain = os.environ.get('REPLIT_DEV_DOMAIN')
+                elif os.environ.get('REPLIT_DOMAINS'):
+                    domain = os.environ.get('REPLIT_DOMAINS').split(',')[0]
+                
+                if domain:
+                    # Generate IPN URL
+                    ipn_url = f"https://{domain}/api/payments/ipn"
+                    os.environ['PESAPAL_IPN_URL'] = ipn_url
+                    logger.info(f"Generated PesaPal IPN URL: {ipn_url}")
+                else:
+                    logger.warning("Could not determine current domain for IPN URL")
+                    
+                    # Fallback to setup script
+                    logger.info("Running PesaPal setup script...")
+                    import setup_pesapal_environment
+                    setup_pesapal_environment.main()
             except Exception as setup_error:
-                logger.error(f"Error running PesaPal setup script: {str(setup_error)}")
+                logger.error(f"Error setting up PesaPal IPN URL: {str(setup_error)}")
                 logger.warning("Run setup_pesapal_environment.py manually to configure PesaPal integration.")
         else:
             logger.info("PesaPal configuration detected.")
@@ -877,6 +893,30 @@ def direct_save_payment_config():
         os.environ['PESAPAL_CONSUMER_KEY'] = consumer_key
         os.environ['PESAPAL_CONSUMER_SECRET'] = consumer_secret
         
+        # Generate IPN URL if not provided
+        ipn_url = data.get('ipn_url')
+        sandbox_mode = data.get('sandbox', True)
+        
+        if not ipn_url:
+            # Generate IPN URL based on the current domain
+            domain = None
+            if os.environ.get('REPLIT_DEV_DOMAIN'):
+                domain = os.environ.get('REPLIT_DEV_DOMAIN')
+            elif os.environ.get('REPLIT_DOMAINS'):
+                replit_domains = os.environ.get('REPLIT_DOMAINS')
+                if replit_domains:
+                    domain = replit_domains.split(',')[0]
+            
+            if domain:
+                ipn_url = f"https://{domain}/api/payments/ipn"
+                logger.info(f"Generated IPN URL: {ipn_url}")
+            else:
+                logger.warning("Could not determine current domain for IPN URL")
+                ipn_url = "/api/payments/ipn"  # Fallback
+                
+        os.environ['PESAPAL_IPN_URL'] = ipn_url
+        os.environ['PESAPAL_SANDBOX'] = 'true' if sandbox_mode else 'false'
+        
         # Update .env file if possible
         try:
             with open('.env', 'r') as f:
@@ -899,6 +939,8 @@ def direct_save_payment_config():
             # Update variables
             env_content = update_env_var(env_content, 'PESAPAL_CONSUMER_KEY', consumer_key)
             env_content = update_env_var(env_content, 'PESAPAL_CONSUMER_SECRET', consumer_secret)
+            env_content = update_env_var(env_content, 'PESAPAL_IPN_URL', ipn_url)
+            env_content = update_env_var(env_content, 'PESAPAL_SANDBOX', 'true' if sandbox_mode else 'false')
             
             # Write back to file
             with open('.env', 'w') as f:
@@ -907,6 +949,66 @@ def direct_save_payment_config():
             logger.info("Updated payment gateway configuration in .env file")
         except Exception as e:
             logger.warning(f"Could not update .env file: {str(e)}")
+        
+        # Save configuration to database
+        try:
+            # Get database connection
+            from utils.db_connection import get_db_connection
+            conn = get_db_connection()
+            
+            if conn:
+                cursor = conn.cursor()
+                
+                # Prepare configuration JSON
+                import json
+                from datetime import datetime
+                config = {
+                    'consumer_key': consumer_key,
+                    'consumer_secret': consumer_secret,
+                    'callback_url': ipn_url,
+                    'sandbox': sandbox_mode,
+                    'updated_at': datetime.now().isoformat()
+                }
+                
+                # Check if a configuration already exists
+                cursor.execute("""
+                    SELECT id FROM payment_configs 
+                    WHERE gateway = 'pesapal' AND active = true
+                """)
+                
+                existing_config = cursor.fetchone()
+                
+                if existing_config:
+                    # Update existing configuration
+                    config_id = existing_config[0] if isinstance(existing_config, tuple) else existing_config.get('id')
+                    
+                    cursor.execute("""
+                        UPDATE payment_configs
+                        SET config = %s, updated_at = CURRENT_TIMESTAMP
+                        WHERE id = %s
+                    """, (json.dumps(config), config_id))
+                    
+                    logger.info(f"Updated payment configuration in database (ID: {config_id})")
+                else:
+                    # Insert new configuration
+                    cursor.execute("""
+                        INSERT INTO payment_configs (gateway, config, active, created_at, updated_at)
+                        VALUES ('pesapal', %s, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                        RETURNING id
+                    """, (json.dumps(config),))
+                    
+                    result = cursor.fetchone()
+                    config_id = result[0] if isinstance(result, tuple) else (result.get('id') if result else None)
+                    
+                    logger.info(f"Created new payment configuration in database (ID: {config_id})")
+                
+                conn.commit()
+                cursor.close()
+                conn.close()
+            else:
+                logger.warning("Could not connect to database to save payment configuration")
+        except Exception as db_error:
+            logger.error(f"Error saving payment configuration to database: {str(db_error)}")
         
         # Test connection
         try:

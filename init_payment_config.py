@@ -34,6 +34,10 @@ def init_payment_config():
         
         # Import the fix_payment_configs module dynamically
         spec = importlib.util.spec_from_file_location("fix_payment_configs", "fix_payment_configs.py")
+        if spec is None or spec.loader is None:
+            logger.error("Failed to create module spec for fix_payment_configs.py")
+            return False
+            
         payment_fixes = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(payment_fixes)
         
