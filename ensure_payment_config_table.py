@@ -54,16 +54,24 @@ def ensure_payment_config_table():
         cursor = conn.cursor()
         
         # Check if the table exists
-        cursor.execute("""
-            SELECT EXISTS (
-                SELECT FROM information_schema.tables 
-                WHERE table_schema = 'public'
-                AND table_name = 'payment_configs'
-            );
-        """)
-        
-        result = cursor.fetchone()
-        table_exists = result[0] if result else False
+        try:
+            cursor.execute("""
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables 
+                    WHERE table_schema = 'public'
+                    AND table_name = 'payment_configs'
+                );
+            """)
+            
+            result = cursor.fetchone()
+            table_exists = result[0] if result else False
+            
+            # Debug log
+            logger.info(f"Table exists check result: {result}")
+        except Exception as check_error:
+            logger.error(f"Error checking if table exists: {str(check_error)}")
+            # If we can't check, assume it doesn't exist
+            table_exists = False
         
         if not table_exists:
             logger.info("Creating payment_configs table...")
@@ -110,8 +118,32 @@ def ensure_payment_config_table():
             return True
             
     except Exception as e:
-        logger.error(f"Error ensuring payment_configs table: {str(e)}")
-        conn.rollback()
+        logger.error(f"Error ensuring payment_configs table: {str(e)}", exc_info=True)
+        # For the specific "0" error, add more context
+        if str(e) == "0":
+            logger.error("The error code '0' typically indicates a cursor or connection issue.")
+            logger.error("Attempting connection diagnostics...")
+            try:
+                if conn and not conn.closed:
+                    logger.info("Connection is still open")
+                    try:
+                        # Test if cursor can execute basic query
+                        test_cursor = conn.cursor()
+                        test_cursor.execute("SELECT 1")
+                        test_result = test_cursor.fetchone()
+                        logger.info(f"Basic query test result: {test_result}")
+                        test_cursor.close()
+                    except Exception as cursor_error:
+                        logger.error(f"Cursor test failed: {str(cursor_error)}")
+            except Exception as conn_test_error:
+                logger.error(f"Connection test failed: {str(conn_test_error)}")
+        
+        try:
+            if conn and not conn.closed:
+                conn.rollback()
+        except Exception as rollback_error:
+            logger.error(f"Error during rollback: {str(rollback_error)}")
+        
         return False
     finally:
         if conn:

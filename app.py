@@ -763,8 +763,35 @@ def check_pesapal_config():
         try:
             logger.info("Ensuring payment_configs table exists...")
             import ensure_payment_config_table
-            table_created = ensure_payment_config_table.ensure_payment_config_table()
-            if table_created:
+            
+            # First test if the table already exists using a direct query
+            from utils.db_connection import get_db_connection
+            conn = get_db_connection()
+            if conn:
+                cursor = conn.cursor()
+                try:
+                    # Test if the table exists with a simple query
+                    cursor.execute("SELECT 1 FROM payment_configs LIMIT 1")
+                    logger.info("Payment configuration table already exists and is accessible")
+                    table_verified = True
+                except Exception as check_error:
+                    if "relation" in str(check_error) and "does not exist" in str(check_error):
+                        # Table doesn't exist, create it
+                        logger.info("Payment configuration table doesn't exist, creating it")
+                        table_created = ensure_payment_config_table.ensure_payment_config_table()
+                        table_verified = table_created
+                    else:
+                        # Some other database error
+                        logger.error(f"Error checking payment_configs table: {str(check_error)}")
+                        table_verified = False
+                finally:
+                    cursor.close()
+                    conn.close()
+            else:
+                # If we can't connect, try the full creation function
+                table_verified = ensure_payment_config_table.ensure_payment_config_table()
+                
+            if table_verified:
                 logger.info("Payment configuration table verified")
             else:
                 logger.warning("Could not verify payment configuration table")
