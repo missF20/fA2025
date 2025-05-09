@@ -11,7 +11,7 @@ from typing import Dict, Any, Optional, List, Union
 from datetime import datetime
 import uuid
 
-from utils.db_access import execute_query, execute_transaction
+from utils.supabase_extension import query_sql as execute_query, execute_transaction
 from utils.exceptions import DatabaseAccessError
 
 logger = logging.getLogger(__name__)
@@ -41,14 +41,18 @@ def get_integration_config(integration_type: str, user_id: str) -> Optional[Dict
         if not result or len(result) == 0:
             return None
             
+        # Create a dictionary from the first row
+        row = result[0]
+        
+        # Use dictionary access for better type safety
         return {
-            "id": result[0][0],
-            "user_id": result[0][1],
-            "integration_type": result[0][2],
-            "config": result[0][3],
-            "status": result[0][4],
-            "date_created": result[0][5],
-            "date_updated": result[0][6]
+            "id": row.get("id"),
+            "user_id": row.get("user_id"),
+            "integration_type": row.get("integration_type"),
+            "config": row.get("config"),
+            "status": row.get("status"),
+            "date_created": row.get("date_created"),
+            "date_updated": row.get("date_updated")
         }
     except Exception as e:
         logger.error(f"Error getting integration config: {str(e)}")
@@ -202,10 +206,10 @@ def list_user_integrations(user_id: str) -> List[Dict[str, Any]]:
         integrations = []
         for row in result:
             integrations.append({
-                "integration_type": row[0],
-                "status": row[1],
-                "date_created": row[2],
-                "date_updated": row[3]
+                "integration_type": row.get("integration_type"),
+                "status": row.get("status"),
+                "date_created": row.get("date_created"),
+                "date_updated": row.get("date_updated")
             })
             
         return integrations

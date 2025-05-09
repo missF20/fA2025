@@ -14,7 +14,7 @@ from email.mime.multipart import MIMEMultipart
 from typing import Dict, Any, Optional, Tuple, List, Union
 
 # Database access
-from utils.db_access import execute_query, execute_sql_fetchall
+from utils.supabase_extension import execute_sql_fetchall, query_sql as execute_query
 
 # Integration utilities
 from utils.integration_utils import (

@@ -39,7 +39,7 @@ def ensure_integration_table():
     Ensure integration_configs table exists
     """
     try:
-        from utils.db_access import execute_query, execute_sql
+        from utils.supabase_extension import query_sql as execute_query, execute_sql
         
         # Check if table exists
         check_query = """
