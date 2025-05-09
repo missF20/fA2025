@@ -37,6 +37,7 @@ import type {
   SentimentData,
   ExtendedUser
 } from '../types';
+import { debug } from 'console';
 
 // Define time range options
 const timeRanges = [
@@ -181,7 +182,7 @@ export const Dashboard = () => {
           throw new Error(`Invalid response from server: ${response.status} - ${response.statusText}`);
         }
       } catch (err: any) {
-        setError(err.message || 'Failed to fetch dashboard data');
+        setError(err.message || 'Failed to fetch dashboard data');debug
         console.error('Error fetching dashboard metrics:', err);
       } finally {
         setLoading(false);
@@ -189,6 +190,7 @@ export const Dashboard = () => {
       }
     }
   }, [timeRange, customDateRange, platformFilter]);
+
 
   // Initial data fetch
   useEffect(() => {
