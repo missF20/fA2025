@@ -4,7 +4,18 @@ Dana AI Platform
 Main application module for the Dana AI Platform.
 """
 
-from direct_email_fixes import add_direct_email_integration_routes
+try:
+    from direct_email_integration_routes import add_direct_email_integration_routes
+except ImportError:
+    try:
+        from direct_email_fixes import add_direct_email_integration_routes
+    except ImportError:
+        # Fallback definition if module is not available
+        def add_direct_email_integration_routes(app):
+            """Fallback function for direct email integration routes"""
+            logger = logging.getLogger(__name__)
+            logger.warning("Direct email integration routes not available")
+            return False
 import os
 import logging
 from flask import Flask, jsonify, render_template, request, abort

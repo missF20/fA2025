@@ -3,7 +3,7 @@
 CSRF protection utilities
 """
 from functools import wraps
-from flask import current_app, request, jsonify, session
+from flask import current_app, request, jsonify, session, make_response
 from flask_wtf.csrf import CSRFProtect
 
 csrf = CSRFProtect()
@@ -49,3 +49,17 @@ def validate_csrf_token(req=None):
         return jsonify({'error': 'Invalid CSRF token'}), 400
     
     return None
+
+def create_cors_preflight_response():
+    """
+    Create a response for CORS preflight requests
+    This is used for handling OPTIONS requests in API endpoints
+    
+    Returns:
+        Flask response with appropriate CORS headers
+    """
+    response = make_response()
+    response.headers.add("Access-Control-Allow-Origin", "*")
+    response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization,X-CSRF-Token")
+    response.headers.add("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS")
+    return response
