@@ -656,7 +656,7 @@ def register_blueprints():
         try:
             from routes.integrations.standard_email import standard_email_bp
             from routes.integrations.standard_google_analytics import standard_ga_bp
-            from routes.integrations.standard_hubspot import hubspot_standard_bp
+            from routes.integrations.standard_hubspot import standard_hubspot_bp
             from routes.integrations.standard_salesforce import salesforce_standard_bp
             from routes.integrations.standard_shopify import shopify_standard_bp
             from routes.integrations.standard_slack import standard_slack_bp

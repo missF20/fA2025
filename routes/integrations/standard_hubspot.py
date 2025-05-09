@@ -20,12 +20,12 @@ logger = logging.getLogger(__name__)
 INTEGRATION_TYPE = 'hubspot'
 
 # Create blueprint with standard naming convention
-hubspot_standard_bp = Blueprint(f'standard_{INTEGRATION_TYPE}_integration', __name__)
+standard_hubspot_bp = Blueprint(f'standard_{INTEGRATION_TYPE}_bp', __name__)
 
 # Mark all routes as CSRF exempt for API endpoints
-hubspot_standard_bp.decorators = [csrf_exempt]
+standard_hubspot_bp.decorators = [csrf_exempt]
 
-@hubspot_standard_bp.route(f'/api/v2/integrations/{INTEGRATION_TYPE}/connect', methods=['POST', 'OPTIONS'])
+@standard_hubspot_bp.route(f'/api/v2/integrations/{INTEGRATION_TYPE}/connect', methods=['POST', 'OPTIONS'])
 def connect_integration():
     """
     Connect integration
@@ -91,7 +91,7 @@ def connect_integration():
         logger.exception(f"Unexpected error in {INTEGRATION_TYPE} connect: {str(e)}")
         return error_response(f"Error connecting {INTEGRATION_TYPE} integration: {str(e)}")
 
-@hubspot_standard_bp.route(f'/api/v2/integrations/{INTEGRATION_TYPE}/disconnect', methods=['POST', 'OPTIONS'])
+@standard_hubspot_bp.route(f'/api/v2/integrations/{INTEGRATION_TYPE}/disconnect', methods=['POST', 'OPTIONS'])
 def disconnect_integration():
     """
     Disconnect integration
@@ -134,7 +134,7 @@ def disconnect_integration():
         logger.exception(f"Error disconnecting {INTEGRATION_TYPE} integration: {str(e)}")
         return error_response(f"Error disconnecting {INTEGRATION_TYPE} integration: {str(e)}")
 
-@hubspot_standard_bp.route(f'/api/v2/integrations/{INTEGRATION_TYPE}/status', methods=['GET', 'OPTIONS'])
+@standard_hubspot_bp.route(f'/api/v2/integrations/{INTEGRATION_TYPE}/status', methods=['GET', 'OPTIONS'])
 def integration_status():
     """
     Get integration status
@@ -185,7 +185,7 @@ def integration_status():
         logger.exception(f"Error getting {INTEGRATION_TYPE} integration status: {str(e)}")
         return error_response(f"Error getting {INTEGRATION_TYPE} integration status: {str(e)}")
 
-@hubspot_standard_bp.route(f'/api/v2/integrations/{INTEGRATION_TYPE}/sync', methods=['POST', 'OPTIONS'])
+@standard_hubspot_bp.route(f'/api/v2/integrations/{INTEGRATION_TYPE}/sync', methods=['POST', 'OPTIONS'])
 def sync_integration():
     """
     Sync integration data
@@ -243,7 +243,7 @@ def sync_integration():
         logger.exception(f"Error syncing {INTEGRATION_TYPE} integration: {str(e)}")
         return error_response(f"Error syncing {INTEGRATION_TYPE} integration: {str(e)}")
 
-@hubspot_standard_bp.route(f'/api/v2/integrations/{INTEGRATION_TYPE}/test', methods=['GET', 'OPTIONS'])
+@standard_hubspot_bp.route(f'/api/v2/integrations/{INTEGRATION_TYPE}/test', methods=['GET', 'OPTIONS'])
 def test_integration():
     """
     Test integration API
