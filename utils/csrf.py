@@ -1,8 +1,9 @@
+
 """
 CSRF protection utilities
 """
 from functools import wraps
-from flask import current_app
+from flask import current_app, request, jsonify, session
 from flask_wtf.csrf import CSRFProtect
 
 csrf = CSRFProtect()
@@ -18,3 +19,33 @@ def csrf_exempt(view):
 def init_csrf(app):
     """Initialize CSRF protection"""
     csrf.init_app(app)
+
+def validate_csrf_token(req=None):
+    """
+    Validate CSRF token from request
+    Returns None if valid, or an error response if invalid
+    """
+    # Use request object from parameter or global request context
+    req = req or request
+    
+    # Check if in development mode
+    if current_app.config.get('DEBUG', False) or current_app.config.get('TESTING', False):
+        return None
+        
+    # Check request JSON
+    if req.json and 'csrf_token' in req.json:
+        token = req.json.get('csrf_token')
+    # Check form data
+    elif req.form and 'csrf_token' in req.form:
+        token = req.form.get('csrf_token')
+    # Check headers
+    elif 'X-CSRF-Token' in req.headers:
+        token = req.headers.get('X-CSRF-Token')
+    else:
+        return jsonify({'error': 'Missing CSRF token'}), 400
+    
+    # Validate token against session
+    if token != session.get('csrf_token'):
+        return jsonify({'error': 'Invalid CSRF token'}), 400
+    
+    return None
