@@ -759,6 +759,20 @@ def init_token_tracking():
 def check_pesapal_config():
     """Check if PesaPal is properly configured and run setup if needed"""
     try:
+        # Ensure payment_configs table exists
+        try:
+            logger.info("Ensuring payment_configs table exists...")
+            import ensure_payment_config_table
+            table_created = ensure_payment_config_table.ensure_payment_config_table()
+            if table_created:
+                logger.info("Payment configuration table verified")
+            else:
+                logger.warning("Could not verify payment configuration table")
+        except ImportError:
+            logger.warning("Could not import payment table setup module")
+        except Exception as setup_error:
+            logger.error(f"Error ensuring payment configuration table: {str(setup_error)}")
+        
         # First try to load configuration from database using our standardized script
         config_loaded = False
         try:
@@ -792,7 +806,9 @@ def check_pesapal_config():
                 if os.environ.get('REPLIT_DEV_DOMAIN'):
                     domain = os.environ.get('REPLIT_DEV_DOMAIN')
                 elif os.environ.get('REPLIT_DOMAINS'):
-                    domain = os.environ.get('REPLIT_DOMAINS').split(',')[0]
+                    replit_domains = os.environ.get('REPLIT_DOMAINS')
+                    if replit_domains:
+                        domain = replit_domains.split(',')[0]
                 
                 if domain:
                     # Generate IPN URL

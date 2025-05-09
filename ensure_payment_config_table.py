@@ -13,11 +13,30 @@ logger = logging.getLogger(__name__)
 def get_db_connection():
     """Get database connection"""
     try:
-        from utils.db_connection import get_db_connection
-        return get_db_connection()
+        from utils.db_connection import get_db_connection as db_conn
+        return db_conn()
     except ImportError:
         logger.error("Could not import database connection utilities")
-        return None
+        
+        # Fallback to direct database connection
+        try:
+            import os
+            import psycopg2
+            from psycopg2.extras import RealDictCursor
+            
+            # Get database URL from environment
+            database_url = os.environ.get('DATABASE_URL')
+            if not database_url:
+                logger.error("DATABASE_URL environment variable not set")
+                return None
+                
+            # Connect to the database
+            conn = psycopg2.connect(database_url)
+            logger.info("Direct database connection established successfully")
+            return conn
+        except Exception as db_error:
+            logger.error(f"Error establishing direct database connection: {str(db_error)}")
+            return None
     except Exception as e:
         logger.error(f"Error getting database connection: {str(e)}")
         return None
@@ -43,7 +62,8 @@ def ensure_payment_config_table():
             );
         """)
         
-        table_exists = cursor.fetchone()[0]
+        result = cursor.fetchone()
+        table_exists = result[0] if result else False
         
         if not table_exists:
             logger.info("Creating payment_configs table...")
