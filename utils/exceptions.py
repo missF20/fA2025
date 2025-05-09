@@ -48,3 +48,8 @@ class FileProcessingError(BaseError):
 class APIError(BaseError):
     """Exception raised for API errors"""
     pass
+
+
+class ResourceNotFoundError(BaseError):
+    """Exception raised when a requested resource is not found"""
+    pass
