@@ -192,14 +192,21 @@ def verify_ipn_url():
                 os.environ['PESAPAL_IPN_URL'] = ipn_url
                 
                 # Register the IPN URL
-                registration_result = register_ipn_url()
+                registration_result, ipn_id = register_ipn_url()
                 
                 if registration_result:
                     logger.info("Successfully registered IPN URL with PesaPal")
+                    if ipn_id:
+                        logger.info(f"IPN ID assigned by PesaPal: {ipn_id}")
+                        os.environ['PESAPAL_IPN_ID'] = ipn_id
+                    else:
+                        logger.warning("No IPN ID received from PesaPal")
                 else:
                     logger.warning("Failed to register IPN URL with PesaPal - proceed anyway as it might already be registered")
             except ImportError:
                 logger.warning("Could not import register_ipn_url from pesapal module")
+            except ValueError as tuple_error:
+                logger.warning(f"Error unpacking register_ipn_url result: {str(tuple_error)}")
         except Exception as reg_error:
             logger.warning(f"Error registering IPN URL: {str(reg_error)}")
         

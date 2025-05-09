@@ -15,7 +15,7 @@ import urllib.parse
 import json
 import http.client
 from urllib.parse import urlparse
-from typing import Dict, Any, Optional, Union
+from typing import Dict, Any, Optional, Union, Tuple
 from datetime import datetime
 
 # Configure logging
@@ -260,21 +260,23 @@ def get_auth_token() -> Optional[str]:
         logger.error(f"Error getting PesaPal token: {str(e)}")
         return None
 
-def register_ipn_url() -> bool:
+def register_ipn_url() -> Tuple[bool, Optional[str]]:
     """
     Register IPN URL with PesaPal.
     This only needs to be done once or if the URL changes.
     
     Returns:
-        bool: True if successful, False otherwise
+        tuple: (success, ipn_id)
+            - success: True if successful, False otherwise
+            - ipn_id: Assigned IPN ID if successful, None otherwise
     """
     if not PESAPAL_IPN_URL:
         logger.error("PesaPal IPN URL not configured")
-        return False
+        return False, None
     
     token = get_auth_token()
     if not token:
-        return False
+        return False, None
     
     try:
         url = f"{PESAPAL_BASE_URL}/api/URLSetup/RegisterIPN"
@@ -288,25 +290,55 @@ def register_ipn_url() -> bool:
             "Content-Type": "application/json"
         }
         
+        # Log request details
+        logger.info(f"Registering IPN URL: {PESAPAL_IPN_URL}")
+        
         if HAVE_REQUESTS:
             # Use requests module if available
+            logger.info("Using requests module for PesaPal IPN URL registration")
             response = requests.post(url, json=payload, headers=headers)
-            response.raise_for_status()
-            data = response.json()
+            response_status = response.status_code
+            response_text = response.text
+            
+            # Log response details
+            logger.info(f"IPN Registration Response Status: {response_status}")
+            logger.info(f"IPN Registration Response: {response_text[:200]}{'...' if len(response_text) > 200 else ''}")
+            
+            try:
+                data = response.json()
+            except Exception as json_error:
+                logger.error(f"Error parsing IPN registration JSON response: {str(json_error)}")
+                logger.error(f"Response text: {response_text}")
+                return False, None
         else:
             # Use fallback HTTP client
             logger.info("Using fallback HTTP client for PesaPal IPN URL registration")
             data = _http_request('POST', url, headers=headers, json_data=payload)
         
+        # Save the assigned IPN ID from the response
+        ipn_id = data.get('ipn_id')
+        if ipn_id:
+            logger.info(f"IPN ID assigned by PesaPal: {ipn_id}")
+            
+            # Save this IPN ID to environment for reuse
+            os.environ['PESAPAL_IPN_ID'] = ipn_id
+        else:
+            logger.warning("No IPN ID returned in the response")
+        
+        # Log all response data for debugging
+        logger.info("Full IPN registration response:")
+        for key, value in data.items():
+            logger.info(f"  - {key}: {value}")
+        
         if data.get('status') == "200":
             logger.info(f"Successfully registered IPN URL: {PESAPAL_IPN_URL}")
-            return True
+            return True, ipn_id
         else:
             logger.error(f"Failed to register IPN URL: {data.get('message')}")
-            return False
+            return False, None
     except Exception as e:
         logger.error(f"Error registering IPN URL: {str(e)}")
-        return False
+        return False, None
 
 def submit_order(order_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """
@@ -377,7 +409,7 @@ def submit_order(order_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
             "amount": float(order_data['amount']),
             "description": order_data['description'],
             "callback_url": order_data['callback_url'],
-            "notification_id": order_data.get('notification_id', str(uuid.uuid4())),  # Use provided notification_id or generate one
+            # Removed notification_id as it seems to be causing API errors
             "billing_address": {
                 "email_address": order_data['customer_email'],
                 "phone_number": order_data.get('phone_number', ''),
