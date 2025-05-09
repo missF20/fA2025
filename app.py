@@ -678,6 +678,19 @@ def register_blueprints():
             logger.info("Database management blueprint registered successfully")
         except ImportError as e:
             logger.warning(f"Could not register database management blueprint: {e}")
+        try:
+            # Import fixed email endpoint functions
+            from fixed_email_connect import add_fixed_email_connect_endpoint
+            from fixed_email_disconnect import add_fixed_email_disconnect_endpoint
+            
+            # Add fixed email endpoints
+            add_fixed_email_connect_endpoint()
+            add_fixed_email_disconnect_endpoint()
+            logger.info("Fixed email endpoints added successfully")
+        except ImportError as e:
+            logger.warning(f"Could not register fixed email endpoints: {e}")
+            
+        
         
         logger.info("Route blueprints registration completed")
     except Exception as e:

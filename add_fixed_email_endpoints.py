@@ -65,7 +65,7 @@ def add_fixed_email_endpoints_to_app():
         new_func_content = bp_func_content.replace(last_block, last_block + import_statement)
         
         # Replace the old function content with the new one
-        new_app_content = app_content.replace(match.group(1) + "return True", new_func_content)
+        new_app_content = app_content.replace(match.group(1), new_func_content)
         
         # Write the updated content back to app.py
         with open('app.py', 'w') as f:
