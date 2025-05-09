@@ -50,7 +50,8 @@ def ensure_integration_table():
         """
         result = execute_query(check_query)
         
-        if not result or not result[0][0]:
+        # Check if table exists using dictionary access
+        if not result or not result[0].get("exists"):
             # Create table
             create_table_query = """
                 CREATE TABLE IF NOT EXISTS integration_configs (
