@@ -1,0 +1,20 @@
+ERROR:main:Error setting up CSRF blueprint: cannot import name 'validate_csrf_token' from 'utils.csrf' (/home/runner/workspace/utils/csrf.py)
+WARNING:main:Could not register template-based email integration: cannot import name 'validate_csrf_token' from 'utils.csrf' (/home/runner/workspace/utils/csrf.py)
+ERROR:main:Error setting up email integration: cannot import name 'validate_csrf_token' from 'utils.csrf' (/home/runner/workspace/utils/csrf.py)
+WARNING:main:Error adding direct standardized email routes: No module named 'direct_standard_email_fix'
+WARNING:main:Error with V12 email integration fix: name 'add_direct_email_integration_routes' is not defined, trying V11 as fallback
+ERROR:main:Error with email integration fallback: name 'add_direct_email_integration_routes' is not defined
+WARNING:main:Error with V11 email integration fix: name 'add_direct_email_integration_routes' is not defined, trying V10 as fallback
+WARNING:main:Error with V10 email integration fix: name 'add_direct_email_integration_routes' is not defined, trying V9 as fallback
+ERROR:main:Error setting up email integration routes: name 'add_direct_email_integration_routes' is not defined
+ERROR:main:Error adding Google Analytics direct routes: name 'add_direct_google_analytics_routes' is not defined
+ERROR:main:Error adding direct routes for standardized integrations: name 'add_direct_standard_integration_routes' is not defined
+ * Serving Flask app 'simple_app'
+ * Debug mode: off
+WARNING:001_create_centralized_registration:Could not import routes.integrations.standard_email: cannot import name 'validate_csrf_token' from 'utils.csrf' (/home/runner/workspace/utils/csrf.py)
+WARNING:001_create_centralized_registration:Blueprint standard_google_analytics_bp not found in routes.integrations.standard_google_analytics
+WARNING:001_create_centralized_registration:Blueprint standard_hubspot_bp not found in routes.integrations.standard_hubspot
+WARNING:001_create_centralized_registration:Blueprint standard_salesforce_bp not found in routes.integrations.standard_salesforce
+WARNING:001_create_centralized_registration:Blueprint standard_shopify_bp not found in routes.integrations.standard_shopify
+WARNING:001_create_centralized_registration:Could not import routes.integrations.standard_slack: cannot import name 'send_message' from 'routes.integrations.slack' (/home/runner/workspace/routes/integrations/slack.py)
+WARNING:001_create_centralized_registration:Blueprint standard_zendesk_bp not found in routes.integrations.standard_zendesk
