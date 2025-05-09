@@ -7,7 +7,7 @@ This module provides standardized API routes for connecting to and interacting w
 import logging
 import json
 from flask import Blueprint, request, jsonify, g
-from flask_wtf.csrf import csrf_exempt
+from utils.csrf import csrf_exempt
 from utils.auth_utils import get_authenticated_user
 from utils.db_access import IntegrationDAL
 from utils.response import success_response, error_response
