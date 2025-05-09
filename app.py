@@ -1001,8 +1001,15 @@ def direct_payment_ipn():
         try:
             from utils.pesapal import process_ipn_callback
             
+            # Extract IPN ID from request or generate a random one
+            ipn_id = request.args.get('pesapal_ipn_id', None)
+            if not ipn_id:
+                import uuid
+                ipn_id = str(uuid.uuid4())
+                logger.info(f"Generated IPN ID: {ipn_id}")
+                
             # Process the IPN callback
-            result = process_ipn_callback(notification_type, transaction_tracking_id)
+            result = process_ipn_callback(notification_type, transaction_tracking_id, ipn_id)
             
             if result:
                 # IPN processed successfully

@@ -15,7 +15,7 @@ import urllib.parse
 import json
 import http.client
 from urllib.parse import urlparse
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Union
 from datetime import datetime
 
 # Configure logging
@@ -473,14 +473,14 @@ def get_transaction_status(order_tracking_id: str) -> Optional[Dict[str, Any]]:
         logger.error(f"Error getting transaction status from PesaPal: {str(e)}")
         return None
 
-def process_ipn_callback(notification_type: str, order_tracking_id: str, ipn_id: str) -> Optional[Dict[str, Any]]:
+def process_ipn_callback(notification_type: str, order_tracking_id: str, ipn_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """
     Process IPN callback from PesaPal.
     
     Args:
         notification_type: Type of notification
         order_tracking_id: Order tracking ID
-        ipn_id: IPN ID
+        ipn_id: IPN ID (optional - will be generated if not provided)
     
     Returns:
         dict: Processed payment data if successful, None otherwise
@@ -488,6 +488,11 @@ def process_ipn_callback(notification_type: str, order_tracking_id: str, ipn_id:
     token = get_auth_token()
     if not token:
         return None
+        
+    # Generate a random ipn_id if not provided
+    if not ipn_id:
+        ipn_id = str(uuid.uuid4())
+        logger.info(f"Generated IPN ID: {ipn_id}")
     
     try:
         url = f"{PESAPAL_BASE_URL}/api/Transactions/GetTransactionStatusByMerchantRef"
