@@ -1,133 +1,190 @@
 """
-Dana AI Platform - Authentication Utilities
+Authentication Utilities
 
-This module provides standardized authentication functionality for the Dana AI platform.
-All API endpoints should use these utilities for user authentication.
+This module provides utilities for authentication and authorization.
 """
 
-import os
+import json
 import logging
-from flask import g
+import os
+from typing import Dict, Any, Optional, List, Union
+from functools import wraps
+from flask import request, jsonify, session, g
+import jwt
+
 from utils.exceptions import AuthenticationError
-from utils.auth import validate_token
 
 logger = logging.getLogger(__name__)
 
-def get_authenticated_user(request, allow_dev_tokens=False):
+# Constants
+JWT_SECRET = os.environ.get("JWT_SECRET", "your-secret-key")
+
+
+def get_authenticated_user() -> Optional[Dict[str, Any]]:
     """
-    Extract authenticated user from request with consistent handling
+    Get authenticated user from request
     
-    Args:
-        request: The Flask request object
-        allow_dev_tokens: Whether to allow development tokens (default: False)
-        
     Returns:
-        dict: User info with standard keys {'id', 'email', 'username', 'is_admin'}
-        
-    Raises:
-        AuthenticationError: If authentication fails
+        User object or None if not authenticated
     """
     try:
-        # Get Authorization header
-        auth_header = request.headers.get('Authorization', '')
-        if not auth_header:
-            logger.warning("No Authorization header provided")
-            if allow_dev_tokens and is_development_mode():
-                logger.info("Using development user in dev mode without token")
-                return _get_development_user()
-            raise AuthenticationError("No authentication token provided")
+        # Check if user is already in g
+        if hasattr(g, "user") and g.user:
+            return g.user
             
-        # Handle development tokens
-        if allow_dev_tokens and is_development_mode() and _is_dev_token(auth_header):
-            logger.info("Using development token in dev mode")
-            return _get_development_user()
+        # Get token from header
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split(" ")[1]
             
-        # Standard token validation
-        auth_result = validate_token(auth_header)
-        if not auth_result.get('valid', False):
-            logger.warning(f"Token validation failed: {auth_result.get('message', 'Unknown error')}")
-            raise AuthenticationError(auth_result.get('message', 'Invalid authentication token'))
+            # Decode token
+            try:
+                user_data = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+                
+                # Set user in g for subsequent requests
+                g.user = user_data
+                
+                return user_data
+            except jwt.ExpiredSignatureError:
+                logger.warning("Token expired")
+                return None
+            except jwt.InvalidTokenError:
+                logger.warning("Invalid token")
+                return None
+                
+        # Check if user is in session
+        if "user" in session:
+            # Set user in g for subsequent requests
+            g.user = session["user"]
             
-        # Return standardized user object with consistent keys
-        user = auth_result.get('user', {})
-        
-        # Map user info from token to standard structure
-        standard_user = _standardize_user_info(user)
-        
-        # Store current user in Flask g object for easy access in route handlers
-        g.user = standard_user
-        
-        return standard_user
+            return session["user"]
             
-    except AuthenticationError:
-        # Re-raise authentication errors
-        raise
+        # Get user from Supabase cookie
+        supabase_auth = request.cookies.get("supabase-auth")
+        if supabase_auth:
+            try:
+                auth_data = json.loads(supabase_auth)
+                user_data = {
+                    "id": auth_data.get("user", {}).get("id"),
+                    "email": auth_data.get("user", {}).get("email"),
+                    "name": auth_data.get("user", {}).get("user_metadata", {}).get("name")
+                }
+                
+                # Set user in g for subsequent requests
+                g.user = user_data
+                
+                return user_data
+            except Exception as e:
+                logger.error(f"Error parsing Supabase auth cookie: {str(e)}")
+                return None
+                
+        return None
     except Exception as e:
-        logger.exception(f"Unexpected authentication error: {str(e)}")
-        raise AuthenticationError(f"Authentication failed: {str(e)}")
+        logger.error(f"Error getting authenticated user: {str(e)}")
+        return None
 
-def is_development_mode():
-    """
-    Check if the application is running in development mode
-    
-    Returns:
-        bool: True if in development mode
-    """
-    return (os.environ.get('FLASK_ENV') == 'development' or 
-            os.environ.get('DEVELOPMENT_MODE') == 'true' or
-            os.environ.get('APP_ENV') == 'development')
 
-def _is_dev_token(auth_header):
+def login_required(f):
     """
-    Check if the authorization header contains a development token
+    Decorator to require login for routes
     
     Args:
-        auth_header: Authorization header
+        f: Function to decorate
         
     Returns:
-        bool: True if header contains a development token
+        Decorated function
     """
-    dev_tokens = ['dev-token', 'test-token', 'Bearer dev-token', 'Bearer test-token']
-    return auth_header in dev_tokens
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        user = get_authenticated_user()
+        if not user:
+            return jsonify({
+                "success": False,
+                "message": "Authentication required"
+            }), 401
+            
+        # Add user to kwargs
+        kwargs["user"] = user
+            
+        return f(*args, **kwargs)
+    return decorated_function
 
-def _get_development_user():
+
+def admin_required(f):
     """
-    Get a development user for testing
+    Decorator to require admin for routes
     
+    Args:
+        f: Function to decorate
+        
     Returns:
-        dict: User info for development
+        Decorated function
     """
-    return {
-        'id': '00000000-0000-0000-0000-000000000000',
-        'email': 'dev@example.com',
-        'username': 'developer',
-        'is_admin': True
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        user = get_authenticated_user()
+        if not user:
+            return jsonify({
+                "success": False,
+                "message": "Authentication required"
+            }), 401
+            
+        # Check if user is admin
+        if not user.get("is_admin"):
+            return jsonify({
+                "success": False,
+                "message": "Admin privileges required"
+            }), 403
+            
+        # Add user to kwargs
+        kwargs["user"] = user
+            
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+def generate_token(user_id: str, email: str, name: Optional[str] = None, is_admin: bool = False) -> str:
+    """
+    Generate JWT token for user
+    
+    Args:
+        user_id: User ID
+        email: User email
+        name: User name
+        is_admin: Whether user is admin
+        
+    Returns:
+        JWT token
+    """
+    payload = {
+        "id": user_id,
+        "email": email
     }
+    
+    if name:
+        payload["name"] = name
+        
+    if is_admin:
+        payload["is_admin"] = is_admin
+        
+    return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
 
-def _standardize_user_info(user):
+
+def validate_token(token: str) -> Optional[Dict[str, Any]]:
     """
-    Standardize user information from various token formats
+    Validate JWT token
     
     Args:
-        user: User info from token validation
+        token: JWT token
         
     Returns:
-        dict: Standardized user info
+        User data or None if invalid
     """
-    # Handle both dict and object formats
-    if isinstance(user, dict):
-        # Extract information from the user dictionary
-        return {
-            'id': user.get('id') or user.get('user_id') or user.get('sub') or user.get('auth_id'),
-            'email': user.get('email'),
-            'username': user.get('username') or user.get('name') or user.get('email'),
-            'is_admin': user.get('is_admin', False)
-        }
-    else:
-        # Extract information from user object
-        return {
-            'id': getattr(user, 'id', None) or getattr(user, 'user_id', None) or getattr(user, 'sub', None) or getattr(user, 'auth_id', None),
-            'email': getattr(user, 'email', None),
-            'username': getattr(user, 'username', None) or getattr(user, 'name', None) or getattr(user, 'email', None),
-            'is_admin': getattr(user, 'is_admin', False)
-        }
+    try:
+        return jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+    except jwt.ExpiredSignatureError:
+        logger.warning("Token expired")
+        return None
+    except jwt.InvalidTokenError:
+        logger.warning("Invalid token")
+        return None

@@ -1,91 +1,104 @@
 """
-Dana AI Platform - CSRF Utilities
+CSRF Protection Utilities
 
-This module provides utilities for CSRF protection in the Dana AI platform.
+This module provides utilities for CSRF protection.
 """
 
 import logging
-import os
 import secrets
-from flask import request, jsonify, session, current_app
-from flask_wtf import CSRFProtect
+from functools import wraps
+from flask import Blueprint, request, session, jsonify
 
-# Initialize logging
 logger = logging.getLogger(__name__)
 
-# Initialize CSRF protection
-csrf = CSRFProtect()
-
-def is_development_mode():
-    """Check if the application is running in development mode"""
-    return (os.environ.get('FLASK_ENV') == 'development' or 
-            os.environ.get('DEVELOPMENT_MODE') == 'true' or
-            os.environ.get('APP_ENV') == 'development')
-
-def init_csrf(app):
-    """Initialize CSRF protection for the app"""
-    try:
-        csrf.init_app(app)
-        logger.info("CSRF protection initialized successfully")
-        return True
-    except Exception as e:
-        logger.error(f"Error initializing CSRF protection: {str(e)}")
-        return False
 
 def generate_csrf_token():
-    """Generate a CSRF token for use in forms and AJAX requests"""
-    token = secrets.token_hex(16)
-    session['csrf_token'] = token
-    return token
-
-def validate_csrf_token(req=None):
     """
-    Validate CSRF token from request
-    Returns None if valid, or an error response if invalid
+    Generate a CSRF token
+    
+    Returns:
+        str: CSRF token
     """
-    # Skip validation in development mode if configured to do so
-    if is_development_mode() and current_app.config.get('BYPASS_CSRF_IN_DEV', False):
-        logger.debug("CSRF validation bypassed in development mode")
-        return None
-    
-    # Use request object from parameter or global request context
-    req = req or request
-    
-    # Check request JSON
-    if req.json and 'csrf_token' in req.json:
-        token = req.json.get('csrf_token')
-    # Check form data
-    elif req.form and 'csrf_token' in req.form:
-        token = req.form.get('csrf_token')
-    # Check headers
-    elif 'X-CSRF-Token' in req.headers:
-        token = req.headers.get('X-CSRF-Token')
-    else:
-        logger.warning("Missing CSRF token")
-        return jsonify({'error': 'Missing CSRF token'}), 400
-    
-    # Validate token against session
-    if token != session.get('csrf_token'):
-        logger.warning("Invalid CSRF token")
-        return jsonify({'error': 'Invalid CSRF token'}), 400
-    
-    # Token is valid
-    return None
+    if "_csrf_token" not in session:
+        session["_csrf_token"] = secrets.token_hex(16)
+    return session["_csrf_token"]
 
-def create_cors_preflight_response():
-    """Create a CORS preflight response for OPTIONS requests"""
-    response = jsonify({'message': 'CORS preflight request successful'})
-    response.headers.add('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type, X-CSRF-Token, Authorization')
-    return response
 
-def get_csrf_token_response():
-    """Generate and return a CSRF token in a JSON response"""
-    token = generate_csrf_token()
-    return jsonify({'csrf_token': token})
+def validate_csrf_token(token):
+    """
+    Validate CSRF token
+    
+    Args:
+        token: CSRF token to validate
+        
+    Returns:
+        bool: True if valid
+    """
+    # If development mode, skip validation
+    if request.host.startswith("localhost") or request.host.startswith("127.0.0.1"):
+        logger.debug("Development mode detected, skipping CSRF validation")
+        return True
+        
+    # Check if token is present in session
+    if "_csrf_token" not in session:
+        logger.warning("No CSRF token in session")
+        return False
+        
+    # Validate token
+    if not token or token != session["_csrf_token"]:
+        logger.warning(f"Invalid CSRF token: {token}")
+        return False
+        
+    return True
 
-def csrf_exempt_blueprint(blueprint):
-    """Exempt an entire blueprint from CSRF protection"""
-    csrf.exempt(blueprint)
-    logger.info(f"Blueprint {blueprint.name} exempted from CSRF protection")
-    return blueprint
+
+def csrf_protect(f):
+    """
+    Decorator to protect routes from CSRF attacks
+    
+    Args:
+        f: Function to decorate
+        
+    Returns:
+        Decorated function
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # Skip validation for non-mutating methods
+        if request.method in ["GET", "HEAD", "OPTIONS"]:
+            return f(*args, **kwargs)
+            
+        # Get token from request
+        token = request.headers.get("X-CSRF-TOKEN") or request.form.get("_csrf_token")
+        
+        # Skip validation in development mode
+        if request.host.startswith("localhost") or request.host.startswith("127.0.0.1"):
+            return f(*args, **kwargs)
+            
+        # Validate token
+        if not token or not validate_csrf_token(token):
+            return jsonify({
+                "success": False,
+                "message": "Invalid CSRF token"
+            }), 403
+            
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+def csrf_exempt(blueprint: Blueprint):
+    """
+    Exempt a blueprint from CSRF protection
+    
+    Args:
+        blueprint: Blueprint to exempt
+    """
+    if not hasattr(blueprint, "before_request"):
+        logger.error(f"Blueprint {blueprint.name} has no before_request attribute")
+        return
+        
+    @blueprint.before_request
+    def skip_csrf():
+        """Skip CSRF validation for this blueprint"""
+        # Set a flag to indicate that CSRF validation should be skipped
+        request._csrf_exempt = True
