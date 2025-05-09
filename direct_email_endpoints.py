@@ -11,15 +11,16 @@ from flask_wtf.csrf import CSRFProtect
 
 logger = logging.getLogger(__name__)
 
+# Create a list of endpoints to exempt from CSRF protection
+csrf_exempt_endpoints = []
+
 def add_direct_email_endpoints(app):
     """Add direct email endpoints to the provided Flask app"""
     try:
         # Get the CSRF instance from the app
         csrf = None
-        for extension in app.extensions.values():
-            if isinstance(extension, CSRFProtect):
-                csrf = extension
-                break
+        if hasattr(app, 'extensions') and 'csrf' in app.extensions:
+            csrf = app.extensions['csrf']
         
         # Define the test endpoint
         @app.route('/api/integrations/email/test', methods=['GET'])
@@ -129,6 +130,9 @@ def add_direct_email_endpoints(app):
         @app.route('/api/integrations/email/disconnect', methods=['POST', 'OPTIONS'])
         def disconnect_email_direct():
             """Disconnect from email service - direct endpoint"""
+            # Exempt from CSRF protection
+            if csrf:
+                csrf.exempt(disconnect_email_direct)
             # Handle OPTIONS request (CORS preflight)
             if request.method == 'OPTIONS':
                 response = jsonify({})
