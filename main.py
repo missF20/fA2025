@@ -198,7 +198,8 @@ except Exception as e:
 
 # Add direct Google Analytics routes
 try:
-    # Removed import of test file or direct fix (by migration 005_update_main_imports)
+    # Import the function from the direct fix module
+    from direct_google_analytics_fix import add_direct_google_analytics_routes
     if add_direct_google_analytics_routes(app):
         logger.info("Google Analytics direct routes added successfully")
     else:
@@ -208,12 +209,12 @@ except Exception as ga_error:
 
 # Add direct routes for all standardized integrations
 try:
-    # Removed import of test file or direct fix (by migration 005_update_main_imports)
+    # Import the functions from the direct fix module
+    from direct_standard_integration_routes import add_direct_standard_integration_routes, add_all_integrations_status_endpoint
     if add_direct_standard_integration_routes(app):
         logger.info("Direct routes for standardized integrations added successfully")
         
     # Add the endpoint that returns all integrations statuses
-    # Removed import of test file or direct fix (by migration 005_update_main_imports)
     if add_all_integrations_status_endpoint(app):
         logger.info("All integrations status endpoint added successfully")
     else:
