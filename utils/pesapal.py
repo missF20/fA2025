@@ -409,7 +409,7 @@ def submit_order(order_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
             "amount": float(order_data['amount']),
             "description": order_data['description'],
             "callback_url": order_data['callback_url'],
-            # Removed notification_id as it seems to be causing API errors
+            # Do not include the IPN ID here - it's causing API errors
             "billing_address": {
                 "email_address": order_data['customer_email'],
                 "phone_number": order_data.get('phone_number', ''),
