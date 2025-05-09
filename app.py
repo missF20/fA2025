@@ -759,12 +759,27 @@ def init_token_tracking():
 def check_pesapal_config():
     """Check if PesaPal is properly configured and run setup if needed"""
     try:
+        # First try to load configuration from database
+        try:
+            logger.info("Attempting to load PesaPal configuration from database...")
+            from fix_payment_configs import load_payment_config
+            config_loaded = load_payment_config()
+            if config_loaded:
+                logger.info("PesaPal configuration successfully loaded from database")
+        except ImportError:
+            logger.warning("Could not import payment config fix module")
+            config_loaded = False
+        except Exception as db_error:
+            logger.error(f"Error loading PesaPal configuration from database: {str(db_error)}")
+            config_loaded = False
+        
+        # Check if keys are available in environment variables
         pesapal_keys_exist = all([
             os.environ.get('PESAPAL_CONSUMER_KEY'),
             os.environ.get('PESAPAL_CONSUMER_SECRET')
         ])
         
-        if not pesapal_keys_exist:
+        if not pesapal_keys_exist and not config_loaded:
             logger.warning("PesaPal API keys not configured. Payment functionality will be limited.")
             return
         
@@ -1043,6 +1058,20 @@ def direct_payment_ipn():
 def init_payment_gateway():
     """Initialize payment gateway"""
     try:
+        # First load configuration from database
+        try:
+            logger.info("Loading payment configuration from database...")
+            import init_payment_config
+            config_loaded = init_payment_config.init_payment_config()
+            if config_loaded:
+                logger.info("Payment configuration loaded successfully from database")
+            else:
+                logger.warning("Failed to load payment configuration from database, using environment variables")
+        except ImportError:
+            logger.warning("Could not import payment config initialization module")
+        except Exception as config_error:
+            logger.error(f"Error loading payment configuration: {str(config_error)}")
+        
         # Test PesaPal connection
         from utils.pesapal import get_auth_token, register_ipn_url, PESAPAL_BASE_URL
         

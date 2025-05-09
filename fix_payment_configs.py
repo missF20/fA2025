@@ -56,8 +56,17 @@ def load_payment_config():
             return False
             
         # Extract configuration from the row
-        config_id = config_row.get('id')
-        config_data = config_row.get('config')
+        if isinstance(config_row, dict):
+            # Dictionary-like row object
+            config_id = config_row.get('id')
+            config_data = config_row.get('config')
+        elif isinstance(config_row, tuple):
+            # Tuple-like row object
+            config_id = config_row[0]  # Assuming id is the first column
+            config_data = config_row[2]  # Assuming config is the third column
+        else:
+            logger.error(f"Unexpected row type: {type(config_row)}")
+            return False
         
         if not config_data:
             logger.error(f"Invalid configuration data for config ID {config_id}")
@@ -136,11 +145,18 @@ def update_payment_status():
             result = cursor.fetchone()
             conn.commit()
             
-            if result and result.get('id'):
-                logger.info(f"Updated connection status to '{status}' for config ID {result['id']}")
-                cursor.close()
-                conn.close()
-                return True
+            if result:
+                result_id = None
+                if isinstance(result, dict):
+                    result_id = result.get('id')
+                elif isinstance(result, tuple) and len(result) > 0:
+                    result_id = result[0]  # Assuming id is the first column
+                
+                if result_id:
+                    logger.info(f"Updated connection status to '{status}' for config ID {result_id}")
+                    cursor.close()
+                    conn.close()
+                    return True
             else:
                 logger.warning("No rows updated when setting connection status")
                 cursor.close()
@@ -174,7 +190,14 @@ def ensure_payment_config_table():
             )
         """)
         
-        table_exists = cursor.fetchone().get('exists', False)
+        result = cursor.fetchone()
+        table_exists = False
+        
+        if result:
+            if isinstance(result, dict):
+                table_exists = result.get('exists', False)
+            elif isinstance(result, tuple) and len(result) > 0:
+                table_exists = result[0]  # Assuming exists is the first column
         
         if not table_exists:
             logger.info("Creating payment_configs table")
