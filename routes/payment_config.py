@@ -1,10 +1,7 @@
-"""
-Payment Configuration API
+import json
+from flask import Blueprint, request, jsonify, current_app
+from flask_wtf.csrf import CSRFProtect
 
-This module provides API endpoints for configuring payment gateway settings.
-"""
-
-import os
 import logging
 import json
 import base64

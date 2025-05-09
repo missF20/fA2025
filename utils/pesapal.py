@@ -113,7 +113,7 @@ PESAPAL_SANDBOX = True
 os.environ['PESAPAL_SANDBOX'] = 'true'
 
 # Set API URL based on sandbox setting - always use sandbox for safety
-PESAPAL_BASE_URL = "https://cybqa.pesapal.com/pesapalv3"  # Updated Sandbox URL
+PESAPAL_BASE_URL = "https://pay.pesapal.com/v3"  # Updated Sandbox URL
 logger.info(f"Using PesaPal SANDBOX mode - forced for development safety. Base URL: {PESAPAL_BASE_URL}")
 
 # Cache for token to avoid making too many requests
