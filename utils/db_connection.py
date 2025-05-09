@@ -1,3 +1,4 @@
+
 """
 Database Connection Utilities
 
@@ -61,7 +62,7 @@ def execute_sql(sql: str, params: Optional[Tuple[Any, ...]] = None, fetch_all: b
         None if no results or an error occurs
     """
     try:
-        conn = get_direct_connection()
+        conn = get_db_connection()
         cursor = conn.cursor()
         
         cursor.execute(sql, params or ())
@@ -89,3 +90,6 @@ def execute_sql(sql: str, params: Optional[Tuple[Any, ...]] = None, fetch_all: b
         if params:
             logger.error(f"Parameters: {params}")
         raise
+
+# Make sure get_db_connection is explicitly exposed
+__all__ = ['get_db_connection', 'get_direct_connection', 'execute_sql']
