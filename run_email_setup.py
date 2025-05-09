@@ -39,7 +39,7 @@ def ensure_integration_table():
     Ensure integration_configs table exists
     """
     try:
-        from utils.supabase_extension import supabase_db
+        from utils.db_access import execute_query, execute_sql
         
         # Check if table exists
         check_query = """
@@ -48,7 +48,7 @@ def ensure_integration_table():
                 WHERE table_name = 'integration_configs'
             );
         """
-        result = supabase_db.execute_query(check_query)
+        result = execute_query(check_query)
         
         if not result or not result[0][0]:
             # Create table
@@ -64,14 +64,14 @@ def ensure_integration_table():
                     UNIQUE(user_id, integration_type)
                 );
             """
-            supabase_db.execute_query(create_table_query)
+            execute_sql(create_table_query)
             logger.info("Created integration_configs table")
             
             # Enable RLS
             enable_rls_query = """
                 ALTER TABLE integration_configs ENABLE ROW LEVEL SECURITY;
             """
-            supabase_db.execute_query(enable_rls_query)
+            execute_sql(enable_rls_query)
             
             # Create policies
             policies = [
@@ -99,7 +99,7 @@ def ensure_integration_table():
             
             for policy in policies:
                 try:
-                    supabase_db.execute_query(policy)
+                    execute_sql(policy)
                 except Exception as e:
                     logger.warning(f"Error creating policy: {str(e)}")
             
