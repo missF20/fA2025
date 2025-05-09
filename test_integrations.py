@@ -13,9 +13,10 @@ def test_integrations():
     
     # Test endpoints
     endpoints = [
-        {"url": "/api/integrations/email/test", "method": "GET", "name": "Email Test"},
-        {"url": "/api/integrations/google-analytics/test", "method": "GET", "name": "Google Analytics Test"},
-        {"url": "/api/integrations/slack/test", "method": "GET", "name": "Slack Test"}
+        {"url": "/api/v2/integrations/email/test", "method": "GET", "name": "Email Test"},
+        {"url": "/api/integrations/email/status", "method": "GET", "name": "Email Status"},
+        {"url": "/api/integrations/slack/status", "method": "GET", "name": "Slack Status"},
+        {"url": "/api/integrations/status", "method": "GET", "name": "All Integrations Status"}
     ]
     
     for endpoint in endpoints:
