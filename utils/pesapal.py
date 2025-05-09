@@ -18,16 +18,18 @@ from urllib.parse import urlparse
 from typing import Dict, Any, Optional
 from datetime import datetime
 
+# Configure logging
+logger = logging.getLogger(__name__)
+
 # Try to import requests, fall back to http.client if not available
 try:
     import requests
     HAVE_REQUESTS = True
+    logger.info("Successfully imported requests module")
 except ImportError:
     REQUESTS_EXCEPTION = "requests module not available, using http.client fallback"
     HAVE_REQUESTS = False
-
-# Configure logging
-logger = logging.getLogger(__name__)
+    logger.warning("requests module not available, will use http.client fallback")
 
 # Load environment variables from .env file if dotenv is available
 try:
@@ -111,8 +113,8 @@ PESAPAL_SANDBOX = True
 os.environ['PESAPAL_SANDBOX'] = 'true'
 
 # Set API URL based on sandbox setting - always use sandbox for safety
-PESAPAL_BASE_URL = "https://cybqa.pesapal.com/v3"  # Sandbox
-logger.info("Using PesaPal SANDBOX mode - forced for development safety")
+PESAPAL_BASE_URL = "https://cybqa.pesapal.com/pesapalv3"  # Updated Sandbox URL
+logger.info(f"Using PesaPal SANDBOX mode - forced for development safety. Base URL: {PESAPAL_BASE_URL}")
 
 # Cache for token to avoid making too many requests
 token_cache = {
