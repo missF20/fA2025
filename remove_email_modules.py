@@ -5,11 +5,14 @@ This script safely removes email-related modules from the codebase
 while preserving the fixed email endpoint functionality.
 """
 
-import logging
 import os
+import glob
 import shutil
-from pathlib import Path
+import logging
+from datetime import datetime
 
+logging.basicConfig(level=logging.INFO, 
+                   format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 def backup_files(files_to_backup):
@@ -22,22 +25,31 @@ def backup_files(files_to_backup):
     Returns:
         backup_dir (str): Path to backup directory
     """
-    # Create backup directory if it doesn't exist
-    backup_dir = "backups/email_modules_backup"
-    os.makedirs(backup_dir, exist_ok=True)
-    
-    # Back up each file
-    for file_path in files_to_backup:
-        if os.path.exists(file_path):
-            file_name = os.path.basename(file_path)
-            dest_path = os.path.join(backup_dir, file_name)
-            try:
-                shutil.copy2(file_path, dest_path)
-                logger.info(f"Backed up {file_path} to {dest_path}")
-            except Exception as e:
-                logger.error(f"Error backing up {file_path}: {str(e)}")
-    
-    return backup_dir
+    try:
+        # Create backup directory with timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_dir = f"backups/email_modules_{timestamp}"
+        os.makedirs(backup_dir, exist_ok=True)
+        
+        # Copy files to backup directory
+        for file_path in files_to_backup:
+            if os.path.exists(file_path):
+                # Create subdirectories in backup if needed
+                sub_dir = os.path.dirname(file_path)
+                backup_sub_dir = os.path.join(backup_dir, sub_dir)
+                os.makedirs(backup_sub_dir, exist_ok=True)
+                
+                # Copy the file
+                backup_path = os.path.join(backup_dir, file_path)
+                shutil.copy2(file_path, backup_path)
+                logger.info(f"Backed up {file_path} to {backup_path}")
+            else:
+                logger.warning(f"Could not back up {file_path} - file does not exist")
+                
+        return backup_dir
+    except Exception as e:
+        logger.error(f"Error backing up files: {str(e)}")
+        return None
 
 def remove_email_files():
     """
@@ -46,32 +58,66 @@ def remove_email_files():
     Returns:
         removed_files (list): List of files that were removed
     """
-    # List of email-related files to remove
-    email_files = [
-        "routes/email.py",
-        "routes/email_integration.py",
-        "routes/integrations/email.py",
-        "utils/email_utils.py",
-        "automation/email_processor.py",
-        "tests/test_email.py",
-    ]
-    
-    # Back up the files before removing them
-    backup_dir = backup_files(email_files)
-    logger.info(f"Email files backed up to {backup_dir}")
-    
-    # Remove the files
-    removed_files = []
-    for file_path in email_files:
-        if os.path.exists(file_path):
-            try:
-                os.remove(file_path)
-                removed_files.append(file_path)
-                logger.info(f"Removed {file_path}")
-            except Exception as e:
-                logger.error(f"Error removing {file_path}: {str(e)}")
-    
-    return removed_files
+    try:
+        # List of email-related files to remove
+        email_files = [
+            # Direct email-related files
+            "routes/integrations/email.py",
+            "routes/integrations/email_api.py",
+            "routes/integrations/email_connector.py",
+            "routes/integrations/email_handler.py",
+            "routes/email.py",
+            "routes/email_api.py",
+            "utils/email_utils.py",
+            "utils/email_sender.py",
+            "utils/email_connector.py",
+        ]
+        
+        # Search for additional email-related files using glob patterns
+        additional_email_files = []
+        for pattern in [
+            "routes/*/email*.py",
+            "utils/email*.py",
+            "migrations/*email*.py",
+            "email_*.py"
+        ]:
+            additional_email_files.extend(glob.glob(pattern))
+            
+        # Add the additional files to the main list, removing duplicates
+        for file in additional_email_files:
+            if file not in email_files:
+                email_files.append(file)
+                
+        # Verify each file's existence
+        existing_email_files = []
+        for file_path in email_files:
+            if os.path.exists(file_path):
+                existing_email_files.append(file_path)
+                
+        # Back up the files before removing
+        if existing_email_files:
+            backup_dir = backup_files(existing_email_files)
+            if not backup_dir:
+                logger.error("Failed to create backup, aborting file removal")
+                return []
+                
+            # Remove files after backup
+            removed_files = []
+            for file_path in existing_email_files:
+                try:
+                    os.remove(file_path)
+                    logger.info(f"Removed file: {file_path}")
+                    removed_files.append(file_path)
+                except Exception as e:
+                    logger.error(f"Failed to remove {file_path}: {str(e)}")
+                    
+            return removed_files
+        else:
+            logger.info("No email-related files found to remove")
+            return []
+    except Exception as e:
+        logger.error(f"Error removing email files: {str(e)}")
+        return []
 
 def remove_email_blueprint_imports():
     """
@@ -80,35 +126,50 @@ def remove_email_blueprint_imports():
     Returns:
         modified (bool): True if app.py was modified
     """
-    # Read the app.py file
     try:
-        with open('app.py', 'r') as f:
-            app_content = f.read()
+        app_py_path = "app.py"
         
-        # Lines to remove
-        lines_to_remove = [
-            "from routes.email import email_bp",
-            "from routes.email_integration import email_integration_bp",
-            "app.register_blueprint(email_bp)",
-            "app.register_blueprint(email_integration_bp)",
-            "Email blueprint registered successfully",
-            "Could not register email blueprint",
+        if not os.path.exists(app_py_path):
+            logger.error("app.py not found")
+            return False
+            
+        # Read the app.py file
+        with open(app_py_path, 'r') as file:
+            content = file.read()
+            
+        # Make a backup of app.py
+        backup_files([app_py_path])
+        
+        # List of patterns to remove
+        patterns_to_remove = [
+            # Import lines
+            r'from routes\.integrations\.email import email_bp\n',
+            r'from routes\.integrations\.email_api import email_api_bp\n',
+            r'from routes\.email import email_bp\n',
+            r'from routes\.email_api import email_api_bp\n',
+            
+            # Registration lines 
+            r'\s+app\.register_blueprint\(email_bp\)\n',
+            r'\s+app\.register_blueprint\(email_api_bp\)\n',
         ]
         
-        # Create modified content
-        modified_content = app_content
-        for line in lines_to_remove:
-            modified_content = modified_content.replace(line, "# Removed email blueprint import")
-        
+        # Remove each pattern
+        modified = False
+        for pattern in patterns_to_remove:
+            import re
+            if re.search(pattern, content):
+                content = re.sub(pattern, '', content)
+                modified = True
+                
         # Write the modified content back to app.py
-        if modified_content != app_content:
-            with open('app.py', 'w') as f:
-                f.write(modified_content)
+        if modified:
+            with open(app_py_path, 'w') as file:
+                file.write(content)
             logger.info("Removed email blueprint imports from app.py")
-            return True
         else:
             logger.info("No email blueprint imports found in app.py")
-            return False
+            
+        return modified
     except Exception as e:
         logger.error(f"Error removing email blueprint imports: {str(e)}")
         return False
@@ -120,44 +181,36 @@ def ensure_direct_email_endpoints():
     Returns:
         success (bool): True if successful
     """
-    # Check if direct_email_endpoints.py exists
-    if not os.path.exists('direct_email_endpoints.py'):
-        logger.error("direct_email_endpoints.py not found")
-        return False
-    
-    # Check if main.py has the import and function call
     try:
-        with open('main.py', 'r') as f:
-            main_content = f.read()
+        # Option 1: Run the add_fixed_email_endpoints.py script
+        try:
+            import add_fixed_email_endpoints
+            success = add_fixed_email_endpoints.add_fixed_email_endpoints_to_app()
+            if success:
+                logger.info("Fixed email endpoints were added via add_fixed_email_endpoints.py")
+                return True
+        except Exception as e1:
+            logger.warning(f"Could not use add_fixed_email_endpoints.py: {str(e1)}")
         
-        # Check if the import and function call are already in main.py
-        if "from direct_email_endpoints import add_direct_email_endpoints" in main_content and "add_direct_email_endpoints(app)" in main_content:
-            logger.info("Direct email endpoints already set up in main.py")
+        # Option 2: Try using run_fixed_email_setup
+        try:
+            import run_fixed_email_setup
+            run_fixed_email_setup.main()
+            logger.info("Fixed email endpoints were added via run_fixed_email_setup.py")
             return True
+        except Exception as e2:
+            logger.warning(f"Could not use run_fixed_email_setup.py: {str(e2)}")
+            
+        # Option 3: Direct import of fixed_email_connect
+        try:
+            from fixed_email_connect import add_fixed_email_connect_endpoint
+            if add_fixed_email_connect_endpoint():
+                logger.info("Fixed email endpoints were added directly via fixed_email_connect.py")
+                return True
+        except Exception as e3:
+            logger.warning(f"Could not use fixed_email_connect.py directly: {str(e3)}")
         
-        # Add the import and function call if they're not already there
-        if "from app import app" in main_content and "from direct_email_endpoints import add_direct_email_endpoints" not in main_content:
-            # Insert after the app import
-            modified_content = main_content.replace(
-                "from app import app",
-                "from app import app\nfrom direct_email_endpoints import add_direct_email_endpoints"
-            )
-            
-            # Insert the function call before the if __name__ block
-            if "if __name__ == \"__main__\":" in modified_content and "add_direct_email_endpoints(app)" not in modified_content:
-                modified_content = modified_content.replace(
-                    "if __name__ == \"__main__\":",
-                    "# Add direct email endpoints to the app\nadd_direct_email_endpoints(app)\n\nif __name__ == \"__main__\":"
-                )
-            
-            # Write the modified content back to main.py
-            with open('main.py', 'w') as f:
-                f.write(modified_content)
-            
-            logger.info("Added direct email endpoints to main.py")
-            return True
-        
-        logger.error("Could not find appropriate location in main.py to add direct email endpoints")
+        logger.error("All methods to set up fixed email endpoints failed")
         return False
     except Exception as e:
         logger.error(f"Error ensuring direct email endpoints: {str(e)}")
@@ -170,59 +223,63 @@ def check_email_endpoints():
     Returns:
         working (bool): True if email endpoints are working
     """
-    # We'll just check if the files exist, as testing the endpoints would require 
-    # running the server, which is beyond the scope of this script
-    if os.path.exists('direct_email_endpoints.py'):
-        logger.info("direct_email_endpoints.py exists - endpoints should be working")
-        return True
-    else:
-        logger.error("direct_email_endpoints.py not found - endpoints may not be working")
+    try:
+        import requests
+        
+        # Try multiple endpoint patterns to check what's working
+        endpoints_to_check = [
+            # Original pattern
+            "http://localhost:5000/api/integrations/email/test",
+            # Fixed endpoint pattern
+            "http://localhost:5000/api/fixed/email/test",
+            # Direct endpoint pattern 
+            "http://localhost:5000/api/email/test"
+        ]
+        
+        for endpoint in endpoints_to_check:
+            try:
+                response = requests.get(endpoint)
+                if response.status_code == 200 and response.json().get("success"):
+                    logger.info(f"Email test endpoint is working at: {endpoint}")
+                    return True
+            except Exception as endpoint_error:
+                logger.warning(f"Endpoint {endpoint} check failed: {str(endpoint_error)}")
+        
+        logger.error("All email endpoint checks failed")
+        return False
+    except Exception as e:
+        logger.error(f"Error checking email endpoints: {str(e)}")
         return False
 
 def main():
     """
     Main function to remove email modules and ensure fixed endpoints work
     """
-    # Configure logging
-    logging.basicConfig(level=logging.INFO, 
-                       format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    logger.info("Starting email module removal process...")
     
-    print("Starting email module removal process...")
+    # Step 1: Ensure direct email endpoints are properly set up
+    if not ensure_direct_email_endpoints():
+        logger.error("Failed to set up direct email endpoints, aborting")
+        return
+        
+    # Step 2: Remove email blueprint imports from app.py
+    remove_email_blueprint_imports()
     
-    # Check if direct email endpoints are set up
-    if not check_email_endpoints():
-        print("ERROR: Direct email endpoints not set up. Run these scripts first:")
-        print("1. python direct_email_endpoints.py")
-        print("2. Update main.py to use direct_email_endpoints.py")
-        return False
-    
-    # Remove email files
-    print("Backing up and removing email-related files...")
+    # Step 3: Remove email-related files
     removed_files = remove_email_files()
-    if removed_files:
-        print(f"Removed {len(removed_files)} email-related files:")
-        for file in removed_files:
-            print(f"  - {file}")
-    else:
-        print("No email-related files found to remove")
     
-    # Remove email blueprint imports
-    print("Removing email blueprint imports from app.py...")
-    if remove_email_blueprint_imports():
-        print("Successfully removed email blueprint imports from app.py")
-    else:
-        print("No changes needed or error removing email blueprint imports")
+    # Step 4: Check if the fixed email endpoints are working
+    endpoints_working = check_email_endpoints()
     
-    # Ensure direct email endpoints are set up
-    print("Ensuring direct email endpoints are properly set up...")
-    if ensure_direct_email_endpoints():
-        print("Direct email endpoints are properly set up")
-    else:
-        print("Error ensuring direct email endpoints")
+    # Summary
+    logger.info(f"Email module removal summary:")
+    logger.info(f"- Removed {len(removed_files)} email-related files")
+    logger.info(f"- Fixed email endpoints working: {endpoints_working}")
     
-    print("Email module removal process complete")
-    print("NOTE: Restart the application to apply changes")
-    return True
-
+    if endpoints_working:
+        logger.info("Email module removal completed successfully")
+    else:
+        logger.error("Email endpoint check failed, but files were removed with backups")
+        
 if __name__ == "__main__":
     main()
