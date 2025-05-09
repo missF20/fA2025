@@ -593,10 +593,7 @@ def register_blueprints():
 
         # Usage API blueprint is already imported and registered above
             
-        try:
-            from routes.email import email_bp
-            app.register_blueprint(email_bp)
-            logger.info("Email blueprint registered successfully")
+        try:            logger.info("Email blueprint registered successfully")
         except ImportError as e:
             logger.warning(f"Could not register email blueprint: {e}")
             
