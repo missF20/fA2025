@@ -159,16 +159,9 @@ def add_integration_routes(app, integration_name):
     # Create unique function name for this integration's status endpoint
     status_endpoint_name = f'direct_{integration_name}_status_endpoint'
     
-    # Use a factory function to create a dynamic function to avoid naming conflicts
-    def create_status_endpoint_function():
-        def dynamic_status_endpoint():
-            """Check integration status"""
-        dynamic_status_endpoint.__name__ = f'direct_{integration_name}_status'
-        return dynamic_status_endpoint
-        
-    # Create and register the status endpoint using the factory function
-    status_endpoint_function = create_status_endpoint_function()
-    app.route(f'{url_prefix}/status/{integration_name}', methods=['GET'])(status_endpoint_function)
+    # Create a function to handle status endpoint
+    def status_endpoint_func():
+        """Check integration status"""
         # Extract token from Authorization header
         auth_header = request.headers.get('Authorization', '')
         token = None
@@ -254,8 +247,10 @@ def add_integration_routes(app, integration_name):
     # Rename the function to avoid conflicts
     status_endpoint_func.__name__ = f'direct_{integration_name}_status'
     
-    # Connect endpoint
-    @app.route(f'{url_prefix}/connect/{integration_name}', methods=['POST', 'OPTIONS'])
+    # Register the status endpoint route
+    app.route(f'{url_prefix}/status/{integration_name}', methods=['GET'])(status_endpoint_func)
+    
+    # Connect endpoint function
     def connect_endpoint():
         """Connect to integration"""
         # Handle CORS preflight requests without authentication
@@ -390,8 +385,10 @@ def add_integration_routes(app, integration_name):
     # Rename the function to avoid conflicts
     connect_endpoint.__name__ = f'direct_{integration_name}_connect'
     
-    # Disconnect endpoint
-    @app.route(f'{url_prefix}/disconnect/{integration_name}', methods=['POST'])
+    # Register the connect endpoint route
+    app.route(f'{url_prefix}/connect/{integration_name}', methods=['POST', 'OPTIONS'])(connect_endpoint)
+    
+    # Disconnect endpoint function
     def disconnect_endpoint():
         """Disconnect integration"""
         # Extract token from Authorization header
@@ -482,5 +479,8 @@ def add_integration_routes(app, integration_name):
     
     # Rename the function to avoid conflicts
     disconnect_endpoint.__name__ = f'direct_{integration_name}_disconnect'
+    
+    # Register the disconnect endpoint route
+    app.route(f'{url_prefix}/disconnect/{integration_name}', methods=['POST'])(disconnect_endpoint)
     
     return True
