@@ -11,7 +11,7 @@ from typing import Dict, Any, Optional, List, Union
 from datetime import datetime
 import uuid
 
-from utils.supabase_extension import supabase_db
+from utils.supabase_extension import execute_query, execute_transaction
 from utils.exceptions import DatabaseAccessError
 
 logger = logging.getLogger(__name__)
@@ -36,7 +36,7 @@ def get_integration_config(integration_type: str, user_id: str) -> Optional[Dict
             LIMIT 1
         """
         
-        result = supabase_db.execute_query(query, [integration_type, user_id])
+        result = execute_query(query, (integration_type, user_id))
         
         if not result or len(result) == 0:
             return None
@@ -94,9 +94,9 @@ def update_integration_config(
         else:
             config_json = config
             
-        supabase_db.execute_query(
+        execute_query(
             query, 
-            [config_json, status, datetime.now(), integration_type, user_id]
+            (config_json, status, datetime.now(), integration_type, user_id)
         )
         
         return True
@@ -139,9 +139,9 @@ def insert_integration_config(
             
         now = datetime.now()
             
-        supabase_db.execute_query(
+        execute_query(
             query, 
-            [user_id, integration_type, config_json, status, now, now]
+            (user_id, integration_type, config_json, status, now, now)
         )
         
         return True
@@ -168,7 +168,7 @@ def delete_integration_config(integration_type: str, user_id: str) -> bool:
             WHERE integration_type = %s AND user_id = %s
         """
             
-        supabase_db.execute_query(query, [integration_type, user_id])
+        execute_query(query, (integration_type, user_id))
         
         return True
     except Exception as e:
@@ -194,7 +194,7 @@ def list_user_integrations(user_id: str) -> List[Dict[str, Any]]:
             WHERE user_id = %s
         """
         
-        result = supabase_db.execute_query(query, [user_id])
+        result = execute_query(query, (user_id,))
         
         if not result:
             return []
