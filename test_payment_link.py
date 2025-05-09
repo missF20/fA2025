@@ -37,16 +37,32 @@ def test_payment_link():
         logger.error("Failed to get authentication token")
         return False
     
-    # Get IPN URL from environment or generate one
-    ipn_url = os.environ.get('PESAPAL_IPN_URL')
-    if not ipn_url:
-        domain = os.environ.get('REPLIT_DOMAINS', '').split(',')[0]
-        if not domain:
-            domain = os.environ.get('REPLIT_DEV_DOMAIN')
-        if not domain:
-            logger.error("No domain available for IPN URL")
+    # Get domain for URLs
+    domain = os.environ.get('REPLIT_DOMAINS', '').split(',')[0]
+    if not domain:
+        domain = os.environ.get('REPLIT_DEV_DOMAIN')
+    if not domain:
+        logger.error("No domain available for IPN URL")
+        return False
+    
+    # Set IPN URL and save to environment
+    ipn_url = f"https://{domain}/api/payments/ipn"
+    os.environ['PESAPAL_IPN_URL'] = ipn_url
+    logger.info(f"Set PESAPAL_IPN_URL = {ipn_url}")
+    
+    # Register the IPN URL to get an IPN ID
+    try:
+        from utils.pesapal import register_ipn_url
+        success, ipn_id = register_ipn_url()
+        if success and ipn_id:
+            logger.info(f"Successfully registered IPN URL with ID: {ipn_id}")
+            os.environ['PESAPAL_IPN_ID'] = ipn_id
+        else:
+            logger.error("Failed to register IPN URL")
             return False
-        ipn_url = f"https://{domain}/api/payments/ipn"
+    except Exception as e:
+        logger.error(f"Error registering IPN URL: {str(e)}")
+        return False
     
     # Generate unique reference
     reference = f"REF{int(datetime.now().timestamp())}"
@@ -58,7 +74,7 @@ def test_payment_link():
         "amount": 1.0,
         "description": "Test Payment",
         "callback_url": ipn_url.replace("/ipn", "/callback"),
-        "notification_id": None,  # Skip this problematic parameter
+        # Don't include any IPN ID - let PesaPal use default
         "billing_address": {
             "email_address": "test@example.com",
             "phone_number": "",
@@ -84,7 +100,7 @@ def test_payment_link():
     }
     
     logger.info(f"Making API request to {url}")
-    logger.info(f"Payload: {json.dumps({k: v for k, v in test_data.items() if k != 'notification_id'})}")
+    logger.info(f"Payload: {json.dumps({k: v for k, v in test_data.items()})}")
     
     try:
         response = requests.post(url, json=test_data, headers=headers)
