@@ -188,7 +188,7 @@ export const Dashboard = () => {
         setRefreshLoading(false);
       }
     }
-  }, [timeRange, customDateRange, platformFilter]);
+  }, timeRange, customDateRange, platformFilter]);
 
   // Initial data fetch
   useEffect(() => {

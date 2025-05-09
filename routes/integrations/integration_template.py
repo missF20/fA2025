@@ -8,7 +8,7 @@ Copy this file and replace 'template' with your integration name.
 import logging
 import json
 from flask import Blueprint, request, jsonify, g
-from flask_wtf.csrf import csrf_exempt
+from flask_wtf import CRSFProtect
 from utils.auth_utils import get_authenticated_user
 from utils.db_access import IntegrationDAL
 from utils.response import success_response, error_response

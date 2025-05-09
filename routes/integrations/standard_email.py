@@ -9,17 +9,41 @@ import logging
 import json
 import os
 from flask import Blueprint, request, jsonify, g
-try:
-    from app import csrf  # Try to import the CSRF protection from app
-except ImportError:
-    # Define a dummy decorator for development environments
-    class DummyCSRF:
-        @staticmethod
-        def exempt(f):
-            return f
-    csrf = DummyCSRF()
+from flask_wtf import CSRFProtect
 
-from utils.csrf import validate_csrf_token, create_cors_preflight_response, get_csrf_token
+# Initialize CSRF protection
+csrf = CSRFProtect()
+
+# Import existing CSRF utilities
+try:
+    from utils.csrf_utils import (
+        validate_csrf_token, 
+        create_cors_preflight_response, 
+        get_csrf_token_response as get_csrf_token,
+        csrf_exempt_blueprint
+    )
+except ImportError:
+    # Fallback if new utils aren't available yet
+    try:
+        from utils.csrf import validate_csrf_token, create_cors_preflight_response, get_csrf_token
+    except ImportError:
+        # Define fallback functions if neither module is available
+        def validate_csrf_token(req=None):
+            """Fallback CSRF validation that accepts all tokens in development"""
+            return None
+            
+        def create_cors_preflight_response():
+            """Simple CORS response"""
+            response = jsonify({'message': 'CORS preflight request successful'})
+            return response
+            
+        def get_csrf_token():
+            """Simple token generator"""
+            return jsonify({'csrf_token': 'development_token'})
+            
+        def csrf_exempt_blueprint(bp):
+            """No-op function"""
+            return bp
 from utils.auth_utils import get_authenticated_user
 from utils.db_access import IntegrationDAL
 from utils.response import success_response, error_response
@@ -40,8 +64,15 @@ logger = logging.getLogger(__name__)
 # Create blueprint with standard naming convention
 standard_email_bp = Blueprint('standard_email', __name__)
 
+# Exempt the entire blueprint from CSRF protection
+try:
+    standard_email_bp = csrf_exempt_blueprint(standard_email_bp)
+except Exception as e:
+    logger.warning(f"Could not exempt email blueprint using csrf_exempt_blueprint: {str(e)}")
+    # Fall back to the traditional approach
+    csrf.exempt(standard_email_bp)
+
 @standard_email_bp.route('/api/v2/integrations/email/connect', methods=['POST', 'OPTIONS'])
-@csrf.exempt
 def connect_email():
     """
     Connect email integration
@@ -91,7 +122,6 @@ def connect_email():
         return error_response(f"Error connecting email integration: {str(e)}")
 
 @standard_email_bp.route('/api/v2/integrations/email/disconnect', methods=['POST', 'OPTIONS'])
-@csrf.exempt
 def disconnect_email():
     """
     Disconnect email integration
@@ -134,7 +164,6 @@ def disconnect_email():
 
 
 @standard_email_bp.route('/api/v2/integrations/email/status', methods=['GET', 'OPTIONS'])
-@csrf.exempt
 def email_status():
     """
     Get email integration status
@@ -178,7 +207,6 @@ def email_status():
 
 
 @standard_email_bp.route('/api/v2/integrations/email/test', methods=['GET', 'OPTIONS'])
-@csrf.exempt
 def test_email():
     """
     Test email integration API
