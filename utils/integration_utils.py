@@ -1,218 +1,224 @@
 """
-Integration Utilities
+Dana AI Platform - Integration Utilities
 
-This module provides utilities for working with integrations
-across the platform.
+This module provides standardized utilities for integration endpoints.
+It includes common functions used across different integration implementations.
 """
 
-import json
 import logging
-from typing import Dict, Any, Optional, List, Union
-from datetime import datetime
-import uuid
+import json
+import os
+from typing import Dict, Any, Tuple, Optional, List, Union
+from flask import jsonify, make_response, request, Response
 
-from utils.supabase_extension import query_sql as execute_query, execute_transaction
-from utils.exceptions import DatabaseAccessError
+from utils.exceptions import IntegrationError, ValidationError
+from utils.response import success_response, error_response
+from utils.csrf import validate_csrf_token, create_cors_preflight_response
 
+# Configure logger
 logger = logging.getLogger(__name__)
 
-
-def get_integration_config(integration_type: str, user_id: str) -> Optional[Dict[str, Any]]:
+def is_development_mode() -> bool:
     """
-    Get integration configuration from the database
+    Check if the application is running in development mode
+    
+    Returns:
+        bool: True if in development mode, False otherwise
+    """
+    return (os.environ.get('FLASK_ENV') == 'development' or 
+            os.environ.get('DEVELOPMENT_MODE') == 'true' or
+            os.environ.get('APP_ENV') == 'development')
+
+def get_integration_config(integration_type: str, user_id: str) -> Dict[str, Any]:
+    """
+    Get configuration for a specific integration type and user
     
     Args:
         integration_type: Type of integration
         user_id: User ID
         
     Returns:
-        Integration configuration or None if not found
+        dict: Integration configuration
+        
+    Raises:
+        IntegrationError: If config retrieval fails
     """
+    from utils.db_access import IntegrationDAL
+    
     try:
-        # Query the database for integration config
-        query = """
-            SELECT * FROM integration_configs
-            WHERE integration_type = %s AND user_id = %s
-            LIMIT 1
-        """
+        integration_dal = IntegrationDAL()
+        config = integration_dal.get_integration_config(integration_type, user_id)
+        if not config:
+            logger.info(f"No configuration found for {integration_type} integration for user {user_id}")
+            return {}
         
-        result = execute_query(query, (integration_type, user_id))
+        return config
+    except Exception as e:
+        logger.error(f"Error retrieving {integration_type} integration config: {str(e)}")
+        raise IntegrationError(f"Failed to retrieve integration configuration: {str(e)}")
+
+def save_integration_config(integration_type: str, user_id: str, config: Dict[str, Any], 
+                           status: str = "active") -> bool:
+    """
+    Save configuration for a specific integration type and user
+    
+    Args:
+        integration_type: Type of integration
+        user_id: User ID
+        config: Integration configuration
+        status: Integration status (default: "active")
         
-        if not result or len(result) == 0:
-            return None
+    Returns:
+        bool: True if saved successfully, False otherwise
+        
+    Raises:
+        IntegrationError: If config save fails
+    """
+    from utils.db_access import IntegrationDAL
+    
+    try:
+        integration_dal = IntegrationDAL()
+        result = integration_dal.save_integration_config(
+            integration_type=integration_type,
+            user_id=user_id,
+            config=config,
+            status=status
+        )
+        
+        if result:
+            logger.info(f"{integration_type} integration config saved successfully for user {user_id}")
+        else:
+            logger.warning(f"Failed to save {integration_type} integration config for user {user_id}")
             
-        # Create a dictionary from the first row
-        row = result[0]
+        return result
+    except Exception as e:
+        logger.error(f"Error saving {integration_type} integration config: {str(e)}")
+        raise IntegrationError(f"Failed to save integration configuration: {str(e)}")
+
+def validate_json_request(required_fields: List[str]) -> Dict[str, Any]:
+    """
+    Validate that the request contains JSON with required fields
+    
+    Args:
+        required_fields: List of required field names
         
-        # Use dictionary access for better type safety
+    Returns:
+        dict: Parsed JSON data
+        
+    Raises:
+        ValidationError: If request is invalid
+    """
+    # Check if request has JSON data
+    if not request.is_json:
+        raise ValidationError("Request must contain JSON data")
+    
+    # Parse the JSON data
+    try:
+        data = request.get_json()
+    except Exception as e:
+        raise ValidationError(f"Invalid JSON data: {str(e)}")
+    
+    # Check for required fields
+    for field in required_fields:
+        if field not in data:
+            raise ValidationError(f"Missing required field: {field}")
+    
+    return data
+
+def get_integration_status(integration_type: str, user_id: str) -> Dict[str, Any]:
+    """
+    Get status information for a specific integration type and user
+    
+    Args:
+        integration_type: Type of integration
+        user_id: User ID
+        
+    Returns:
+        dict: Integration status information
+    """
+    from utils.db_access import IntegrationDAL
+    
+    try:
+        integration_dal = IntegrationDAL()
+        status = integration_dal.get_integration_status(integration_type, user_id)
+        return status
+    except Exception as e:
+        logger.error(f"Error retrieving {integration_type} integration status: {str(e)}")
         return {
-            "id": row.get("id"),
-            "user_id": row.get("user_id"),
-            "integration_type": row.get("integration_type"),
-            "config": row.get("config"),
-            "status": row.get("status"),
-            "date_created": row.get("date_created"),
-            "date_updated": row.get("date_updated")
+            "id": integration_type,
+            "type": integration_type,
+            "status": "error",
+            "error": str(e),
+            "lastSync": None
         }
-    except Exception as e:
-        logger.error(f"Error getting integration config: {str(e)}")
-        raise DatabaseAccessError(f"Error getting integration configuration: {str(e)}")
 
-
-def update_integration_config(
-    integration_type: str, 
-    user_id: str, 
-    config: Dict[str, Any], 
-    status: str = "active"
-) -> bool:
+def handle_integration_connection(integration_type: str, user_id: str, 
+                                 data: Dict[str, Any]) -> Tuple[Dict[str, Any], int]:
     """
-    Update integration configuration in the database
+    Generic handler for connecting an integration
     
     Args:
         integration_type: Type of integration
         user_id: User ID
-        config: Integration configuration
-        status: Integration status
+        data: Connection data (API keys, credentials, etc.)
         
     Returns:
-        True if successful
+        tuple: (Response data, status code)
     """
     try:
-        # Check if config exists
-        existing_config = get_integration_config(integration_type, user_id)
+        # Save the integration configuration
+        save_integration_config(integration_type, user_id, data)
         
-        if not existing_config:
-            # If not found, insert new config
-            return insert_integration_config(integration_type, user_id, config, status)
-            
-        # Update existing config
-        query = """
-            UPDATE integration_configs
-            SET config = %s, status = %s, date_updated = %s
-            WHERE integration_type = %s AND user_id = %s
-        """
-        
-        # Convert config to JSON if it's a dict
-        if isinstance(config, dict):
-            config_json = json.dumps(config)
-        else:
-            config_json = config
-            
-        execute_query(
-            query, 
-            (config_json, status, datetime.now(), integration_type, user_id)
+        # Return success response
+        return success_response(
+            message=f"{integration_type.capitalize()} integration connected successfully",
+            data={"status": "active"}
         )
-        
-        return True
     except Exception as e:
-        logger.error(f"Error updating integration config: {str(e)}")
-        raise DatabaseAccessError(f"Error updating integration configuration: {str(e)}")
+        logger.error(f"Error connecting to {integration_type}: {str(e)}")
+        return error_response(f"Failed to connect {integration_type} integration: {str(e)}", 500)
 
-
-def insert_integration_config(
-    integration_type: str, 
-    user_id: str, 
-    config: Dict[str, Any], 
-    status: str = "active"
-) -> bool:
+def csrf_validate_with_dev_bypass(request, operation_name: str = "unknown") -> Optional[Response]:
     """
-    Insert new integration configuration in the database
+    Validate CSRF token with development mode bypass
+    
+    Args:
+        request: Flask request object
+        operation_name: Name of the operation for logging
+        
+    Returns:
+        Response: Error response if validation fails and not in dev mode, None otherwise
+    """
+    # Validate CSRF token
+    token_result = validate_csrf_token(request)
+    if token_result:
+        # If in development mode, bypass CSRF
+        if is_development_mode():
+            logger.info(f"Development mode: bypassing CSRF protection for {operation_name}")
+            return None
+        return token_result
+    return None
+
+def handle_integration_disconnect(integration_type: str, user_id: str) -> Tuple[Dict[str, Any], int]:
+    """
+    Generic handler for disconnecting an integration
     
     Args:
         integration_type: Type of integration
         user_id: User ID
-        config: Integration configuration
-        status: Integration status
         
     Returns:
-        True if successful
+        tuple: (Response data, status code)
     """
     try:
-        # Insert new config
-        query = """
-            INSERT INTO integration_configs
-            (user_id, integration_type, config, status, date_created, date_updated)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """
+        # Save empty config with inactive status
+        save_integration_config(integration_type, user_id, {}, status="inactive")
         
-        # Convert config to JSON if it's a dict
-        if isinstance(config, dict):
-            config_json = json.dumps(config)
-        else:
-            config_json = config
-            
-        now = datetime.now()
-            
-        execute_query(
-            query, 
-            (user_id, integration_type, config_json, status, now, now)
+        # Return success response
+        return success_response(
+            message=f"{integration_type.capitalize()} integration disconnected successfully",
+            data={"status": "inactive"}
         )
-        
-        return True
     except Exception as e:
-        logger.error(f"Error inserting integration config: {str(e)}")
-        raise DatabaseAccessError(f"Error inserting integration configuration: {str(e)}")
-
-
-def delete_integration_config(integration_type: str, user_id: str) -> bool:
-    """
-    Delete integration configuration from the database
-    
-    Args:
-        integration_type: Type of integration
-        user_id: User ID
-        
-    Returns:
-        True if successful
-    """
-    try:
-        # Delete config
-        query = """
-            DELETE FROM integration_configs
-            WHERE integration_type = %s AND user_id = %s
-        """
-            
-        execute_query(query, (integration_type, user_id))
-        
-        return True
-    except Exception as e:
-        logger.error(f"Error deleting integration config: {str(e)}")
-        raise DatabaseAccessError(f"Error deleting integration configuration: {str(e)}")
-
-
-def list_user_integrations(user_id: str) -> List[Dict[str, Any]]:
-    """
-    List all integrations for a user
-    
-    Args:
-        user_id: User ID
-        
-    Returns:
-        List of integration configurations
-    """
-    try:
-        # Query the database for all user integrations
-        query = """
-            SELECT integration_type, status, date_created, date_updated
-            FROM integration_configs
-            WHERE user_id = %s
-        """
-        
-        result = execute_query(query, (user_id,))
-        
-        if not result:
-            return []
-            
-        integrations = []
-        for row in result:
-            integrations.append({
-                "integration_type": row.get("integration_type"),
-                "status": row.get("status"),
-                "date_created": row.get("date_created"),
-                "date_updated": row.get("date_updated")
-            })
-            
-        return integrations
-    except Exception as e:
-        logger.error(f"Error listing user integrations: {str(e)}")
-        raise DatabaseAccessError(f"Error listing user integrations: {str(e)}")
+        logger.error(f"Error disconnecting {integration_type}: {str(e)}")
+        return error_response(f"Failed to disconnect {integration_type} integration: {str(e)}", 500)

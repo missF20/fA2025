@@ -593,7 +593,10 @@ def register_blueprints():
 
         # Usage API blueprint is already imported and registered above
             
-        try:            logger.info("Email blueprint registered successfully")
+        try:
+            from routes.email import email_bp
+            app.register_blueprint(email_bp)
+            logger.info("Email blueprint registered successfully")
         except ImportError as e:
             logger.warning(f"Could not register email blueprint: {e}")
             
@@ -631,12 +634,24 @@ def register_blueprints():
             
         # Register email integration blueprint separately to ensure it's loaded correctly
         try:
+            from routes.integrations.email import email_integration_bp
+            app.register_blueprint(email_integration_bp)
             logger.info("Email integration blueprint registered successfully")
         except ImportError as e:
             logger.warning(f"Could not register email integration blueprint: {e}")
             
         # Register standardized integration blueprints
         try:
+            from routes.integrations.standard_email import standard_email_bp
+            from routes.integrations.standard_google_analytics import standard_ga_bp
+            from routes.integrations.standard_hubspot import hubspot_standard_bp
+            from routes.integrations.standard_salesforce import salesforce_standard_bp
+            from routes.integrations.standard_shopify import shopify_standard_bp
+            from routes.integrations.standard_slack import slack_standard_bp
+            from routes.integrations.standard_zendesk import zendesk_standard_bp
+            
+            # Register all standard blueprints
+            app.register_blueprint(standard_email_bp)
             app.register_blueprint(standard_ga_bp)
             app.register_blueprint(hubspot_standard_bp)
             app.register_blueprint(salesforce_standard_bp)
@@ -675,19 +690,6 @@ def register_blueprints():
             logger.info("Database management blueprint registered successfully")
         except ImportError as e:
             logger.warning(f"Could not register database management blueprint: {e}")
-        try:
-            # Import fixed email endpoint functions
-            from fixed_email_connect import add_fixed_email_connect_endpoint
-            from fixed_email_disconnect import add_fixed_email_disconnect_endpoint
-            
-            # Add fixed email endpoints
-            add_fixed_email_connect_endpoint()
-            add_fixed_email_disconnect_endpoint()
-            logger.info("Fixed email endpoints added successfully")
-        except ImportError as e:
-            logger.warning(f"Could not register fixed email endpoints: {e}")
-            
-        
         
         logger.info("Route blueprints registration completed")
     except Exception as e:
