@@ -28,7 +28,7 @@ def add_fixed_email_connect_endpoint():
         bool: True if successful
     """
     try:
-        app = current_app._get_current_object()
+        app = current_app
         
         # Only add endpoints if they don't already exist
         if getattr(app, "email_endpoints_added", False):

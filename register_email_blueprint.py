@@ -26,7 +26,7 @@ def register_email_blueprint(app=None):
         # If no app provided, use current_app
         if not app:
             from flask import current_app
-            app = current_app._get_current_object()
+            app = current_app
             
         # Register the blueprint
         app.register_blueprint(email_integration_bp)

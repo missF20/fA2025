@@ -11,7 +11,7 @@ from typing import Dict, Any, Optional, List, Union
 from datetime import datetime
 import uuid
 
-from utils.supabase_extension import execute_query, execute_transaction
+from utils.db_access import execute_query, execute_transaction
 from utils.exceptions import DatabaseAccessError
 
 logger = logging.getLogger(__name__)
