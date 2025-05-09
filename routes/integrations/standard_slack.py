@@ -23,9 +23,9 @@ INTEGRATION_TYPE = 'slack'
 standard_slack_bp = Blueprint(f'standard_{INTEGRATION_TYPE}_bp', __name__)
 
 # Mark all routes as CSRF exempt for API endpoints
-slack_standard_bp.decorators = [csrf_exempt]
+standard_slack_bp.decorators = [csrf_exempt]
 
-@slack_standard_bp.route(f'/api/v2/integrations/{INTEGRATION_TYPE}/connect', methods=['POST', 'OPTIONS'])
+@standard_slack_bp.route(f'/api/v2/integrations/{INTEGRATION_TYPE}/connect', methods=['POST', 'OPTIONS'])
 def connect_integration():
     """
     Connect integration
@@ -92,7 +92,7 @@ def connect_integration():
         logger.exception(f"Unexpected error in {INTEGRATION_TYPE} connect: {str(e)}")
         return error_response(f"Error connecting {INTEGRATION_TYPE} integration: {str(e)}")
 
-@slack_standard_bp.route(f'/api/v2/integrations/{INTEGRATION_TYPE}/disconnect', methods=['POST', 'OPTIONS'])
+@standard_slack_bp.route(f'/api/v2/integrations/{INTEGRATION_TYPE}/disconnect', methods=['POST', 'OPTIONS'])
 def disconnect_integration():
     """
     Disconnect integration
@@ -135,7 +135,7 @@ def disconnect_integration():
         logger.exception(f"Error disconnecting {INTEGRATION_TYPE} integration: {str(e)}")
         return error_response(f"Error disconnecting {INTEGRATION_TYPE} integration: {str(e)}")
 
-@slack_standard_bp.route(f'/api/v2/integrations/{INTEGRATION_TYPE}/status', methods=['GET', 'OPTIONS'])
+@standard_slack_bp.route(f'/api/v2/integrations/{INTEGRATION_TYPE}/status', methods=['GET', 'OPTIONS'])
 def integration_status():
     """
     Get integration status
@@ -187,7 +187,7 @@ def integration_status():
         logger.exception(f"Error getting {INTEGRATION_TYPE} integration status: {str(e)}")
         return error_response(f"Error getting {INTEGRATION_TYPE} integration status: {str(e)}")
 
-@slack_standard_bp.route(f'/api/v2/integrations/{INTEGRATION_TYPE}/send', methods=['POST', 'OPTIONS'])
+@standard_slack_bp.route(f'/api/v2/integrations/{INTEGRATION_TYPE}/send', methods=['POST', 'OPTIONS'])
 def send_slack_message():
     """
     Send a message through Slack
@@ -250,7 +250,7 @@ def send_slack_message():
         logger.exception(f"Error sending {INTEGRATION_TYPE} message: {str(e)}")
         return error_response(f"Error sending message: {str(e)}")
 
-@slack_standard_bp.route(f'/api/v2/integrations/{INTEGRATION_TYPE}/history', methods=['GET', 'OPTIONS'])
+@standard_slack_bp.route(f'/api/v2/integrations/{INTEGRATION_TYPE}/history', methods=['GET', 'OPTIONS'])
 def get_history():
     """
     Get channel history from Slack
@@ -312,7 +312,7 @@ def get_history():
         logger.exception(f"Error getting {INTEGRATION_TYPE} history: {str(e)}")
         return error_response(f"Error getting channel history: {str(e)}")
 
-@slack_standard_bp.route(f'/api/v2/integrations/{INTEGRATION_TYPE}/test', methods=['GET', 'OPTIONS'])
+@standard_slack_bp.route(f'/api/v2/integrations/{INTEGRATION_TYPE}/test', methods=['GET', 'OPTIONS'])
 def test_integration():
     """
     Test integration API

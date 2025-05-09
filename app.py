@@ -659,7 +659,7 @@ def register_blueprints():
             from routes.integrations.standard_hubspot import hubspot_standard_bp
             from routes.integrations.standard_salesforce import salesforce_standard_bp
             from routes.integrations.standard_shopify import shopify_standard_bp
-            from routes.integrations.standard_slack import slack_standard_bp
+            from routes.integrations.standard_slack import standard_slack_bp
             from routes.integrations.standard_zendesk import zendesk_standard_bp
             
             # Register all standard blueprints
@@ -668,7 +668,7 @@ def register_blueprints():
             app.register_blueprint(hubspot_standard_bp)
             app.register_blueprint(salesforce_standard_bp)
             app.register_blueprint(shopify_standard_bp)
-            app.register_blueprint(slack_standard_bp)
+            app.register_blueprint(standard_slack_bp)
             app.register_blueprint(zendesk_standard_bp)
             
             logger.info("All standardized integration blueprints registered successfully")
