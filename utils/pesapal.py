@@ -399,26 +399,62 @@ def submit_order(order_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
             "Content-Type": "application/json"
         }
         
-        if HAVE_REQUESTS:
-            # Use requests module if available
-            response = requests.post(url, json=payload, headers=headers)
-            response.raise_for_status()
-            data = response.json()
-        else:
-            # Use fallback HTTP client
-            logger.info("Using fallback HTTP client for PesaPal order submission")
-            data = _http_request('POST', url, headers=headers, json_data=payload)
+        # Log request details (for debugging)
+        logger.info(f"Making PesaPal API request to {url}")
+        logger.info(f"Payload: {json.dumps({k: '***' if k in ['consumer_secret', 'key', 'secret', 'password'] else v for k, v in payload.items()})}")
         
-        if data.get('status') == "200" and data.get('order_tracking_id'):
-            # Return successful response with payment URL
-            return {
-                'status': 'success',
-                'order_tracking_id': data['order_tracking_id'],
-                'redirect_url': data.get('redirect_url'),
-                'message': data.get('message', 'Order submitted successfully')
-            }
-        else:
-            logger.error(f"Failed to submit order: {data.get('message')}")
+        try:
+            if HAVE_REQUESTS:
+                # Use requests module if available
+                logger.info("Using requests module for PesaPal order submission")
+                response = requests.post(url, json=payload, headers=headers)
+                response_status = response.status_code
+                response_text = response.text
+                
+                # Parse JSON response
+                try:
+                    data = response.json()
+                except Exception as json_error:
+                    logger.error(f"Error parsing JSON response: {str(json_error)}")
+                    logger.error(f"Response text: {response_text}")
+                    data = {'status': str(response_status), 'message': 'Error parsing JSON response'}
+            else:
+                # Use fallback HTTP client
+                logger.info("Using fallback HTTP client for PesaPal order submission")
+                data = _http_request('POST', url, headers=headers, json_data=payload)
+                response_status = 200 if data else 500
+                response_text = json.dumps(data) if data else "No response data"
+            
+            # Log response summary
+            logger.info(f"Response status: {response_status}")
+            logger.info(f"Response preview: {response_text[:200]}{'...' if len(response_text) > 200 else ''}")
+            
+            if data and data.get('status') == "200" and data.get('order_tracking_id'):
+                # Return successful response with payment URL
+                logger.info(f"Order submitted successfully. Tracking ID: {data.get('order_tracking_id')}")
+                result = {
+                    'status': 'success',
+                    'order_tracking_id': data['order_tracking_id'],
+                    'redirect_url': data.get('redirect_url'),
+                    'message': data.get('message', 'Order submitted successfully')
+                }
+                logger.info(f"Payment URL: {result.get('redirect_url')}")
+                return result
+            else:
+                # Log detailed error
+                error_msg = data.get('message') if data else "Unknown error"
+                error_code = data.get('status') if data else "Unknown status code"
+                logger.error(f"Failed to submit order. Status: {error_code}, Error: {error_msg}")
+                
+                # Log more details if available
+                if data and isinstance(data, dict):
+                    for key, value in data.items():
+                        if key not in ['status', 'message']:
+                            logger.error(f"  - {key}: {value}")
+                
+                return None
+        except Exception as request_error:
+            logger.error(f"Error making API request: {str(request_error)}")
             return None
     except Exception as e:
         logger.error(f"Error submitting order to PesaPal: {str(e)}")
@@ -472,6 +508,70 @@ def get_transaction_status(order_tracking_id: str) -> Optional[Dict[str, Any]]:
     except Exception as e:
         logger.error(f"Error getting transaction status from PesaPal: {str(e)}")
         return None
+
+def generate_payment_link(
+    amount: float,
+    currency: str = "USD",
+    description: str = "Payment",
+    callback_url: Optional[str] = None,
+    notification_id: Optional[str] = None,
+    reference: Optional[str] = None,
+    email: str = "",
+    first_name: str = "",
+    last_name: str = "",
+    phone_number: str = ""
+) -> Optional[Dict[str, Any]]:
+    """
+    Generate a payment link for PesaPal payment processing.
+    This is a convenience wrapper around submit_order with simplified parameters.
+    
+    Args:
+        amount: Payment amount
+        currency: Currency code (default: USD)
+        description: Payment description
+        callback_url: URL to redirect after payment (default: generated from environment)
+        notification_id: Unique notification ID (default: generated UUID)
+        reference: Order reference or ID (default: generated UUID)
+        email: Customer email address
+        first_name: Customer first name
+        last_name: Customer last name
+        phone_number: Customer phone number
+        
+    Returns:
+        dict: Response with payment URL if successful, None otherwise
+    """
+    # Validate basic parameters
+    if not amount or amount <= 0:
+        logger.error("Invalid payment amount")
+        return None
+    
+    if not email:
+        logger.warning("No email provided for payment link")
+    
+    # Create order data
+    order_data = {
+        'order_id': reference or str(uuid.uuid4()),
+        'amount': amount,
+        'currency': currency,
+        'description': description,
+        'customer_email': email,
+        'customer_name': f"{first_name} {last_name}".strip(),
+        'phone_number': phone_number,
+        'first_name': first_name,
+        'last_name': last_name
+    }
+    
+    # Add callback URL if provided
+    if callback_url:
+        order_data['callback_url'] = callback_url
+    
+    # Add notification ID if provided
+    if notification_id:
+        order_data['notification_id'] = notification_id
+    
+    # Submit the order
+    logger.info(f"Generating payment link for amount {amount} {currency}")
+    return submit_order(order_data)
 
 def process_ipn_callback(notification_type: str, order_tracking_id: str, ipn_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """
