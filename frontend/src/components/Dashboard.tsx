@@ -1,4 +1,3 @@
-
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
@@ -64,10 +63,10 @@ export const Dashboard = () => {
   const [anomalyDetected, setAnomalyDetected] = useState<boolean>(false);
   const [showAnomalyDetails, setShowAnomalyDetails] = useState<boolean>(false);
   const [refreshLoading, setRefreshLoading] = useState<boolean>(false);
-  
+
   // Create a ref for WebSocket connection
   const wsRef = useRef<WebSocket | null>(null);
-  
+
   // Subscribe to WebSocket notifications for real-time updates
   useEffect(() => {
     // Only create WebSocket if we have a user
@@ -76,11 +75,11 @@ export const Dashboard = () => {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}/ws/dashboard/${user.id}`;
         const ws = new WebSocket(wsUrl);
-        
+
         ws.onopen = () => {
           console.log('WebSocket connection established');
         };
-        
+
         ws.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data);
@@ -90,7 +89,7 @@ export const Dashboard = () => {
                 ...prevMetrics,
                 ...data.metrics
               }));
-              
+
               setLastUpdated(new Date());
             } else if (data.type === 'anomaly_alert') {
               setAnomalyDetected(true);
@@ -100,13 +99,13 @@ export const Dashboard = () => {
             console.error('Error processing WebSocket message:', e);
           }
         };
-        
+
         ws.onerror = (error) => {
           console.error('WebSocket error:', error);
         };
-        
+
         wsRef.current = ws;
-        
+
         // Close WebSocket on component unmount
         return () => {
           if (ws && ws.readyState === WebSocket.OPEN) {
@@ -123,35 +122,35 @@ export const Dashboard = () => {
   const fetchDashboardMetrics = useCallback(async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
       let url = `/api/dashboard_redesign/dashboard?timeRange=${timeRange}`;
-      
+
       // Add custom date range parameters if needed
       if (timeRange === 'custom' && customDateRange.start && customDateRange.end) {
         url += `&startDate=${customDateRange.start}&endDate=${customDateRange.end}`;
       }
-      
+
       // Add platform filters if any
       if (platformFilter.length > 0) {
         url += `&platforms=${platformFilter.join(',')}`;
       }
-      
+
       console.log("Fetching dashboard data from:", url);
-      
+
       // Add debugging info to track request progress
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-      
+
       try {
         // Display current token for debugging
         console.log("Auth token available:", !!api.defaults.headers.common['Authorization']);
-        
+
         const response = await api.get(url, {
           signal: controller.signal,
           validateStatus: () => true // Accept all status codes for debugging
         });
-        
+
         // Log response for debugging
         console.log("Dashboard API response:", {
           status: response.status,
@@ -159,12 +158,12 @@ export const Dashboard = () => {
           headers: response.headers,
           data: response.data ? 'Has data' : 'No data'
         });
-        
+
         clearTimeout(timeoutId); // Clear timeout since request completed
-        
+
         if (response.status === 200 && response.data) {
           setMetrics(response.data);
-          
+
           // Process sentiment data
           if (response.data.sentimentData) {
             setSentiment(response.data.sentimentData);
@@ -173,10 +172,10 @@ export const Dashboard = () => {
             // This is a fallback approach
             calculateSentiment(response.data);
           }
-          
+
           // Check for anomalies
           checkForAnomalies(response.data);
-          
+
           setLastUpdated(new Date());
         } else {
           throw new Error(`Invalid response from server: ${response.status} - ${response.statusText}`);
@@ -191,16 +190,15 @@ export const Dashboard = () => {
     }
   }, [timeRange, customDateRange, platformFilter]);
 
-
   // Initial data fetch
   useEffect(() => {
     fetchDashboardMetrics();
-    
+
     // Set up interval for periodic refreshes (every 5 minutes)
     const refreshInterval = setInterval(() => {
       fetchDashboardMetrics();
     }, 5 * 60 * 1000);
-    
+
     return () => clearInterval(refreshInterval);
   }, [fetchDashboardMetrics]);
 
@@ -209,21 +207,21 @@ export const Dashboard = () => {
     setRefreshLoading(true);
     fetchDashboardMetrics();
   };
-  
+
   // Function to download dashboard data as CSV
   const downloadData = () => {
     if (!metrics) return;
-    
+
     try {
       // Convert metrics to CSV format
       const csvHeader = 'Metric,Value,Trend\n';
-      
+
       let csvContent = csvHeader;
       csvContent += `Total Interactions,${metrics.totalChats},${metrics.totalChats ? '+' : '-'}\n`;
       csvContent += `Completed Tasks,${metrics.completedTasks},${metrics.completedTasks ? '+' : '-'}\n`;
       csvContent += `Pending Tasks,${metrics.pendingTasks?.length || 0},${metrics.pendingTasks?.length ? '-' : '+'}\n`;
       csvContent += `Escalated Tasks,${metrics.escalatedTasks?.length || 0},${metrics.escalatedTasks?.length ? '-' : '+'}\n`;
-      
+
       // Create and trigger download
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
@@ -238,7 +236,7 @@ export const Dashboard = () => {
       console.error('Error downloading data:', err);
     }
   };
-  
+
   // Function to calculate sentiment from interactions
   const calculateSentiment = (data: ChatMetrics) => {
     // If we don't have interactions data, create default sentiment data
@@ -246,7 +244,7 @@ export const Dashboard = () => {
     const totalInteractions = data.peopleInteracted?.length || 
                             data.totalChats || 
                             100; // Fallback value if no data is available
-    
+
     // Calculate sentiment counts based on available data
     // In a real implementation, sentiment would be analyzed from message content
     const sentimentCounts = {
@@ -254,9 +252,9 @@ export const Dashboard = () => {
       neutral: Math.max(1, Math.floor(totalInteractions * 0.3)),
       negative: Math.max(1, Math.floor(totalInteractions * 0.1))
     };
-    
+
     const total = Object.values(sentimentCounts).reduce((a, b) => a + b, 0);
-    
+
     const sentimentData = [
       {
         id: 'positive',
@@ -280,32 +278,32 @@ export const Dashboard = () => {
         percentage: (sentimentCounts.negative / total) * 100
       }
     ];
-    
+
     setSentiment(sentimentData);
   };
-  
+
   // Check for anomalies in the data
   const checkForAnomalies = (data: ChatMetrics) => {
     // This is a simplified anomaly detection
     // In a real implementation, you'd use statistical methods or ML
-    
+
     // Check if there's a significant drop in interactions
     if (data.totalChats === 0 && data.responseTime !== "0s") {
       setAnomalyDetected(true);
       return;
     }
-    
+
     // Check if there's an unusual number of escalated tasks
     if (data.escalatedTasks && data.pendingTasks) {
       const escalationRate = data.escalatedTasks.length / 
         (data.pendingTasks.length + data.escalatedTasks.length);
-      
+
       if (escalationRate > 0.3) { // If more than 30% of tasks are escalated
         setAnomalyDetected(true);
         return;
       }
     }
-    
+
     setAnomalyDetected(false);
   };
 
@@ -345,7 +343,7 @@ export const Dashboard = () => {
             Here's your overview of data and insights
           </p>
         </div>
-        
+
         <div className="flex items-center space-x-3">
           {/* Time Range Filter */}
           <div className="relative">
@@ -365,7 +363,7 @@ export const Dashboard = () => {
                 <option key={range.id} value={range.id}>{range.label}</option>
               ))}
             </select>
-            
+
             {/* Custom Date Picker */}
             <AnimatePresence>
               {showCustomDatePicker && (
@@ -410,7 +408,7 @@ export const Dashboard = () => {
               )}
             </AnimatePresence>
           </div>
-          
+
           {/* Filter Button */}
           <button
             onClick={() => setShowFilters(!showFilters)}
@@ -424,7 +422,7 @@ export const Dashboard = () => {
               </span>
             )}
           </button>
-          
+
           {/* Platform Filter Dropdown */}
           <AnimatePresence>
             {showFilters && (
@@ -473,7 +471,7 @@ export const Dashboard = () => {
               </motion.div>
             )}
           </AnimatePresence>
-          
+
           {/* Download Button */}
           <button
             onClick={downloadData}
@@ -482,7 +480,7 @@ export const Dashboard = () => {
             <Download size={16} className="mr-2" />
             Export
           </button>
-          
+
           {/* Refresh Button */}
           <button
             onClick={handleRefresh}
@@ -494,7 +492,7 @@ export const Dashboard = () => {
           </button>
         </div>
       </div>
-      
+
       {/* Last Updated and Anomaly Indicators */}
       <div className="flex justify-between items-center mb-6">
         <div className="text-sm text-gray-500">
@@ -505,7 +503,7 @@ export const Dashboard = () => {
             </span>
           )}
         </div>
-        
+
         {/* Anomaly Alert */}
         {anomalyDetected && (
           <motion.div 
@@ -524,7 +522,7 @@ export const Dashboard = () => {
           </motion.div>
         )}
       </div>
-      
+
       {/* Anomaly Details */}
       <AnimatePresence>
         {showAnomalyDetails && anomalyDetected && (
@@ -550,7 +548,7 @@ export const Dashboard = () => {
           </motion.div>
         )}
       </AnimatePresence>
-      
+
       {metrics && (
         <>
           {/* Top KPI Cards */}
@@ -564,7 +562,7 @@ export const Dashboard = () => {
               breakdown={metrics.chatsBreakdown}
               allowedPlatforms={metrics.allowedPlatforms}
             />
-            
+
             <MetricCard
               title="Completed Tasks"
               value={metrics.completedTasks}
@@ -574,7 +572,7 @@ export const Dashboard = () => {
               breakdown={metrics.completedTasksBreakdown}
               allowedPlatforms={metrics.allowedPlatforms}
             />
-            
+
             <MetricCard
               title="Pending Tasks"
               value={metrics.pendingTasks?.length || 0}
@@ -583,7 +581,7 @@ export const Dashboard = () => {
               trend={{ value: 3, isPositive: false }}
               pendingTasks={metrics.pendingTasks}
             />
-            
+
             <MetricCard
               title="Escalated Tasks"
               value={metrics.escalatedTasks?.length || 0}
@@ -593,7 +591,7 @@ export const Dashboard = () => {
               escalatedTasks={metrics.escalatedTasks}
             />
           </div>
-          
+
           {/* Sentiment Analysis Section */}
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
@@ -606,7 +604,7 @@ export const Dashboard = () => {
                 <button className="text-xs text-blue-600 hover:underline">View methodology</button>
               </div>
             </div>
-            
+
             <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {sentiment.map(item => (
@@ -650,7 +648,7 @@ export const Dashboard = () => {
                   </div>
                 ))}
               </div>
-              
+
               <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
                 <div className="flex items-start">
                   <Zap size={16} className="text-blue-600 mt-1 mr-2" />
@@ -665,7 +663,7 @@ export const Dashboard = () => {
               </div>
             </div>
           </div>
-          
+
           {/* Charts and Metrics */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <MetricCard
@@ -677,7 +675,7 @@ export const Dashboard = () => {
               breakdown={metrics.chatsBreakdown}
               interactions={metrics.peopleInteracted?.slice(0, 3)}
             />
-            
+
             <div className="md:col-span-2">
               <TopIssuesChart issues={metrics.topIssues ? metrics.topIssues.map(issue => ({
                 id: issue.id || "",
@@ -692,12 +690,12 @@ export const Dashboard = () => {
               })) : []} />
             </div>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <div className="md:col-span-2">
               <InteractionChart data={metrics.interactionsByType || []} />
             </div>
-            
+
             <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Response Time</h3>
               <div className="flex flex-col items-center justify-center h-48">
@@ -715,7 +713,7 @@ export const Dashboard = () => {
               </div>
             </div>
           </div>
-          
+
           {/* Sentiment Analysis */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             {/* Log sentiment data for debugging */}
@@ -732,7 +730,7 @@ export const Dashboard = () => {
                 </div>
               </div>
             )}
-            
+
             <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Insights</h3>
               <div className="space-y-4">
@@ -753,7 +751,7 @@ export const Dashboard = () => {
                         >
                           {showAnomalyDetails ? 'Hide details' : 'Show details'}
                         </button>
-                        
+
                         <AnimatePresence>
                           {showAnomalyDetails && (
                             <motion.div
@@ -778,7 +776,7 @@ export const Dashboard = () => {
                     </div>
                   </div>
                 )}
-                
+
                 {/* Smart insights based on data */}
                 <div className="bg-blue-50 border-l-4 border-blue-500 p-4">
                   <div className="flex">
@@ -796,7 +794,7 @@ export const Dashboard = () => {
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="bg-green-50 border-l-4 border-green-500 p-4">
                   <div className="flex">
                     <div className="flex-shrink-0">
@@ -820,7 +818,7 @@ export const Dashboard = () => {
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="mt-4">
                   <h4 className="text-sm font-medium text-gray-900 mb-2">Recommendations</h4>
                   <ul className="space-y-2 text-sm">
@@ -847,14 +845,14 @@ export const Dashboard = () => {
               </div>
             </div>
           </div>
-          
+
           {/* Conversation List */}
           <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold text-gray-900">Recent Conversations</h3>
               <a href="/conversations" className="text-sm text-blue-600 hover:underline">View all</a>
             </div>
-            
+
             <div className="overflow-hidden">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
@@ -909,7 +907,7 @@ export const Dashboard = () => {
                       </td>
                     </tr>
                   ))}
-                  
+
                   {(!metrics.conversations || metrics.conversations.length === 0) && (
                     <tr>
                       <td colSpan={4} className="px-6 py-4 text-center text-sm text-gray-500">
