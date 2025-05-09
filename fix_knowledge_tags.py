@@ -193,32 +193,10 @@ def add_direct_categories_endpoint():
         return False
 
 def fix_import_requests():
-    """Make sure requests module is imported correctly."""
-    try:
-        import importlib
-        
-        # Check if requests is installed
-        try:
-            importlib.import_module('requests')
-            logger.info("Requests module is already available.")
-            return True
-        except ImportError:
-            logger.warning("Requests module is not available.")
-            
-            # Try to install the module using pip
-            import subprocess
-            
-            logger.info("Attempting to install requests using pip...")
-            try:
-                subprocess.check_call([sys.executable, "-m", "pip", "install", "requests"])
-                logger.info("Successfully installed requests module.")
-                return True
-            except Exception as e:
-                logger.error(f"Failed to install requests: {str(e)}")
-                return False
-    except Exception as e:
-        logger.error(f"Error fixing requests import: {str(e)}")
-        return False
+    """Check if requests module is available."""
+    import requests
+    logger.info("Requests module is available")
+    return True
         
 def install_mock_requests():
     """Create a mock requests module if the real one can't be installed."""
