@@ -655,7 +655,7 @@ def register_blueprints():
         # Register standardized integration blueprints
         try:
             from routes.integrations.standard_email import standard_email_bp
-            from routes.integrations.standard_google_analytics import standard_ga_bp
+            from routes.integrations.standard_google_analytics import standard_google_analytics_bp
             from routes.integrations.standard_hubspot import standard_hubspot_bp
             from routes.integrations.standard_salesforce import salesforce_standard_bp
             from routes.integrations.standard_shopify import shopify_standard_bp
@@ -664,7 +664,7 @@ def register_blueprints():
             
             # Register all standard blueprints
             app.register_blueprint(standard_email_bp)
-            app.register_blueprint(standard_ga_bp)
+            app.register_blueprint(standard_google_analytics_bp)
             app.register_blueprint(standard_hubspot_bp)
             app.register_blueprint(salesforce_standard_bp)
             app.register_blueprint(shopify_standard_bp)

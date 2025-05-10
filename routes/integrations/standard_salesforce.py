@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 INTEGRATION_TYPE = 'salesforce'
 
 # Create blueprint with standard naming convention
-salesforce_standard_bp = Blueprint(f'standard_{INTEGRATION_TYPE}_integration', __name__)
+standard_salesforce_bp = Blueprint(f'standard_{INTEGRATION_TYPE}_bp', __name__)
 
 # Mark all routes as CSRF exempt for API endpoints
 salesforce_standard_bp.decorators = [csrf_exempt]

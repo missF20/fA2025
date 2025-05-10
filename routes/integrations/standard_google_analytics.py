@@ -16,13 +16,16 @@ from utils.exceptions import AuthenticationError, DatabaseAccessError, Validatio
 
 logger = logging.getLogger(__name__)
 
+# Integration type
+INTEGRATION_TYPE = 'google_analytics'
+
 # Create blueprint with standard naming convention
-standard_ga_bp = Blueprint('standard_google_analytics', __name__)
+standard_google_analytics_bp = Blueprint(f'standard_{INTEGRATION_TYPE}_bp', __name__)
 
 # Mark all routes as CSRF exempt for API endpoints
-standard_ga_bp.decorators = [csrf_exempt]
+standard_google_analytics_bp.decorators = [csrf_exempt]
 
-@standard_ga_bp.route('/api/v2/integrations/google_analytics/connect', methods=['POST', 'OPTIONS'])
+@standard_google_analytics_bp.route(f'/api/v2/integrations/{INTEGRATION_TYPE}/connect', methods=['POST', 'OPTIONS'])
 def connect_google_analytics():
     """
     Connect Google Analytics integration
@@ -85,7 +88,7 @@ def connect_google_analytics():
         logger.exception(f"Unexpected error in Google Analytics connect: {str(e)}")
         return error_response(f"Error connecting Google Analytics integration: {str(e)}")
 
-@standard_ga_bp.route('/api/v2/integrations/google_analytics/disconnect', methods=['POST', 'OPTIONS'])
+@standard_google_analytics_bp.route(f'/api/v2/integrations/{INTEGRATION_TYPE}/disconnect', methods=['POST', 'OPTIONS'])
 def disconnect_google_analytics():
     """
     Disconnect Google Analytics integration
@@ -128,7 +131,7 @@ def disconnect_google_analytics():
         logger.exception(f"Error disconnecting Google Analytics integration: {str(e)}")
         return error_response(f"Error disconnecting Google Analytics integration: {str(e)}")
 
-@standard_ga_bp.route('/api/v2/integrations/google_analytics/status', methods=['GET', 'OPTIONS'])
+@standard_google_analytics_bp.route(f'/api/v2/integrations/{INTEGRATION_TYPE}/status', methods=['GET', 'OPTIONS'])
 def google_analytics_status():
     """
     Get Google Analytics integration status
@@ -180,7 +183,7 @@ def google_analytics_status():
         logger.exception(f"Error getting Google Analytics integration status: {str(e)}")
         return error_response(f"Error getting Google Analytics integration status: {str(e)}")
 
-@standard_ga_bp.route('/api/v2/integrations/google_analytics/test', methods=['GET', 'OPTIONS'])
+@standard_google_analytics_bp.route(f'/api/v2/integrations/{INTEGRATION_TYPE}/test', methods=['GET', 'OPTIONS'])
 def test_google_analytics():
     """
     Test Google Analytics integration API
