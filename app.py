@@ -657,8 +657,8 @@ def register_blueprints():
             from routes.integrations.standard_email import standard_email_bp
             from routes.integrations.standard_google_analytics import standard_google_analytics_bp
             from routes.integrations.standard_hubspot import standard_hubspot_bp
-            from routes.integrations.standard_salesforce import salesforce_standard_bp
-            from routes.integrations.standard_shopify import shopify_standard_bp
+            from routes.integrations.standard_salesforce import standard_salesforce_bp
+            from routes.integrations.standard_shopify import standard_shopify_bp
             from routes.integrations.standard_slack import standard_slack_bp
             from routes.integrations.standard_zendesk import zendesk_standard_bp
             
@@ -666,8 +666,8 @@ def register_blueprints():
             app.register_blueprint(standard_email_bp)
             app.register_blueprint(standard_google_analytics_bp)
             app.register_blueprint(standard_hubspot_bp)
-            app.register_blueprint(salesforce_standard_bp)
-            app.register_blueprint(shopify_standard_bp)
+            app.register_blueprint(standard_salesforce_bp)
+            app.register_blueprint(standard_shopify_bp)
             app.register_blueprint(standard_slack_bp)
             app.register_blueprint(zendesk_standard_bp)
             
