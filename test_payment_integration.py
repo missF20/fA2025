@@ -10,7 +10,6 @@ This script tests the PesaPal payment gateway integration by:
 """
 
 import os
-import json
 import logging
 import sys
 

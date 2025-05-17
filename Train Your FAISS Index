@@ -1,0 +1,33 @@
+import os
+import pickle
+import faiss
+from langchain.vectorstores import FAISS
+from langchain.embeddings import OpenAIEmbeddings
+from langchain.text_splitter import CharacterTextSplitter
+from langchain.document_loaders import TextLoader
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# Load all text files in 'training/' folder
+docs = []
+training_folder = "training"
+for filename in os.listdir(training_folder):
+    if filename.endswith(".txt") or filename.endswith(".md"):
+        loader = TextLoader(os.path.join(training_folder, filename))
+        docs.extend(loader.load())
+
+# Split into chunks
+splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
+split_docs = splitter.split_documents(docs)
+
+# Create embeddings and FAISS index
+embedding = OpenAIEmbeddings()
+vectorstore = FAISS.from_documents(split_docs, embedding)
+
+# Save the index and store
+faiss.write_index(vectorstore.index, "training.index")
+with open("faiss.pkl", "wb") as f:
+    pickle.dump(vectorstore, f)
+
+print("Training complete. Index saved.")

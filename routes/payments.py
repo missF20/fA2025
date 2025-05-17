@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 import json
 
 from utils.pesapal import submit_order, get_transaction_status, process_ipn_callback
-from utils.auth import require_auth, get_user_from_token, require_admin
+from utils.auth import token_required, validate_csrf_token, get_user_from_token
 from utils.validation import validate_request_json
 from utils.supabase import get_supabase_client
 from models import SubscriptionStatus
@@ -56,7 +56,7 @@ def check_payment_config():
 
 
 @payments_bp.route('/initiate', methods=['POST'])
-@require_auth
+@token_required
 def initiate_payment():
     """
     Initiate payment for subscription
@@ -83,6 +83,10 @@ def initiate_payment():
       500:
         description: Server error
     """
+    csrf_error = validate_csrf_token()
+    if csrf_error:
+        return csrf_error
+    
     try:
         # Get data from request
         data = request.json
@@ -413,6 +417,11 @@ def ipn_handler():
       500:
         description: Server error
     """
+    if request.method == 'POST':
+        csrf_error = validate_csrf_token()
+        if csrf_error:
+            return csrf_error
+    
     try:
         # Extract IPN parameters
         notification_type = request.args.get('pesapal_notification_type')

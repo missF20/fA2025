@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<button onclick="sendTestEmail()">Send Email</button>
 <html lang="en" data-bs-theme="dark">
 <head>
     <meta charset="UTF-8">
@@ -183,6 +184,30 @@
         document.addEventListener('DOMContentLoaded', () => {
             feather.replace();
         });
+    <script>
+        function sendTestEmail() {
+          fetch('https://dana-ai-backend--emiliokenya.repl.co/api/send-email', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              to: 'teslasa658@gmail.com',  // <- Replace with your email
+              subject: 'Test Email from Dana AI Frontend',
+              text: 'This is a test email sent from the frontend using POST!',
+              html: '<strong>This is a test email sent from the frontend using POST!</strong>'
+            })
+          })
+          .then(res => res.json())
+          .then(data => {
+            alert('✅ Email sent successfully!');
+            console.log(data);
+          })
+          .catch(err => {
+            alert('❌ Failed to send email');
+            console.error(err);
+          });
+        }
     </script>
 </body>
 </html>

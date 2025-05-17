@@ -112,7 +112,7 @@ def post_message(message: str, blocks: Optional[List[Dict[str, Any]]] = None) ->
         }
     
     except SlackApiError as e:
-        error_message = f"Failed to post message to Slack: {e.response['error']}"
+        error_mes sage = f"Failed to post message to Slack: {e.response['error']}"
         logger.error(error_message)
         return {
             'success': False,

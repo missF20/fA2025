@@ -10,7 +10,7 @@ import hashlib
 from flask import Blueprint, request, jsonify, current_app
 from flask_wtf.csrf import validate_csrf
 from werkzeug.exceptions import Forbidden
-from utils.auth import require_admin, get_user_from_token
+from utils.auth import token_required, validate_csrf_token, get_user_from_token
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -46,8 +46,12 @@ def check_config_status():
     })
 
 @payment_config_bp.route('/save', methods=['POST'])
+@token_required
 @require_admin
 def save_config():
+    csrf_error = validate_csrf_token()
+    if csrf_error:
+        return csrf_error
     """Save payment gateway configuration"""
     try:
         # Get config data from request
@@ -121,8 +125,12 @@ def save_config():
         return jsonify({'error': f'Error saving configuration: {str(e)}'}), 500
 
 @payment_config_bp.route('/test-credentials', methods=['POST'])
+@token_required
 @require_admin
 def test_credentials():
+    csrf_error = validate_csrf_token()
+    if csrf_error:
+        return csrf_error
     """Test payment gateway credentials"""
     try:
         # Get credentials from request

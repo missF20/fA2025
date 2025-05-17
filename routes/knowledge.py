@@ -6,7 +6,7 @@ import os
 from utils.validation import validate_request_json
 from utils.supabase import get_supabase_client, refresh_supabase_client
 from utils.supabase_extension import query_sql, execute_sql
-from utils.auth import get_user_from_token, token_required
+from utils.auth import get_user_from_token, token_required, validate_csrf_token
 from utils.file_parser import FileParser
 from models import KnowledgeFileCreate, KnowledgeFileUpdate
 from datetime import datetime
@@ -234,6 +234,10 @@ def update_knowledge_file(file_id, user=None):
     if user is None:
         user = get_user_from_token(request)
     data = request.json
+    
+    csrf_error = validate_csrf_token()
+    if csrf_error:
+        return csrf_error
     
     try:
         # Check if file exists and belongs to user using direct SQL
@@ -507,6 +511,10 @@ def delete_knowledge_file_route(file_id, user=None):
     if user is None:
         user = get_user_from_token(request)
         
+    csrf_error = validate_csrf_token()
+    if csrf_error:
+        return csrf_error
+    
     try:
         # Implementation moved directly into route handler to avoid circular dependencies
         # Get database connection

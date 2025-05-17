@@ -12,6 +12,7 @@ from utils.auth_utils import get_authenticated_user
 from utils.db_access import IntegrationDAL
 from utils.response import success_response, error_response
 from utils.exceptions import AuthenticationError, DatabaseAccessError, ValidationError
+from utils.auth import token_required, validate_csrf_token, get_user_from_token
 from routes.integrations.zendesk import connect_zendesk, sync_zendesk
 
 logger = logging.getLogger(__name__)
@@ -26,6 +27,7 @@ standard_zendesk_bp = Blueprint(f'standard_{INTEGRATION_TYPE}_bp', __name__)
 standard_zendesk_bp.decorators = [csrf_exempt]
 
 @standard_zendesk_bp.route(f'/api/v2/integrations/{INTEGRATION_TYPE}/connect', methods=['POST', 'OPTIONS'])
+@token_required
 def connect_integration():
     """
     Connect integration
@@ -40,6 +42,10 @@ def connect_integration():
         response.headers.add('Access-Control-Allow-Origin', '*')
         response.headers.add('Access-Control-Allow-Credentials', 'true')
         return response
+        
+    csrf_error = validate_csrf_token()
+    if csrf_error:
+        return csrf_error
         
     try:
         # Standard authentication with development token support
@@ -98,6 +104,7 @@ def connect_integration():
         return error_response(f"Error connecting {INTEGRATION_TYPE} integration: {str(e)}")
 
 @standard_zendesk_bp.route(f'/api/v2/integrations/{INTEGRATION_TYPE}/disconnect', methods=['POST', 'OPTIONS'])
+@token_required
 def disconnect_integration():
     """
     Disconnect integration
@@ -112,6 +119,10 @@ def disconnect_integration():
         response.headers.add('Access-Control-Allow-Origin', '*')
         response.headers.add('Access-Control-Allow-Credentials', 'true')
         return response
+        
+    csrf_error = validate_csrf_token()
+    if csrf_error:
+        return csrf_error
         
     try:
         # Standard authentication with development token support
@@ -141,6 +152,7 @@ def disconnect_integration():
         return error_response(f"Error disconnecting {INTEGRATION_TYPE} integration: {str(e)}")
 
 @standard_zendesk_bp.route(f'/api/v2/integrations/{INTEGRATION_TYPE}/status', methods=['GET', 'OPTIONS'])
+@token_required
 def integration_status():
     """
     Get integration status
@@ -194,6 +206,7 @@ def integration_status():
         return error_response(f"Error getting {INTEGRATION_TYPE} integration status: {str(e)}")
 
 @standard_zendesk_bp.route(f'/api/v2/integrations/{INTEGRATION_TYPE}/sync', methods=['POST', 'OPTIONS'])
+@token_required
 def sync_integration():
     """
     Sync integration data
@@ -208,6 +221,10 @@ def sync_integration():
         response.headers.add('Access-Control-Allow-Origin', '*')
         response.headers.add('Access-Control-Allow-Credentials', 'true')
         return response
+        
+    csrf_error = validate_csrf_token()
+    if csrf_error:
+        return csrf_error
         
     try:
         # Standard authentication with development token support

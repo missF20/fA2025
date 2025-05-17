@@ -13,6 +13,7 @@ from utils.auth_utils import get_authenticated_user
 from utils.db_access import IntegrationDAL
 from utils.response import success_response, error_response
 from utils.exceptions import AuthenticationError, DatabaseAccessError, ValidationError
+from utils.auth import token_required, validate_csrf_token, get_user_from_token
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +27,7 @@ standard_google_analytics_bp = Blueprint(f'standard_{INTEGRATION_TYPE}_bp', __na
 standard_google_analytics_bp.decorators = [csrf_exempt]
 
 @standard_google_analytics_bp.route(f'/api/v2/integrations/{INTEGRATION_TYPE}/connect', methods=['POST', 'OPTIONS'])
+@token_required
 def connect_google_analytics():
     """
     Connect Google Analytics integration
@@ -40,6 +42,10 @@ def connect_google_analytics():
         response.headers.add('Access-Control-Allow-Origin', '*')
         response.headers.add('Access-Control-Allow-Credentials', 'true')
         return response
+        
+    csrf_error = validate_csrf_token()
+    if csrf_error:
+        return csrf_error
         
     try:
         # Standard authentication with development token support
@@ -89,6 +95,7 @@ def connect_google_analytics():
         return error_response(f"Error connecting Google Analytics integration: {str(e)}")
 
 @standard_google_analytics_bp.route(f'/api/v2/integrations/{INTEGRATION_TYPE}/disconnect', methods=['POST', 'OPTIONS'])
+@token_required
 def disconnect_google_analytics():
     """
     Disconnect Google Analytics integration
@@ -103,6 +110,10 @@ def disconnect_google_analytics():
         response.headers.add('Access-Control-Allow-Origin', '*')
         response.headers.add('Access-Control-Allow-Credentials', 'true')
         return response
+        
+    csrf_error = validate_csrf_token()
+    if csrf_error:
+        return csrf_error
         
     try:
         # Standard authentication with development token support
@@ -132,6 +143,7 @@ def disconnect_google_analytics():
         return error_response(f"Error disconnecting Google Analytics integration: {str(e)}")
 
 @standard_google_analytics_bp.route(f'/api/v2/integrations/{INTEGRATION_TYPE}/status', methods=['GET', 'OPTIONS'])
+@token_required
 def google_analytics_status():
     """
     Get Google Analytics integration status

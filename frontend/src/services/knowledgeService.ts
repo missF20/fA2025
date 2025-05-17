@@ -6,6 +6,7 @@ import {
   KnowledgeTag, 
   KnowledgeSearchResult 
 } from '../types';
+import { getCsrfToken } from './csrf';
 
 // Simple cache implementation
 const cache = {
@@ -68,7 +69,7 @@ export const getKnowledgeFiles = async (limit = 20, offset = 0, forceRefresh = f
     
     // Normalize file data to ensure consistent field names
     if (data.files && Array.isArray(data.files)) {
-      data.files = data.files.map(file => ({
+      data.files = data.files.map((file: KnowledgeFile) => ({
         ...file,
         // Ensure we have file_name (some endpoints return filename instead)
         file_name: file.file_name || file.filename || 'Unnamed file'
@@ -83,9 +84,7 @@ export const getKnowledgeFiles = async (limit = 20, offset = 0, forceRefresh = f
     
     return data;
   } catch (error) {
-    console.error('Error fetching knowledge files:', error);
-    // Return empty results instead of throwing - better UX
-    return { files: [], total: 0 };
+    handleApiError(error, 'Fetching knowledge files');
   }
 };
 
@@ -128,8 +127,7 @@ export const getKnowledgeFile = async (fileId: string): Promise<KnowledgeFileWit
     
     return normalizedFile;
   } catch (error) {
-    console.error('Error fetching knowledge file:', error);
-    throw error;
+    handleApiError(error, 'Fetching knowledge file details');
   }
 };
 
@@ -146,6 +144,7 @@ export const uploadKnowledgeFile = async (
   try {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('Not authenticated');
+    const csrfToken = await getCsrfToken();
 
     // Clear the knowledge files cache before uploading
     // This ensures that getKnowledgeFiles will fetch fresh data after upload
@@ -161,6 +160,8 @@ export const uploadKnowledgeFile = async (
     
     if (category) formData.append('category', category);
     if (tags && tags.length > 0) formData.append('tags', JSON.stringify(tags));
+    // Add CSRF token to formData for all endpoints that accept it
+    formData.append('csrf_token', csrfToken);
 
     // Update progress to indicate request preparation
     onProgress?.(10);
@@ -280,7 +281,8 @@ export const uploadKnowledgeFile = async (
         file_type: file.type || determineMimeType(file.name),
         content: base64Content,
         category,
-        tags: tags && tags.length > 0 ? JSON.stringify(tags) : undefined
+        tags: tags && tags.length > 0 ? JSON.stringify(tags) : undefined,
+        csrf_token: csrfToken
       };
       
       // Try standard JSON upload
@@ -303,11 +305,10 @@ export const uploadKnowledgeFile = async (
       
     } catch (error) {
       console.error('All upload methods failed:', error);
-      throw error;
+      handleApiError(error, 'Uploading knowledge file');
     }
   } catch (error) {
-    console.error('Error uploading knowledge file:', error);
-    throw error;
+    handleApiError(error, 'Uploading knowledge file');
   }
 };
 
@@ -367,6 +368,7 @@ export const deleteKnowledgeFile = async (fileId: string): Promise<boolean> => {
   try {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('Not authenticated');
+    const csrfToken = await getCsrfToken();
 
     // Clear the cache first to ensure getKnowledgeFiles retrieves fresh data
     cache.files.clear();
@@ -379,7 +381,8 @@ export const deleteKnowledgeFile = async (fileId: string): Promise<boolean> => {
       method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${session.access_token}`,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': csrfToken
       }
     });
     
@@ -401,8 +404,7 @@ export const deleteKnowledgeFile = async (fileId: string): Promise<boolean> => {
     
     return true;
   } catch (error) {
-    console.error('Error deleting knowledge file:', error);
-    throw error;
+    handleApiError(error, 'Deleting knowledge file');
   }
 };
 
@@ -413,6 +415,7 @@ export const bulkDeleteKnowledgeFiles = async (fileIds: string[]): Promise<boole
   try {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('Not authenticated');
+    const csrfToken = await getCsrfToken();
 
     // Clear the cache first to ensure getKnowledgeFiles retrieves fresh data
     cache.files.clear();
@@ -423,9 +426,10 @@ export const bulkDeleteKnowledgeFiles = async (fileIds: string[]): Promise<boole
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`
+        'Authorization': `Bearer ${session.access_token}`,
+        'X-CSRF-Token': csrfToken
       },
-      body: JSON.stringify({ file_ids: fileIds })
+      body: JSON.stringify({ file_ids: fileIds, csrf_token: csrfToken })
     });
     
     if (!response.ok) {
@@ -434,8 +438,7 @@ export const bulkDeleteKnowledgeFiles = async (fileIds: string[]): Promise<boole
     
     return true;
   } catch (error) {
-    console.error('Error bulk deleting knowledge files:', error);
-    throw error;
+    handleApiError(error, 'Bulk deleting knowledge files');
   }
 };
 
@@ -449,6 +452,7 @@ export const updateKnowledgeFile = async (
   try {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('Not authenticated');
+    const csrfToken = await getCsrfToken();
 
     // Clear the cache first to ensure getKnowledgeFiles retrieves fresh data
     cache.files.clear();
@@ -459,9 +463,10 @@ export const updateKnowledgeFile = async (
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`
+        'Authorization': `Bearer ${session.access_token}`,
+        'X-CSRF-Token': csrfToken
       },
-      body: JSON.stringify(data)
+      body: JSON.stringify({ ...data, csrf_token: csrfToken })
     });
     
     if (!response.ok) {
@@ -471,8 +476,7 @@ export const updateKnowledgeFile = async (
     const result = await response.json();
     return result.file;
   } catch (error) {
-    console.error('Error updating knowledge file:', error);
-    throw error;
+    handleApiError(error, 'Updating knowledge file');
   }
 };
 
@@ -486,6 +490,7 @@ export const bulkUpdateKnowledgeFiles = async (
   try {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('Not authenticated');
+    const csrfToken = await getCsrfToken();
 
     // Clear the cache first to ensure getKnowledgeFiles retrieves fresh data
     cache.files.clear();
@@ -496,12 +501,10 @@ export const bulkUpdateKnowledgeFiles = async (
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`
+        'Authorization': `Bearer ${session.access_token}`,
+        'X-CSRF-Token': csrfToken
       },
-      body: JSON.stringify({ 
-        file_ids: fileIds,
-        update_data: data
-      })
+      body: JSON.stringify({ file_ids: fileIds, update_data: { ...data }, csrf_token: csrfToken })
     });
     
     if (!response.ok) {
@@ -510,8 +513,7 @@ export const bulkUpdateKnowledgeFiles = async (
     
     return true;
   } catch (error) {
-    console.error('Error bulk updating knowledge files:', error);
-    throw error;
+    handleApiError(error, 'Bulk updating knowledge files');
   }
 };
 
@@ -651,7 +653,7 @@ export const searchKnowledgeBase = async (
     // Normalize search results to ensure consistent field names
     let results = [];
     if (data.results && Array.isArray(data.results)) {
-      results = data.results.map(result => ({
+      results = data.results.map((result: KnowledgeSearchResult) => ({
         ...result,
         // Ensure we have file_name (some endpoints return filename instead)
         file_name: result.file_name || result.filename || 'Unnamed file'
@@ -671,5 +673,15 @@ export const searchKnowledgeBase = async (
   } catch (error) {
     console.error('Error searching knowledge base:', error);
     return [];
+  }
+};
+
+// Utility function to handle API errors consistently
+const handleApiError = (error: any, context: string): never => {
+  console.error(`${context} - Error:`, error);
+  if (error instanceof Error) {
+    throw new Error(`${context} failed: ${error.message}`);
+  } else {
+    throw new Error(`${context} failed: An unknown error occurred.`);
   }
 };

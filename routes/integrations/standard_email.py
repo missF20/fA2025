@@ -44,6 +44,7 @@ except ImportError:
         def csrf_exempt_blueprint(bp):
             """No-op function"""
             return bp
+from utils.auth import token_required, validate_csrf_token, get_user_from_token
 from utils.auth_utils import get_authenticated_user
 from utils.db_access import IntegrationDAL
 from utils.response import success_response, error_response
@@ -73,6 +74,7 @@ except Exception as e:
     csrf.exempt(standard_email_bp)
 
 @standard_email_bp.route('/api/v2/integrations/email/connect', methods=['POST', 'OPTIONS'])
+@token_required
 def connect_email():
     """
     Connect email integration
@@ -88,10 +90,9 @@ def connect_email():
     if request.method == 'OPTIONS':
         return create_cors_preflight_response("POST, OPTIONS")
         
-    # Validate CSRF token with development mode bypass
-    csrf_result = csrf_validate_with_dev_bypass(request, "email_connect")
-    if csrf_result:
-        return csrf_result
+    csrf_error = validate_csrf_token()
+    if csrf_error:
+        return csrf_error
 
     try:
         # Standard authentication with development token support
@@ -122,6 +123,7 @@ def connect_email():
         return error_response(f"Error connecting email integration: {str(e)}")
 
 @standard_email_bp.route('/api/v2/integrations/email/disconnect', methods=['POST', 'OPTIONS'])
+@token_required
 def disconnect_email():
     """
     Disconnect email integration
@@ -136,10 +138,9 @@ def disconnect_email():
     if request.method == 'OPTIONS':
         return create_cors_preflight_response("POST, OPTIONS")
         
-    # Validate CSRF token with development mode bypass
-    csrf_result = csrf_validate_with_dev_bypass(request, "email_disconnect")
-    if csrf_result:
-        return csrf_result
+    csrf_error = validate_csrf_token()
+    if csrf_error:
+        return csrf_error
 
     try:
         # Standard authentication with development token support
@@ -164,6 +165,7 @@ def disconnect_email():
 
 
 @standard_email_bp.route('/api/v2/integrations/email/status', methods=['GET', 'OPTIONS'])
+@token_required
 def email_status():
     """
     Get email integration status

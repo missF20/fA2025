@@ -660,7 +660,7 @@ def register_blueprints():
             from routes.integrations.standard_salesforce import standard_salesforce_bp
             from routes.integrations.standard_shopify import standard_shopify_bp
             from routes.integrations.standard_slack import standard_slack_bp
-            from routes.integrations.standard_zendesk import zendesk_standard_bp
+            from routes.integrations.standard_zendesk import standard_zendesk_bp
             
             # Register all standard blueprints
             app.register_blueprint(standard_email_bp)
@@ -669,7 +669,7 @@ def register_blueprints():
             app.register_blueprint(standard_salesforce_bp)
             app.register_blueprint(standard_shopify_bp)
             app.register_blueprint(standard_slack_bp)
-            app.register_blueprint(zendesk_standard_bp)
+            app.register_blueprint(standard_zendesk_bp)
             
             logger.info("All standardized integration blueprints registered successfully")
         except ImportError as e:

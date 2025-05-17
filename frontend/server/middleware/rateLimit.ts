@@ -14,4 +14,4 @@ export const authLimiter = rateLimit({
   message: 'Too many login attempts from this IP, please try again later',
   standardHeaders: true,
   legacyHeaders: false,
-});
+});email.ts

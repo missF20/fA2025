@@ -192,7 +192,7 @@ except Exception as e:
                         logger.error("Failed to add email integration routes with V9 fallback")
                 except Exception as final_error:
                     # Use logger if already initialized above
-                    if not 'logger' in locals():
+                    if 'logger' not in locals():
                         logger = logging.getLogger(__name__)
                     logger.error(f"Error setting up email integration routes: {str(final_error)}")
 
@@ -1857,7 +1857,6 @@ def test_salesforce_direct():
 def connect_salesforce_direct():
     """Connect to Salesforce integration - direct endpoint"""
     try:
-        from routes.integrations.salesforce import connect_salesforce
         # TODO: Implement Salesforce connection logic
         return jsonify({'success': True, 'message': 'Salesforce connection endpoint placeholder'})
     except Exception as e:
@@ -2074,7 +2073,6 @@ def email_integration_connect_service_v2():
     try:
         from utils.auth import token_required_impl
         from utils.csrf import validate_csrf_token
-        import json
         
         # Check authentication manually
         auth_result = token_required_impl()
@@ -3461,7 +3459,7 @@ def toggle_email_disconnect():
 @token_required
 def direct_dashboard_metrics():
     """Direct fallback endpoint for dashboard metrics"""
-    from datetime import datetime, timedelta
+    from datetime import datetime
     
     # Debug log
     logger.info("DIRECT DASHBOARD: Direct dashboard metrics endpoint called")

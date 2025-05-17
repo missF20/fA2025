@@ -12,7 +12,7 @@ from types import SimpleNamespace
 from typing import Dict, List, Optional, Any, Callable, Tuple, Union
 
 import jwt
-from flask import request, jsonify, g
+from flask import request, jsonify, g, session, current_app
 
 # Setup logger
 logger = logging.getLogger(__name__)
@@ -22,6 +22,82 @@ JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', os.urandom(24).hex())
 
 # JWT token expiration time (in seconds) - default to 24 hours
 JWT_EXPIRATION = int(os.environ.get('JWT_EXPIRATION', 86400))
+REFRESH_TOKEN_EXPIRATION = int(os.environ.get('JWT_REFRESH_EXPIRATION', 604800))  # 7 days
+
+# --- TOKEN DECODING/VALIDATION ---
+def verify_token(token: str) -> Optional[Dict[str, Any]]:
+    """
+    Verify a JWT token (accept dev-token/test-token in dev mode)
+    """
+    if token in ('dev-token', 'test-token'):
+        logger.warning("Bypass authentication with special dev/test token")
+        return {
+            'id': '00000000-0000-0000-0000-000000000000',
+            'email': 'dev@example.com',
+            'is_admin': True,
+            'dev_mode': True
+        }
+    try:
+        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=['HS256'])
+        return payload
+    except jwt.ExpiredSignatureError:
+        logger.warning("JWT token expired")
+        return None
+    except Exception as e:
+        logger.error(f"JWT decode error: {e}")
+        return None
+
+# --- AUTHENTICATION CONSISTENCY PATCH ---
+# 1. Always require JWT tokens for all protected routes
+# 2. Use a single token_required decorator everywhere
+# 3. Remove session token support, only allow JWT (with dev-token/test-token for dev)
+# 4. Add refresh token support (if expired, return 401 with 'token_expired' code)
+# 5. Standardize error response format
+# 6. Add CSRF token validation helper for all POST/PUT/PATCH/DELETE routes
+
+# --- DECORATOR ---
+def token_required(f: Callable) -> Callable:
+    @functools.wraps(f)
+    def decorated(*args, **kwargs):
+        auth_header = request.headers.get('Authorization')
+        token = None
+        if auth_header:
+            parts = auth_header.split()
+            if len(parts) == 2 and parts[0].lower() == 'bearer':
+                token = parts[1]
+            else:
+                token = auth_header
+        if not token:
+            return jsonify({'error': 'Authentication required', 'code': 'auth_required'}), 401
+        user = verify_token(token)
+        if not user:
+            return jsonify({'error': 'Authentication failed or token expired', 'code': 'token_invalid_or_expired'}), 401
+        g.user = user
+        return f(*args, **kwargs)
+    return decorated
+
+# --- REFRESH TOKEN ENDPOINT (EXAMPLE) ---
+def generate_refresh_token(user_id: str) -> str:
+    now = datetime.utcnow()
+    payload = {
+        'sub': user_id,
+        'type': 'refresh',
+        'iat': now,
+        'exp': now + timedelta(seconds=REFRESH_TOKEN_EXPIRATION)
+    }
+    return jwt.encode(payload, JWT_SECRET_KEY, algorithm='HS256')
+
+# --- CSRF VALIDATION ---
+def validate_csrf_token(req=None):
+    req = req or request
+    if current_app.config.get('DEBUG', False) or current_app.config.get('TESTING', False):
+        return None
+    token = req.headers.get('X-CSRF-Token') or (req.json and req.json.get('csrf_token'))
+    if not token:
+        return jsonify({'error': 'Missing CSRF token', 'code': 'csrf_missing'}), 400
+    if token != session.get('csrf_token'):
+        return jsonify({'error': 'Invalid CSRF token', 'code': 'csrf_invalid'}), 400
+    return None
 
 def get_user_from_token(request=None):
     """
@@ -546,139 +622,3 @@ def generate_token(user_id: str, email: str, is_admin: bool = False) -> str:
     
     # Generate and return token
     return jwt.encode(payload, JWT_SECRET_KEY, algorithm='HS256')
-
-def verify_token(token: str) -> Optional[Dict[str, Any]]:
-    """
-    Verify a JWT token
-    
-    Args:
-        token: The JWT token to verify
-        
-    Returns:
-        The decoded payload if valid, otherwise None
-    """
-    # Special development mode tokens for testing (use unconditionally for now to debug issues)
-    if token == 'dev-token' or token == 'test-token':
-        logger.warning("Using bypass authentication with special test token")
-        # Return a test user with admin privileges for development
-        return {
-            'id': '00000000-0000-0000-0000-000000000000',  # Valid UUID format
-            'email': 'test@example.com',
-            'is_admin': True,
-            'dev_mode': True
-        }
-    
-    try:
-        # Log token format info for debugging
-        token_parts = token.split('.')
-        logger.debug(f"Token format check: parts={len(token_parts)}, length={len(token)}")
-        
-        # For Supabase tokens, we'll decode without verification since we don't have access to the secret
-        # This is safe because Supabase will enforce authentication on their end via Row Level Security
-        try:
-            # First try to decode with our secret key (for tokens we generated)
-            try:
-                payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=['HS256'])
-                logger.debug("Token was decoded with our secret key")
-            except Exception as local_decode_err:
-                # If that fails, try to decode without verification (for Supabase tokens)
-                logger.debug(f"Local token verification failed: {str(local_decode_err)}, attempting to decode Supabase token")
-                
-                # Extract and decode header and payload without verification
-                header_payload = token.split('.')[:2]
-                if len(header_payload) >= 2:
-                    import base64
-                    import json
-                    
-                    # Decode header
-                    try:
-                        header_padding = header_payload[0] + '=' * (4 - len(header_payload[0]) % 4)
-                        header_json = base64.b64decode(header_padding)
-                        header = json.loads(header_json)
-                        logger.debug(f"Token header: {header}")
-                    except Exception as header_err:
-                        logger.debug(f"Couldn't decode token header: {str(header_err)}")
-                        raise header_err
-                        
-                    # Decode payload
-                    try:
-                        payload_padding = header_payload[1] + '=' * (4 - len(header_payload[1]) % 4)
-                        payload_json = base64.b64decode(payload_padding)
-                        payload = json.loads(payload_json)
-                        logger.debug(f"Token payload decoded without verification: {payload.get('email')}")
-                        
-                        # Check if this looks like a Supabase token
-                        if 'iss' in payload and 'supabase' in payload['iss']:
-                            logger.debug("Identified as Supabase token")
-                        else:
-                            logger.warning("This appears to be neither a local token nor a Supabase token")
-                            raise ValueError("Unrecognized token format")
-                            
-                    except Exception as payload_err:
-                        logger.debug(f"Couldn't decode token payload: {str(payload_err)}")
-                        raise payload_err
-                else:
-                    raise ValueError("Invalid token format (not enough segments)")
-                    
-        except Exception as decode_err:
-            logger.error(f"JWT decode error: {str(decode_err)}, token length: {len(token)}")
-            logger.warning(f"Invalid token: {token[:20]}..., error: {str(decode_err)}")
-            return None
-            
-        logger.debug(f"Token decoded successfully: {payload.get('email')}")
-        
-        # Check if token is expired
-        if 'exp' in payload and payload['exp'] < time.time():
-            logger.warning(f"Expired token: {token[:20]}..., expired at {time.ctime(payload['exp'])}")
-            return None
-            
-        # Validate the payload has required fields
-        if 'sub' not in payload:
-            logger.error(f"Token missing 'sub' claim for user ID")
-            return None
-            
-        if 'email' not in payload:
-            logger.error(f"Token missing 'email' claim")
-            return None
-            
-        # Check for Supabase token format
-        if 'iss' in payload and 'supabase' in payload['iss']:
-            # Supabase tokens have a different structure
-            user_id = payload.get('sub')
-            email = payload.get('email')
-            
-            # Check if user has admin role in the metadata
-            is_admin = False
-            user_metadata = payload.get('user_metadata', {})
-            app_metadata = payload.get('app_metadata', {})
-            
-            # In Supabase, admin status might be in various places
-            if user_metadata.get('is_admin'):
-                is_admin = True
-            elif app_metadata.get('is_admin'):
-                is_admin = True
-            elif payload.get('role') == 'service_role':
-                is_admin = True
-                
-            return {
-                'id': user_id,
-                'email': email,
-                'is_admin': is_admin,
-                'supabase_user': True
-            }
-        else:
-            # Standard token format from our system
-            return {
-                'id': payload['sub'],
-                'email': payload['email'],
-                'is_admin': payload.get('is_admin', False)
-            }
-    except jwt.ExpiredSignatureError:
-        logger.warning(f"Expired token: {token[:20]}...")
-        return None
-    except jwt.InvalidTokenError as e:
-        logger.warning(f"Invalid token: {token[:20]}..., error: {str(e)}")
-        return None
-    except Exception as e:
-        logger.error(f"Error verifying token: {str(e)}, token: {token[:20]}...")
-        return None

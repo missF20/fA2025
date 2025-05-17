@@ -9,6 +9,7 @@ from typing import Dict, Any, List, Optional, Union
 
 from utils.integration_service import IntegrationService
 from models import IntegrationType, IntegrationStatus
+from utils.auth import token_required, validate_csrf_token, get_user_from_token
 
 # Set up logger
 logger = logging.getLogger(__name__)
@@ -54,6 +55,10 @@ def create_integration_for_user(user_id: str, integration_type: str,
     Returns:
         Created integration if successful, None otherwise
     """
+    csrf_error = validate_csrf_token()
+    if csrf_error:
+        return csrf_error
+    
     integration = IntegrationService.create_integration(user_id, integration_type, config, status)
     return integration
 
@@ -71,6 +76,10 @@ def update_integration_for_user(user_id: str, integration_type: str,
     Returns:
         Updated integration if successful, None otherwise
     """
+    csrf_error = validate_csrf_token()
+    if csrf_error:
+        return csrf_error
+    
     integration = IntegrationService.update_integration(user_id, integration_type, config, status)
     return integration
 
@@ -85,6 +94,10 @@ def delete_integration_for_user(user_id: str, integration_type: str) -> bool:
     Returns:
         True if successful, False otherwise
     """
+    csrf_error = validate_csrf_token()
+    if csrf_error:
+        return csrf_error
+    
     success = IntegrationService.delete_integration(user_id, integration_type)
     return success
 
@@ -100,6 +113,10 @@ def update_integration_status_for_user(user_id: str, integration_type: str, stat
     Returns:
         True if successful, False otherwise
     """
+    csrf_error = validate_csrf_token()
+    if csrf_error:
+        return csrf_error
+    
     success = IntegrationService.update_integration_status(user_id, integration_type, status)
     return success
 

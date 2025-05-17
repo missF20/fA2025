@@ -12,6 +12,7 @@ from utils.auth_utils import get_authenticated_user
 from utils.db_access import IntegrationDAL
 from utils.response import success_response, error_response
 from utils.exceptions import AuthenticationError, DatabaseAccessError, ValidationError
+from utils.auth import token_required, validate_csrf_token, get_user_from_token
 from routes.integrations.salesforce import connect_salesforce, sync_salesforce
 
 logger = logging.getLogger(__name__)
@@ -26,12 +27,18 @@ standard_salesforce_bp = Blueprint(f'standard_{INTEGRATION_TYPE}_bp', __name__)
 standard_salesforce_bp.decorators = [csrf_exempt]
 
 @standard_salesforce_bp.route(f'/api/v2/integrations/{INTEGRATION_TYPE}/connect', methods=['POST', 'OPTIONS'])
+@token_required
 def connect_integration():
     """
     Connect integration
     
     This endpoint follows the standard approach for all integrations.
     """
+    # CSRF validation
+    csrf_error = validate_csrf_token()
+    if csrf_error:
+        return csrf_error
+
     # Standard CORS handling for OPTIONS requests
     if request.method == 'OPTIONS':
         response = jsonify({"status": "success"})
@@ -94,12 +101,18 @@ def connect_integration():
         return error_response(f"Error connecting {INTEGRATION_TYPE} integration: {str(e)}")
 
 @standard_salesforce_bp.route(f'/api/v2/integrations/{INTEGRATION_TYPE}/disconnect', methods=['POST', 'OPTIONS'])
+@token_required
 def disconnect_integration():
     """
     Disconnect integration
     
     This endpoint follows the standard approach for all integrations.
     """
+    # CSRF validation
+    csrf_error = validate_csrf_token()
+    if csrf_error:
+        return csrf_error
+
     # Standard CORS handling for OPTIONS requests
     if request.method == 'OPTIONS':
         response = jsonify({"status": "success"})
@@ -188,12 +201,18 @@ def integration_status():
         return error_response(f"Error getting {INTEGRATION_TYPE} integration status: {str(e)}")
 
 @standard_salesforce_bp.route(f'/api/v2/integrations/{INTEGRATION_TYPE}/sync', methods=['POST', 'OPTIONS'])
+@token_required
 def sync_integration():
     """
     Sync integration data
     
     This endpoint follows the standard approach for all integrations.
     """
+    # CSRF validation
+    csrf_error = validate_csrf_token()
+    if csrf_error:
+        return csrf_error
+
     # Standard CORS handling for OPTIONS requests
     if request.method == 'OPTIONS':
         response = jsonify({"status": "success"})

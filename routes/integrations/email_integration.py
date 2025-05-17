@@ -64,6 +64,7 @@ from utils.integration_utils import (
     handle_integration_disconnect,
     csrf_validate_with_dev_bypass
 )
+from utils.auth import token_required
 
 # Create blueprint with standard naming convention
 email_bp = Blueprint(f'{INTEGRATION_TYPE}_integration', __name__)
@@ -78,6 +79,7 @@ except Exception as e:
 
 # Standard route pattern: /api/v2/integrations/{integration_type}/{action}
 @email_bp.route(f'/api/v2/integrations/{INTEGRATION_TYPE}/connect', methods=['POST', 'OPTIONS'])
+@token_required
 def connect():
     """
     Connect email integration
@@ -93,10 +95,9 @@ def connect():
     if request.method == 'OPTIONS':
         return create_cors_preflight_response("POST, OPTIONS")
         
-    # Validate CSRF token with development mode bypass
-    csrf_result = csrf_validate_with_dev_bypass(request, f"{INTEGRATION_TYPE}_connect")
-    if csrf_result:
-        return csrf_result
+    csrf_error = validate_csrf_token()
+    if csrf_error:
+        return csrf_error
 
     try:
         # Standard authentication with development token support
@@ -127,6 +128,7 @@ def connect():
         return error_response(f"Error connecting {INTEGRATION_TYPE} integration: {str(e)}")
 
 @email_bp.route(f'/api/v2/integrations/{INTEGRATION_TYPE}/disconnect', methods=['POST', 'OPTIONS'])
+@token_required
 def disconnect():
     """
     Disconnect email integration
@@ -141,10 +143,9 @@ def disconnect():
     if request.method == 'OPTIONS':
         return create_cors_preflight_response("POST, OPTIONS")
         
-    # Validate CSRF token with development mode bypass
-    csrf_result = csrf_validate_with_dev_bypass(request, f"{INTEGRATION_TYPE}_disconnect")
-    if csrf_result:
-        return csrf_result
+    csrf_error = validate_csrf_token()
+    if csrf_error:
+        return csrf_error
 
     try:
         # Standard authentication with development token support
